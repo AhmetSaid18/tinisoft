@@ -21,6 +21,7 @@ public class ApplicationDbContext : MultiTenantDbContext
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<Plan> Plans => Set<Plan>();
     public DbSet<Domain> Domains => Set<Domain>();
+    public DbSet<Template> Templates => Set<Template>();
     public DbSet<User> Users => Set<User>();
     public DbSet<UserTenantRole> UserTenantRoles => Set<UserTenantRole>();
     public DbSet<Product> Products => Set<Product>();
@@ -47,6 +48,19 @@ public class ApplicationDbContext : MultiTenantDbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        // Tüm Guid property'ler için PostgreSQL UUID type'ını kullan
+        // Bu, güvenlik için önemli - sequential ID'ler yerine UUID kullanıyoruz
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            foreach (var property in entityType.GetProperties())
+            {
+                if (property.ClrType == typeof(Guid) || property.ClrType == typeof(Guid?))
+                {
+                    property.SetColumnType("uuid");
+                }
+            }
+        }
+
         // Global query filter for tenant entities
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
         {
@@ -69,6 +83,11 @@ public class ApplicationDbContext : MultiTenantDbContext
 
         modelBuilder.Entity<Domain>()
             .HasIndex(d => d.Host)
+            .IsUnique();
+
+        // Template indexes
+        modelBuilder.Entity<Template>()
+            .HasIndex(t => new { t.Code, t.Version })
             .IsUnique();
 
         // Relationships
@@ -192,6 +211,48 @@ public class ApplicationDbContext : MultiTenantDbContext
 
         modelBuilder.Entity<ProductOption>()
             .HasIndex(po => new { po.ProductId, po.Position });
+
+        // Performance Indexes - Kritik sorgular için
+        // Product list queries için
+        modelBuilder.Entity<Product>()
+            .HasIndex(p => new { p.TenantId, p.IsActive, p.CreatedAt })
+            .HasDatabaseName("IX_Product_TenantId_IsActive_CreatedAt");
+
+        // Product search için (Title, SKU, Description)
+        modelBuilder.Entity<Product>()
+            .HasIndex(p => new { p.TenantId, p.Title })
+            .HasDatabaseName("IX_Product_TenantId_Title");
+
+        modelBuilder.Entity<Product>()
+            .HasIndex(p => new { p.TenantId, p.SKU })
+            .HasFilter("[SKU] IS NOT NULL")
+            .HasDatabaseName("IX_Product_TenantId_SKU");
+
+        // Product price sorting için
+        modelBuilder.Entity<Product>()
+            .HasIndex(p => new { p.TenantId, p.Price })
+            .HasDatabaseName("IX_Product_TenantId_Price");
+
+        // Category queries için
+        modelBuilder.Entity<Category>()
+            .HasIndex(c => new { c.TenantId, c.IsActive, c.ParentId })
+            .HasDatabaseName("IX_Category_TenantId_IsActive_ParentId");
+
+        // ProductCategory join için
+        modelBuilder.Entity<ProductCategory>()
+            .HasIndex(pc => new { pc.CategoryId, pc.ProductId })
+            .IsUnique()
+            .HasDatabaseName("IX_ProductCategory_CategoryId_ProductId");
+
+        // Order queries için
+        modelBuilder.Entity<Order>()
+            .HasIndex(o => new { o.TenantId, o.Status, o.CreatedAt })
+            .HasDatabaseName("IX_Order_TenantId_Status_CreatedAt");
+
+        // Template queries için
+        modelBuilder.Entity<Template>()
+            .HasIndex(t => new { t.Code, t.IsActive })
+            .HasDatabaseName("IX_Template_Code_IsActive");
     }
 }
 

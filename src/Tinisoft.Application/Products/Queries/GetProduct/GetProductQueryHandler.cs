@@ -40,7 +40,10 @@ public class GetProductQueryHandler : IRequestHandler<GetProductQuery, GetProduc
             return JsonSerializer.Deserialize<GetProductResponse>(cachedResult)!;
         }
 
+        // AsNoTracking() - Read-only query için performans
+        // AsSplitQuery() - N+1 problem'ini önlemek için
         var product = await _dbContext.Products
+            .AsNoTracking()
             .Include(p => p.ProductCategories)
                 .ThenInclude(pc => pc.Category)
             .Include(p => p.Variants)

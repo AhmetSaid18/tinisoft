@@ -15,8 +15,27 @@ public class UpdateProductCommand : IRequest<UpdateProductResponse>
     public bool? TrackInventory { get; set; }
     public int? InventoryQuantity { get; set; }
     public bool? IsActive { get; set; }
+    
+    // SEO - React Helmet için meta tag'leri
     public string? MetaTitle { get; set; }
     public string? MetaDescription { get; set; }
+    public string? MetaKeywords { get; set; }
+    
+    // Open Graph
+    public string? OgTitle { get; set; }
+    public string? OgDescription { get; set; }
+    public string? OgImage { get; set; }
+    public string? OgType { get; set; }
+    
+    // Twitter Card
+    public string? TwitterCard { get; set; }
+    public string? TwitterTitle { get; set; }
+    public string? TwitterDescription { get; set; }
+    public string? TwitterImage { get; set; }
+    
+    // Canonical URL
+    public string? CanonicalUrl { get; set; }
+    
     public string? FeaturedImageUrl { get; set; }
     public List<string>? ImageUrls { get; set; }
 }

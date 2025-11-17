@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Products.Services;
 using Tinisoft.Shared.Events;
 using Tinisoft.Shared.Contracts;
 using Finbuckle.MultiTenant;
@@ -12,17 +13,20 @@ public class DeleteProductCommandHandler : IRequestHandler<DeleteProductCommand,
     private readonly ApplicationDbContext _dbContext;
     private readonly IEventBus _eventBus;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
+    private readonly IMeilisearchService _meilisearchService;
     private readonly ILogger<DeleteProductCommandHandler> _logger;
 
     public DeleteProductCommandHandler(
         ApplicationDbContext dbContext,
         IEventBus eventBus,
         IMultiTenantContextAccessor tenantAccessor,
+        IMeilisearchService meilisearchService,
         ILogger<DeleteProductCommandHandler> logger)
     {
         _dbContext = dbContext;
         _eventBus = eventBus;
         _tenantAccessor = tenantAccessor;
+        _meilisearchService = meilisearchService;
         _logger = logger;
     }
 
@@ -38,8 +42,22 @@ public class DeleteProductCommandHandler : IRequestHandler<DeleteProductCommand,
             throw new KeyNotFoundException($"Ürün bulunamadı: {request.ProductId}");
         }
 
+        var productId = product.Id;
         _dbContext.Products.Remove(product);
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        // Meilisearch delete (background)
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _meilisearchService.DeleteProductAsync(productId, tenantId, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Meilisearch delete failed for product: {ProductId}", productId);
+            }
+        }, cancellationToken);
 
         // Event publish
         await _eventBus.PublishAsync(new ProductDeletedEvent

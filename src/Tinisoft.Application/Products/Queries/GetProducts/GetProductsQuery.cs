@@ -11,6 +11,13 @@ public class GetProductsQuery : IRequest<GetProductsResponse>
     public bool? IsActive { get; set; }
     public string? SortBy { get; set; } // title, price, createdAt
     public string? SortOrder { get; set; } // asc, desc
+
+    // Validation - Max page size limit (performans için)
+    public int GetValidatedPageSize()
+    {
+        // Maksimum 100 ürün per sayfa (performans için)
+        return PageSize > 100 ? 100 : (PageSize < 1 ? 20 : PageSize);
+    }
 }
 
 public class GetProductsResponse

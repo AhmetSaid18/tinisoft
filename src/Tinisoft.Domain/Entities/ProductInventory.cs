@@ -13,6 +13,13 @@ public class ProductInventory : BaseEntity, ITenantEntity
     public Guid WarehouseId { get; set; }
     public Warehouse? Warehouse { get; set; }
     
+    // Detaylı lokasyon (yeni)
+    public Guid? WarehouseLocationId { get; set; }
+    public WarehouseLocation? WarehouseLocation { get; set; }
+    
+    // Eski Location field'ı (backward compatibility için tutuyoruz)
+    public string? Location { get; set; } // Deprecated: WarehouseLocation kullanılmalı
+    
     public int Quantity { get; set; } = 0; // Mevcut stok
     public int ReservedQuantity { get; set; } = 0; // Rezerve edilmiş (siparişte ama henüz gönderilmemiş)
     public int AvailableQuantity => Quantity - ReservedQuantity; // Kullanılabilir stok
@@ -21,7 +28,14 @@ public class ProductInventory : BaseEntity, ITenantEntity
     public int? MaxStockLevel { get; set; } // Maksimum stok seviyesi
     
     public decimal? Cost { get; set; } // Bu depodaki ürünün maliyeti
-    public string? Location { get; set; } // Depo içi konum (A-1-2, Raf 5, etc.)
+    
+    // FIFO/LIFO için
+    public string? InventoryMethod { get; set; } = "FIFO"; // FIFO, LIFO, FEFO (First Expiry First Out)
+    
+    // Lot/Batch takibi
+    public string? LotNumber { get; set; } // Lot numarası
+    public DateTime? ExpiryDate { get; set; } // Son kullanma tarihi (varsa)
+    public DateTime? ManufactureDate { get; set; } // Üretim tarihi (varsa)
     
     public bool IsActive { get; set; } = true;
 }

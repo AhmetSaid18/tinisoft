@@ -4,6 +4,7 @@ using Tinisoft.Infrastructure.Persistence;
 using Finbuckle.MultiTenant;
 using Tinisoft.Application.Marketplace.Services;
 using Tinisoft.Domain.Entities;
+using Tinisoft.Application.Common.Exceptions;
 
 namespace Tinisoft.Application.Marketplace.Commands.SyncProducts;
 
@@ -38,7 +39,13 @@ public class SyncProductsCommandHandler : IRequestHandler<SyncProductsCommand, S
 
         if (integration == null)
         {
-            throw new InvalidOperationException($"{request.Marketplace} entegrasyonu bulunamadı veya aktif değil");
+            throw new MarketplaceIntegrationNotFoundException(request.Marketplace);
+        }
+
+        // API key kontrolü
+        if (string.IsNullOrWhiteSpace(integration.ApiKey))
+        {
+            throw new ApiKeyMissingException(request.Marketplace);
         }
 
         var service = _marketplaceServiceFactory.GetService(request.Marketplace);

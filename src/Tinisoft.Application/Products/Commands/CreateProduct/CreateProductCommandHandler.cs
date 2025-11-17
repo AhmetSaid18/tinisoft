@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Tinisoft.Domain.Entities;
 using Tinisoft.Infrastructure.Persistence;
 using Tinisoft.Infrastructure.Services;
+using Tinisoft.Application.Products.Services;
 using Tinisoft.Shared.Events;
 using Tinisoft.Shared.Contracts;
 using Finbuckle.MultiTenant;
@@ -16,6 +17,7 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
     private readonly IEventBus _eventBus;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly IImageProcessingService _imageProcessingService;
+    private readonly IMeilisearchService _meilisearchService;
     private readonly ILogger<CreateProductCommandHandler> _logger;
 
     public CreateProductCommandHandler(
@@ -23,12 +25,14 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
         IEventBus eventBus,
         IMultiTenantContextAccessor tenantAccessor,
         IImageProcessingService imageProcessingService,
+        IMeilisearchService meilisearchService,
         ILogger<CreateProductCommandHandler> logger)
     {
         _dbContext = dbContext;
         _eventBus = eventBus;
         _tenantAccessor = tenantAccessor;
         _imageProcessingService = imageProcessingService;
+        _meilisearchService = meilisearchService;
         _logger = logger;
     }
 
@@ -78,6 +82,15 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
             MetaTitle = request.MetaTitle,
             MetaDescription = request.MetaDescription,
             MetaKeywords = request.MetaKeywords,
+            OgTitle = request.OgTitle,
+            OgDescription = request.OgDescription,
+            OgImage = request.OgImage,
+            OgType = request.OgType,
+            TwitterCard = request.TwitterCard,
+            TwitterTitle = request.TwitterTitle,
+            TwitterDescription = request.TwitterDescription,
+            TwitterImage = request.TwitterImage,
+            CanonicalUrl = request.CanonicalUrl,
             Vendor = request.Vendor,
             ProductType = request.ProductType,
             Tags = request.Tags,
@@ -252,7 +265,18 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        // Cache will be invalidated by expiration or can be manually cleared
+        // Meilisearch index (background - await etme)
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _meilisearchService.IndexProductAsync(product, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Meilisearch indexing failed for product: {ProductId}", product.Id);
+            }
+        }, cancellationToken);
 
         // Event publish
         await _eventBus.PublishAsync(new ProductCreatedEvent

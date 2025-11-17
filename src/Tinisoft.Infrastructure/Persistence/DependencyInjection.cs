@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Tinisoft.Infrastructure.Persistence;
 using Finbuckle.MultiTenant;
 using Finbuckle.MultiTenant.Stores;
@@ -26,8 +27,35 @@ public static class DependencyInjection
         // Application DbContext
         services.AddDbContext<ApplicationDbContext>(options =>
         {
-            options.UseNpgsql(connectionString);
+            options.UseNpgsql(connectionString, npgsqlOptions =>
+            {
+                // PostgreSQL UUID extension'ını kullan
+                npgsqlOptions.MigrationsAssembly("Tinisoft.Infrastructure");
+                
+                // Connection Pooling - CRITICAL: Cold start için yeterli pool size
+                // 1000 tenant aynı anda istek atarsa yeterli connection olmalı
+                // PostgreSQL default: min=0, max=100
+                // Connection string'de: MinPoolSize=50;MaxPoolSize=200;Connection Lifetime=0;
+                // (appsettings.json'da connection string'e eklenecek)
+                
+                npgsqlOptions.MaxBatchSize(100); // Batch size
+                npgsqlOptions.CommandTimeout(30); // 30 saniye timeout
+                
+                // Enable retry on failure (transient errors için)
+                npgsqlOptions.EnableRetryOnFailure(
+                    maxRetryCount: 3,
+                    maxRetryDelay: TimeSpan.FromSeconds(5),
+                    errorCodesToAdd: null);
+            });
+            
+            // Query Tracking - Read-only query'ler için NoTracking (performans)
             options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
+            
+            // Query Splitting - N+1 problem'ini önlemek için
+            options.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
+            
+            // Enable sensitive data logging sadece development'ta
+            // Not: Environment kontrolü için IWebHostEnvironment kullanılabilir
         });
 
         services.AddScoped<ApplicationDbContext>();

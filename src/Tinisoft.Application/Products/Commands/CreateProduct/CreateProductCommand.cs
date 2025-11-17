@@ -45,10 +45,25 @@ public class CreateProductCommand : IRequest<CreateProductResponse>
     public bool IsTaxable { get; set; } = true;
     public string? TaxCode { get; set; }
     
-    // SEO
-    public string? MetaTitle { get; set; }
-    public string? MetaDescription { get; set; }
-    public string? MetaKeywords { get; set; }
+    // SEO - React Helmet için meta tag'leri
+    public string? MetaTitle { get; set; } // <title> tag'i için
+    public string? MetaDescription { get; set; } // <meta name="description">
+    public string? MetaKeywords { get; set; } // <meta name="keywords">
+    
+    // Open Graph (Facebook, LinkedIn paylaşımları için)
+    public string? OgTitle { get; set; } // <meta property="og:title">
+    public string? OgDescription { get; set; } // <meta property="og:description">
+    public string? OgImage { get; set; } // <meta property="og:image">
+    public string? OgType { get; set; } = "product"; // <meta property="og:type">
+    
+    // Twitter Card
+    public string? TwitterCard { get; set; } = "summary_large_image"; // <meta name="twitter:card">
+    public string? TwitterTitle { get; set; } // <meta name="twitter:title">
+    public string? TwitterDescription { get; set; } // <meta name="twitter:description">
+    public string? TwitterImage { get; set; } // <meta name="twitter:image">
+    
+    // Canonical URL (SEO için)
+    public string? CanonicalUrl { get; set; } // <link rel="canonical">
     
     // Vendor/Type
     public string? Vendor { get; set; }

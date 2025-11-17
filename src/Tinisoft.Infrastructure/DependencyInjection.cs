@@ -62,6 +62,15 @@ public static class DependencyInjection
 
         // Application services
         services.AddScoped<IAuditLogService, AuditLogService>();
+        services.AddScoped<Tinisoft.Application.Common.Interfaces.ICacheService, CacheService>();
+        services.AddScoped<Tinisoft.Application.Products.Services.IMeilisearchService, Tinisoft.Application.Products.Services.MeilisearchService>();
+        
+        // Circuit Breaker - Database koruması için
+        services.AddSingleton<CircuitBreakerService>();
+
+        // Authentication services
+        services.AddScoped<IJwtTokenService, JwtTokenService>();
+        services.AddScoped<IPasswordHasher, PasswordHasher>();
 
         // Event Bus - RabbitMQ veya InMemory
         var useRabbitMQ = !string.IsNullOrEmpty(configuration["RabbitMQ:HostName"]);

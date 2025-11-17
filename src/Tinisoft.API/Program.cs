@@ -20,6 +20,14 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Response Compression (Performans için)
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<Microsoft.AspNetCore.ResponseCompression.BrotliCompressionProvider>();
+    options.Providers.Add<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProvider>();
+});
+
 // CORS ayarları - dışarıdan istekler için
 builder.Services.AddCors(options =>
 {
@@ -52,9 +60,15 @@ if (app.Environment.IsDevelopment())
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
+// Response Compression
+app.UseResponseCompression();
+
 app.UseHttpsRedirection();
 
 app.UseCors();
+
+// JWT Authentication Middleware (kendi middleware'imiz)
+app.UseMiddleware<JwtAuthenticationMiddleware>();
 
 app.UseAuthentication();
 app.UseAuthorization();
