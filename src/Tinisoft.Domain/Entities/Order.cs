@@ -16,6 +16,8 @@ public class Order : BaseEntity, ITenantEntity
     public string? CustomerPhone { get; set; }
     public string? CustomerFirstName { get; set; }
     public string? CustomerLastName { get; set; }
+    public Guid? CustomerId { get; set; }
+    public Customer? Customer { get; set; }
     
     // Shipping Address
     public string? ShippingAddressLine1 { get; set; }
@@ -34,10 +36,24 @@ public class Order : BaseEntity, ITenantEntity
     public string? PaymentStatus { get; set; } // Pending, Paid, Failed, Refunded
     public DateTime? PaidAt { get; set; }
     
+    // Reseller (B2B orders)
+    public Guid? ResellerId { get; set; }
+    public Reseller? Reseller { get; set; }
+    public bool IsResellerOrder { get; set; } = false; // Bayi siparişi mi?
+    
+    // Coupon
+    public string? CouponCode { get; set; } // Kullanılan kupon kodu
+    public Guid? CouponId { get; set; }
+    public Coupon? Coupon { get; set; }
+    
     // Shipping
     public string? ShippingMethod { get; set; }
     public string? TrackingNumber { get; set; }
     public DateTime? ShippedAt { get; set; }
+    
+    // Invoice
+    public Guid? InvoiceId { get; set; }
+    public Invoice? Invoice { get; set; }
     
     // Navigation
     public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();

@@ -24,6 +24,10 @@ public static class DependencyInjection
             .WithHostStrategy() // Host header'dan tenant bulur
             .WithEFCoreStore<TenantStoreDbContext, TenantInfo>();
 
+        // Global DbContext (tenant'a bağlı olmayan entity'ler için - ExchangeRate, etc.)
+        services.AddDbContext<GlobalDbContext>(options =>
+            options.UseNpgsql(connectionString));
+
         // Application DbContext
         services.AddDbContext<ApplicationDbContext>(options =>
         {

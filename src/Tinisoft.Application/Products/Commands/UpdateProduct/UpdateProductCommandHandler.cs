@@ -4,6 +4,7 @@ using Microsoft.Extensions.Caching.Distributed;
 using Tinisoft.Domain.Entities;
 using Tinisoft.Infrastructure.Persistence;
 using Tinisoft.Application.Products.Services;
+using Tinisoft.Application.ExchangeRates.Services;
 using Tinisoft.Shared.Events;
 using Tinisoft.Shared.Contracts;
 using Finbuckle.MultiTenant;
@@ -17,6 +18,7 @@ public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand,
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly IDistributedCache _cache;
     private readonly IMeilisearchService _meilisearchService;
+    private readonly IExchangeRateService _exchangeRateService;
     private readonly ILogger<UpdateProductCommandHandler> _logger;
 
     public UpdateProductCommandHandler(
@@ -25,6 +27,7 @@ public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand,
         IMultiTenantContextAccessor tenantAccessor,
         IDistributedCache cache,
         IMeilisearchService meilisearchService,
+        IExchangeRateService exchangeRateService,
         ILogger<UpdateProductCommandHandler> logger)
     {
         _dbContext = dbContext;
@@ -32,12 +35,20 @@ public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand,
         _tenantAccessor = tenantAccessor;
         _cache = cache;
         _meilisearchService = meilisearchService;
+        _exchangeRateService = exchangeRateService;
         _logger = logger;
     }
 
     public async Task<UpdateProductResponse> Handle(UpdateProductCommand request, CancellationToken cancellationToken)
     {
         var tenantId = Guid.Parse(_tenantAccessor.MultiTenantContext!.TenantInfo!.Id!);
+
+        // Tenant bilgisini çek (currency ayarları için)
+        var tenant = await _dbContext.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId, cancellationToken);
+        if (tenant == null)
+        {
+            throw new InvalidOperationException("Tenant bulunamadı");
+        }
 
         var product = await _dbContext.Products
             .FirstOrDefaultAsync(p => p.Id == request.ProductId && p.TenantId == tenantId, cancellationToken);
@@ -47,14 +58,53 @@ public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand,
             throw new KeyNotFoundException($"Ürün bulunamadı: {request.ProductId}");
         }
 
+        // Currency conversion logic (eğer purchase currency değiştiyse)
+        if (request.PurchaseCurrency != null || request.PurchasePrice.HasValue)
+        {
+            var purchaseCurrency = request.PurchaseCurrency ?? product.PurchaseCurrency;
+            var purchasePrice = request.PurchasePrice ?? product.PurchasePrice;
+            var autoConvert = request.AutoConvertSalePrice ?? product.AutoConvertSalePrice;
+            var saleCurrency = product.Currency ?? tenant.SaleCurrency ?? "TRY";
+
+            if (!string.IsNullOrEmpty(purchaseCurrency) && 
+                purchasePrice.HasValue && 
+                autoConvert &&
+                purchaseCurrency.ToUpper() != saleCurrency.ToUpper())
+            {
+                // Exchange rate getir (margin ile birlikte)
+                var effectiveRate = await _exchangeRateService.GetEffectiveRateAsync(
+                    purchaseCurrency, 
+                    tenant.CurrencyMarginPercent, 
+                    cancellationToken);
+
+                if (effectiveRate.HasValue)
+                {
+                    // Purchase price'ı sale currency'ye çevir
+                    var convertedPrice = purchasePrice.Value * effectiveRate.Value;
+                    product.Price = convertedPrice;
+                    product.ExchangeRateAtPurchase = effectiveRate.Value;
+                    
+                    _logger.LogInformation(
+                        "Product price updated and converted: {PurchasePrice} {PurchaseCurrency} = {SalePrice} {SaleCurrency} (Rate: {Rate})",
+                        purchasePrice.Value, purchaseCurrency, convertedPrice, saleCurrency, effectiveRate.Value);
+                }
+            }
+        }
+
         // Update fields
         if (!string.IsNullOrEmpty(request.Title)) product.Title = request.Title;
         if (request.Description != null) product.Description = request.Description;
         if (!string.IsNullOrEmpty(request.Slug)) product.Slug = request.Slug;
         if (request.SKU != null) product.SKU = request.SKU;
-        if (request.Price.HasValue) product.Price = request.Price.Value;
+        if (request.Price.HasValue && (request.PurchaseCurrency == null && !request.PurchasePrice.HasValue)) 
+            product.Price = request.Price.Value; // Sadece Price güncelleniyorsa (currency conversion yoksa)
         if (request.CompareAtPrice.HasValue) product.CompareAtPrice = request.CompareAtPrice;
         if (request.CostPerItem.HasValue) product.CostPerItem = request.CostPerItem.Value;
+        
+        // Multi-currency fields
+        if (request.PurchaseCurrency != null) product.PurchaseCurrency = request.PurchaseCurrency;
+        if (request.PurchasePrice.HasValue) product.PurchasePrice = request.PurchasePrice;
+        if (request.AutoConvertSalePrice.HasValue) product.AutoConvertSalePrice = request.AutoConvertSalePrice.Value;
         if (request.TrackInventory.HasValue) product.TrackInventory = request.TrackInventory.Value;
         if (request.InventoryQuantity.HasValue) product.InventoryQuantity = request.InventoryQuantity;
         if (request.IsActive.HasValue) product.IsActive = request.IsActive.Value;

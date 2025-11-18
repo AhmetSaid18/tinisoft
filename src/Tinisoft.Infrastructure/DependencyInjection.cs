@@ -64,6 +64,38 @@ public static class DependencyInjection
         services.AddScoped<IAuditLogService, AuditLogService>();
         services.AddScoped<Tinisoft.Application.Common.Interfaces.ICacheService, CacheService>();
         services.AddScoped<Tinisoft.Application.Products.Services.IMeilisearchService, Tinisoft.Application.Products.Services.MeilisearchService>();
+        services.AddScoped<Tinisoft.Application.Common.Interfaces.ICurrentCustomerService, CurrentCustomerService>();
+        
+        // Exchange Rate services
+        services.AddHttpClient<Tinisoft.Application.ExchangeRates.Services.ITcmbExchangeService, TcmbExchangeService>();
+        services.AddScoped<Tinisoft.Application.ExchangeRates.Services.IExchangeRateService, ExchangeRateService>();
+        
+        // Reseller Pricing Service
+        services.AddScoped<Tinisoft.Application.Resellers.Services.IResellerPricingService, ResellerPricingService>();
+        
+        // Product Feed Service
+        services.AddScoped<Tinisoft.Application.ProductFeeds.Services.IProductFeedService, ProductFeedService>();
+        
+        // Coupon Validation Service
+        services.AddScoped<Tinisoft.Application.Discounts.Services.ICouponValidationService, CouponValidationService>();
+        
+        // Shipping Services
+        services.AddScoped<ArasShippingService>();
+        services.AddScoped<MngShippingService>();
+        services.AddScoped<YurticiShippingService>();
+        services.AddScoped<Tinisoft.Application.Shipping.Services.IShippingServiceFactory, ShippingServiceFactory>();
+        
+        // Email Service
+        services.AddScoped<Tinisoft.Application.Notifications.Services.IEmailService, EmailService>();
+        
+        // Invoice Services
+        services.AddScoped<Tinisoft.Application.Invoices.Services.IInvoiceNumberGenerator, InvoiceNumberGenerator>();
+        services.AddScoped<Tinisoft.Application.Invoices.Services.IUBLXMLGenerator, UBLXMLGenerator>();
+        services.AddHttpClient<Tinisoft.Application.Invoices.Services.IGIBService, GIBService>();
+        services.AddScoped<Tinisoft.Application.Invoices.Services.IPDFGenerator, PDFGenerator>();
+        
+        // Invoice Jobs
+        services.AddScoped<Jobs.SyncInvoiceStatusFromGIBJob>();
         
         // Circuit Breaker - Database koruması için
         services.AddSingleton<CircuitBreakerService>();
@@ -72,9 +104,21 @@ public static class DependencyInjection
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddScoped<IPasswordHasher, PasswordHasher>();
 
-        // Event Bus - RabbitMQ veya InMemory
+        // Event Bus - Hybrid (Kafka + RabbitMQ) veya sadece RabbitMQ
+        var useKafka = !string.IsNullOrEmpty(configuration["Kafka:BootstrapServers"]);
         var useRabbitMQ = !string.IsNullOrEmpty(configuration["RabbitMQ:HostName"]);
-        if (useRabbitMQ)
+
+        if (useKafka && useRabbitMQ)
+        {
+            // Hybrid: High-volume event'ler Kafka'ya, basit event'ler RabbitMQ'ya
+            services.AddSingleton<Tinisoft.Infrastructure.EventBus.KafkaEventBus>();
+            services.AddSingleton<Tinisoft.Infrastructure.EventBus.RabbitMQEventBus>();
+            services.AddSingleton<Tinisoft.Shared.Contracts.IEventBus, Tinisoft.Infrastructure.EventBus.HybridEventBus>();
+            
+            // Kafka Consumer Service (Background Service)
+            services.AddHostedService<Tinisoft.Infrastructure.EventBus.KafkaConsumerService>();
+        }
+        else if (useRabbitMQ)
         {
             services.AddSingleton<Tinisoft.Shared.Contracts.IEventBus, Tinisoft.Infrastructure.EventBus.RabbitMQEventBus>();
         }

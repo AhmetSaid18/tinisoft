@@ -9,9 +9,14 @@ public class UpdateProductCommand : IRequest<UpdateProductResponse>
     public string? Description { get; set; }
     public string? Slug { get; set; }
     public string? SKU { get; set; }
-    public decimal? Price { get; set; }
+    public decimal? Price { get; set; } // Satış fiyatı
     public decimal? CompareAtPrice { get; set; }
     public decimal? CostPerItem { get; set; }
+    
+    // Multi-Currency Support
+    public string? PurchaseCurrency { get; set; }
+    public decimal? PurchasePrice { get; set; }
+    public bool? AutoConvertSalePrice { get; set; }
     public bool? TrackInventory { get; set; }
     public int? InventoryQuantity { get; set; }
     public bool? IsActive { get; set; }

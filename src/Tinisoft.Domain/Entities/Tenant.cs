@@ -62,6 +62,13 @@ public class Tenant : BaseEntity
     public int? SelectedTemplateVersion { get; set; } // 1, 2, 3...
     public DateTime? TemplateSelectedAt { get; set; } // Ne zaman seçildi
     
+    // Currency Settings
+    public string BaseCurrency { get; set; } = "TRY"; // Varsayılan para birimi
+    public string? PurchaseCurrency { get; set; } // Giriş para birimi (EUR, USD, etc.)
+    public string SaleCurrency { get; set; } = "TRY"; // Satış para birimi (sitede gösterilecek)
+    public decimal CurrencyMarginPercent { get; set; } = 0; // Kur marjı (%)
+    public bool AutoUpdateExchangeRates { get; set; } = true; // Otomatik kur güncelleme
+    
     // Navigation
     public ICollection<Domain> Domains { get; set; } = new List<Domain>();
     public ICollection<UserTenantRole> UserTenantRoles { get; set; } = new List<UserTenantRole>();

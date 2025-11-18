@@ -1,9 +1,11 @@
 using Tinisoft.Infrastructure;
 using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Infrastructure.Jobs;
 using Tinisoft.Application;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Tinisoft.API.Middleware;
+using Hangfire;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -82,6 +84,30 @@ if (app.Environment.IsDevelopment())
     using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     await dbContext.Database.MigrateAsync();
+}
+
+// Schedule Hangfire Jobs
+using (var scope = app.Services.CreateScope())
+{
+    // Exchange Rate Sync Job - Her saat başı çalışsın
+    RecurringJob.AddOrUpdate<SyncExchangeRatesJob>(
+        "sync-exchange-rates",
+        job => job.ExecuteAsync(CancellationToken.None),
+        Cron.Hourly,
+        new RecurringJobOptions
+        {
+            TimeZone = TimeZoneInfo.FindSystemTimeZoneById("Turkey Standard Time")
+        });
+
+    // Invoice Status Sync Job - Her 30 dakikada bir çalışsın
+    RecurringJob.AddOrUpdate<SyncInvoiceStatusFromGIBJob>(
+        "sync-invoice-status-from-gib",
+        job => job.ExecuteAsync(CancellationToken.None),
+        "*/30 * * * *", // Her 30 dakikada bir
+        new RecurringJobOptions
+        {
+            TimeZone = TimeZoneInfo.FindSystemTimeZoneById("Turkey Standard Time")
+        });
 }
 
 app.Run();

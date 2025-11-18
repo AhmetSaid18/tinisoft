@@ -17,10 +17,16 @@ public class Product : BaseEntity, ITenantEntity
     public string? GTIN { get; set; } // Global Trade Item Number
     
     // Pricing
-    public decimal Price { get; set; }
+    public decimal Price { get; set; } // Satış fiyatı (sitede gösterilecek)
     public decimal? CompareAtPrice { get; set; }
     public decimal CostPerItem { get; set; }
-    public string Currency { get; set; } = "TRY";
+    public string Currency { get; set; } = "TRY"; // Satış para birimi (sitede gösterilecek)
+    
+    // Multi-Currency Support
+    public string? PurchaseCurrency { get; set; } // Giriş para birimi (EUR, USD, etc.)
+    public decimal? PurchasePrice { get; set; } // Giriş fiyatı (EUR/USD olarak girilen)
+    public bool AutoConvertSalePrice { get; set; } = true; // Otomatik TL'ye çevir mi?
+    public decimal? ExchangeRateAtPurchase { get; set; } // Giriş anındaki kur (audit için)
     
     // Status
     public string Status { get; set; } = "Draft"; // Draft, Active, Archived
@@ -133,5 +139,6 @@ public class Product : BaseEntity, ITenantEntity
     public ICollection<ProductImage> Images { get; set; } = new List<ProductImage>();
     public ICollection<ProductOption> Options { get; set; } = new List<ProductOption>();
     public ICollection<ProductMetafield> Metafields { get; set; } = new List<ProductMetafield>();
+    public ICollection<ProductReview> Reviews { get; set; } = new List<ProductReview>();
 }
 

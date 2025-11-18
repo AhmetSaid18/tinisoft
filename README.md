@@ -10,21 +10,105 @@ ASP.NET Core 8 REST API backend for multi-tenant e-commerce SaaS platform (Shopi
 - **Tinisoft.Products.API** - Ürün yönetimi servisi (Port: 5001)
 - **Tinisoft.Inventory.API** - Stok yönetimi servisi (Port: 5002)
 - **Tinisoft.Payments.API** - Ödeme işlemleri servisi (Port: 5003)
+- **Tinisoft.Orders.API** - Sipariş yönetimi servisi (Port: 5004)
+- **Tinisoft.Marketplace.API** - Marketplace entegrasyonları (Port: 5005)
+- **Tinisoft.Customers.API** - Müşteri yönetimi servisi (Port: 5006)
+- **Tinisoft.Shipping.API** - Kargo entegrasyonları servisi (Port: 5007)
+- **Tinisoft.Notifications.API** - Email/SMS bildirimleri servisi (Port: 5008)
 - **Tinisoft.API.Gateway** - API Gateway (Ocelot) - Tüm istekleri yönlendirir (Port: 5000)
 
-### Shared Katmanlar
-- **Tinisoft.Application** - CQRS (MediatR), Commands/Queries
-- **Tinisoft.Domain** - Entities, Value Objects, Domain Interfaces
-- **Tinisoft.Infrastructure** - EF Core, PostgreSQL, Redis, RabbitMQ, R2 Storage, PayTR
-- **Tinisoft.Shared** - Events, Contracts, Event Bus Interface
-
 ### Infrastructure
-- **RabbitMQ** - Event Bus (Servisler arası iletişim)
 - **PostgreSQL** - Her servis kendi database'ine sahip (Database per Service)
-- **Redis** - Cache
-- **Ocelot** - API Gateway
+- **Redis** - Cache (Port: 6380)
+- **RabbitMQ** - Event Bus (Port: 5672, Management: 15672)
+- **Kafka** - High-volume event streaming (Port: 9092)
+- **Zookeeper** - Kafka için (Port: 2181)
 
-## 🚀 Özellikler
+## 🚀 Hızlı Başlangıç
+
+### 1. Environment Variables Ayarlama
+
+```bash
+# .env.example dosyasını .env olarak kopyala
+cp .env.example .env
+
+# .env dosyasını düzenle ve tüm değerleri doldur
+nano .env
+```
+
+**Önemli**: `.env` dosyası asla Git'e commit edilmemeli! (`.gitignore`'da zaten var)
+
+### 2. Docker Compose ile Başlatma
+
+```bash
+docker-compose up -d
+```
+
+### 3. Health Check
+
+```bash
+docker-compose ps
+```
+
+Tüm servislerin `Up` durumunda olduğunu kontrol edin.
+
+### 4. API Gateway'e Erişim
+
+- **API Gateway**: `http://localhost:5000`
+- **Swagger UI**: `http://localhost:5000/swagger` (Development)
+
+## 📋 Port Yapılandırması
+
+Sunucudaki mevcut portlarla çakışmayı önlemek için portlar özelleştirilmiştir:
+
+| Servis | Port | Açıklama |
+|--------|------|----------|
+| Gateway | 5000 | API Gateway |
+| Products API | 5001 | Ürün servisi |
+| Inventory API | 5002 | Stok servisi |
+| Payments API | 5003 | Ödeme servisi |
+| Orders API | 5004 | Sipariş servisi |
+| Marketplace API | 5005 | Marketplace servisi |
+| Customers API | 5006 | Müşteri servisi |
+| Shipping API | 5007 | Kargo servisi |
+| Notifications API | 5008 | Bildirim servisi |
+| Products DB | 6000 | Products database |
+| Inventory DB | 6001 | Inventory database |
+| Payments DB | 6002 | Payments database |
+| Orders DB | 6003 | Orders database |
+| Marketplace DB | 6004 | Marketplace database |
+| Customers DB | 6005 | Customers database |
+| Shipping DB | 6006 | Shipping database |
+| Notifications DB | 6007 | Notifications database |
+| Redis | 6380 | Cache |
+| RabbitMQ | 5672 | Event Bus |
+| RabbitMQ Management | 15672 | Management UI |
+| Kafka | 9092 | Event Streaming |
+| Zookeeper | 2181 | Kafka coordination |
+
+**Not**: Port çakışması durumunda `.env` dosyasında ilgili port değişkenini değiştirebilirsiniz.
+
+## 🔐 Güvenlik
+
+### Environment Variables
+
+Tüm hassas bilgiler `.env` dosyasında tutulur:
+
+- Database şifreleri
+- JWT secret key
+- SMTP ayarları
+- API key'ler (Kargo firmaları, PayTR, vb.)
+- RabbitMQ şifreleri
+
+**Asla `.env` dosyasını Git'e commit etmeyin!**
+
+### JWT Authentication
+
+- JWT token tabanlı authentication
+- Role-based authorization (SystemAdmin, TenantAdmin, Customer)
+- Token expiration: 24 saat (varsayılan)
+
+## 📚 Özellikler
 
 - ✅ **Multi-Tenant Architecture** - Finbuckle.MultiTenant ile tenant izolasyonu
 - ✅ **CQRS Pattern** - MediatR ile command/query ayrımı
@@ -32,170 +116,63 @@ ASP.NET Core 8 REST API backend for multi-tenant e-commerce SaaS platform (Shopi
 - ✅ **Redis** - Cache ve rate limiting
 - ✅ **Hangfire** - Background job processing
 - ✅ **Meilisearch** - Hızlı ürün arama
-- ✅ **Cloudflare R2** - S3-compatible object storage
+- ✅ **RabbitMQ/Kafka** - Event-driven architecture
+- ✅ **Kargo Entegrasyonları** - Aras, MNG, Yurtiçi Kargo
+- ✅ **Email Bildirimleri** - SMTP ile email gönderimi
 - ✅ **PayTR Integration** - Ödeme entegrasyonu
 - ✅ **Audit Logging** - Tüm işlemlerin loglanması
 - ✅ **Health Checks** - Sistem sağlık kontrolü
 - ✅ **Swagger** - API dokümantasyonu
 
-## 📋 Gereksinimler
-
-- .NET 8.0 SDK
-- PostgreSQL 14+
-- Redis (opsiyonel)
-- Meilisearch (opsiyonel)
-
-## 🔧 Kurulum
-
-### Docker Compose ile Çalıştırma (Önerilen)
-
-Tüm microservices'i tek komutla başlat:
-
-```bash
-docker-compose up -d
-```
-
-Bu komut şunları başlatır:
-- **3 PostgreSQL Database** (products-db, inventory-db, payments-db)
-- **Redis** (Cache)
-- **RabbitMQ** (Event Bus)
-- **Products API** (Port: 5001)
-- **Inventory API** (Port: 5002)
-- **Payments API** (Port: 5003)
-- **API Gateway** (Port: 5000)
-
-### Servis URL'leri
-
-- **API Gateway**: `http://localhost:5000`
-- **Products API**: `http://localhost:5001`
-- **Inventory API**: `http://localhost:5002`
-- **Payments API**: `http://localhost:5003`
-- **RabbitMQ Management**: `http://localhost:15672` (guest/guest)
-
-### API Gateway Üzerinden İstekler
-
-Tüm istekler API Gateway üzerinden yapılır:
-
-```bash
-# Products
-GET http://localhost:5000/api/products
-POST http://localhost:5000/api/products
-
-# Inventory
-GET http://localhost:5000/api/inventory/products/{productId}
-POST http://localhost:5000/api/inventory/adjust
-
-# Payments
-POST http://localhost:5000/api/payments/process
-```
-
-### Manuel Çalıştırma
-
-Her servisi ayrı ayrı çalıştırmak için:
-
-```bash
-# Products API
-cd src/Tinisoft.Products.API
-dotnet run
-
-# Inventory API
-cd src/Tinisoft.Inventory.API
-dotnet run
-
-# Payments API
-cd src/Tinisoft.Payments.API
-dotnet run
-
-# API Gateway
-cd src/Tinisoft.API.Gateway
-dotnet run
-```
-
-## 📚 API Dokümantasyonu
-
-Development ortamında Swagger UI:
-- `https://localhost:5001/swagger`
-
-## 🏢 Multi-Tenant Yapı
-
-Tenant çözümleme:
-- **Host Strategy**: `www.marka.com` → domains tablosundan tenant_id bulur
-- **Header Strategy**: `X-Tenant-Id` header'ı ile tenant belirtilir
-- **Slug Strategy**: `tenant.tinisoft.com` formatında slug'dan tenant bulur
-
-Her sorguda tenant guard aktif - `ITenantEntity` implement eden entity'ler otomatik filtrelenir.
-
-## 📦 Proje Yapısı
-
-```
-src/
-├── Tinisoft.API/              # API Layer
-│   ├── Controllers/          # Products, Inventory, Payments
-│   ├── Middleware/
-│   └── Program.cs
-├── Tinisoft.Application/      # Application Layer (CQRS)
-│   ├── Products/             # Ürün modülü
-│   │   ├── Commands/         # Create, Update, Delete
-│   │   └── Queries/          # Get, List
-│   ├── Inventory/            # Stok yönetimi modülü
-│   │   ├── Commands/         # AdjustStock
-│   │   └── Queries/          # GetStockLevel
-│   ├── Payments/             # Ödeme modülü
-│   │   └── Commands/         # ProcessPayment, VerifyPayment
-│   └── Common/
-│       ├── Behaviours/       # MediatR pipeline behaviours
-│       └── Mappings/         # AutoMapper profiles
-├── Tinisoft.Domain/           # Domain Layer
-│   ├── Entities/             # Product, Order, Tenant, etc.
-│   └── Common/
-├── Tinisoft.Infrastructure/   # Infrastructure Layer
-│   ├── Persistence/           # EF Core, DbContext
-│   ├── MultiTenant/           # Finbuckle configuration
-│   └── Services/              # External services (R2, PayTR, etc.)
-└── Tinisoft.Shared/          # Shared Contracts
-    ├── Events/                # Domain events (ProductCreated, OrderPaid, etc.)
-    └── Contracts/              # IEventBus (RabbitMQ/Kafka için hazır)
-```
-
-## 🎯 Modüler Yapı
-
-### Products Modülü
-- ✅ **CRUD İşlemleri**: Create, Read, Update, Delete
-- ✅ **Listeleme**: Pagination, Search, Filter, Sort
-- ✅ **Event Publishing**: ProductCreated, ProductUpdated, ProductDeleted
-- ✅ **Kategori Yönetimi**: Ürün-kategori ilişkileri
-
-### Inventory Modülü
-- ✅ **Stok Takibi**: Product ve Variant seviyesinde
-- ✅ **Stok Ayarlama**: Restock, Sale, Adjustment, Return
-- ✅ **Stok Sorgulama**: Gerçek zamanlı stok seviyesi
-- ✅ **Event Publishing**: ProductStockChanged
-
-### Payments Modülü
-- ✅ **Ödeme İşleme**: PayTR entegrasyonu
-- ✅ **Ödeme Doğrulama**: Callback verification
-- ✅ **Modüler Tasarım**: İleride Stripe, Iyzico, vb. eklenebilir
-- ✅ **Event Publishing**: OrderPaid
-
 ## 🔄 Event-Driven Architecture
 
 - **RabbitMQ Event Bus**: Servisler arası asenkron iletişim
-- **Domain Events**: ProductCreated, ProductUpdated, ProductStockChanged, OrderPaid, etc.
+- **Kafka**: High-volume event streaming
+- **Domain Events**: ProductCreated, OrderCreated, OrderPaid, vb.
 - **Event Exchange**: `tinisoft_events` (Topic Exchange)
-- **Servisler bağımsız**: Her servis kendi database'ine sahip ve bağımsız deploy edilebilir
 
-## 🔐 Güvenlik
+## 📖 API Dokümantasyonu
 
-- Tenant izolasyonu (EF Core global query filters)
-- CORS yapılandırması
-- Audit logging
-- Rate limiting (Redis ile - eklenecek)
+Development ortamında Swagger UI:
+- `http://localhost:5000/swagger`
 
-## 📝 Notlar
+## 🐳 Docker Compose Yapısı
 
-- Frontend ve proxy yönetimi bu projede yok - sadece backend API
-- Domain bağlama ve SSL yönetimi reverse proxy (Caddy/Nginx) tarafında yapılmalı
-- Storefront rendering frontend (Next.js) tarafında yapılacak
+Her servis ayrı container olarak çalışır:
+
+```yaml
+services:
+  products-api      # Ürün servisi
+  inventory-api     # Stok servisi
+  payments-api      # Ödeme servisi
+  orders-api        # Sipariş servisi
+  marketplace-api   # Marketplace servisi
+  customers-api     # Müşteri servisi
+  shipping-api      # Kargo servisi
+  notifications-api # Bildirim servisi
+  gateway           # API Gateway
+  products-db       # Products database
+  inventory-db      # Inventory database
+  # ... diğer database'ler
+  rabbitmq          # Event Bus
+  redis             # Cache
+  kafka             # Event Streaming
+  zookeeper         # Kafka coordination
+```
+
+## 📊 Database per Service Pattern
+
+Her microservice kendi database'ine sahip:
+- **products-db**: Sadece ürün verileri
+- **inventory-db**: Sadece stok verileri
+- **payments-db**: Sadece ödeme verileri
+- **orders-db**: Sadece sipariş verileri
+- **marketplace-db**: Sadece marketplace verileri
+- **customers-db**: Sadece müşteri verileri
+- **shipping-db**: Sadece kargo verileri
+- **notifications-db**: Sadece bildirim verileri
+
+Servisler arası iletişim **RabbitMQ/Kafka Events** ile yapılır.
 
 ## 🛠️ Geliştirme
 
@@ -212,38 +189,9 @@ src/
 2. `Tinisoft.API/Controllers/` altına controller ekle
 3. MediatR ile command/query çağır
 
-### Yeni Modül Ekleme
+## 📝 Deployment
 
-1. `Tinisoft.Application/[ModuleName]/` klasörü oluştur
-2. Commands ve Queries ekle
-3. İlgili controller'ı `Tinisoft.API/Controllers/` altına ekle
-4. Event'leri `Tinisoft.Shared/Events/` altına ekle (gerekirse)
-
-## 🐳 Docker Compose Yapısı
-
-Her servis ayrı container olarak çalışır:
-
-```yaml
-services:
-  products-api      # Ürün servisi
-  inventory-api     # Stok servisi
-  payments-api      # Ödeme servisi
-  gateway           # API Gateway
-  products-db       # Products database
-  inventory-db      # Inventory database
-  payments-db       # Payments database
-  rabbitmq          # Event Bus
-  redis             # Cache
-```
-
-## 📊 Database per Service Pattern
-
-Her microservice kendi database'ine sahip:
-- **products-db**: Sadece ürün verileri
-- **inventory-db**: Sadece stok verileri
-- **payments-db**: Sadece ödeme verileri
-
-Servisler arası iletişim **RabbitMQ Events** ile yapılır.
+Detaylı deployment bilgileri için [DEPLOYMENT.md](DEPLOYMENT.md) dosyasına bakın.
 
 ## 📄 Lisans
 

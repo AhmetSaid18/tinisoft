@@ -9,7 +9,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5432:5432"
+      - "6000:5432"
     volumes:
       - products_db_data:/var/lib/postgresql/data
     healthcheck:
@@ -27,7 +27,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5433:5432"
+      - "6001:5432"
     volumes:
       - inventory_db_data:/var/lib/postgresql/data
     healthcheck:
@@ -45,7 +45,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5434:5432"
+      - "6002:5432"
     volumes:
       - payments_db_data:/var/lib/postgresql/data
     healthcheck:
@@ -63,7 +63,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5435:5432"
+      - "6003:5432"
     volumes:
       - orders_db_data:/var/lib/postgresql/data
     healthcheck:
@@ -81,9 +81,81 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5436:5432"
+      - "6004:5432"
     volumes:
       - marketplace_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tinisoft-network
+
+  customers-db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: customers_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "6005:5432"
+    volumes:
+      - customers_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tinisoft-network
+
+  shipping-db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: shipping_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "6006:5432"
+    volumes:
+      - shipping_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tinisoft-network
+
+  notifications-db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: notifications_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "6007:5432"
+    volumes:
+      - notifications_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tinisoft-network
+
+  invoices-db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: invoices_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "6008:5432"
+    volumes:
+      - invoices_db_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -96,7 +168,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "6380:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -107,7 +179,7 @@ services:
     networks:
       - tinisoft-network
 
-  # RabbitMQ - Event Bus
+  # RabbitMQ - Event Bus (Basit event'ler için)
   rabbitmq:
     image: rabbitmq:3-management-alpine
     ports:
@@ -126,6 +198,56 @@ services:
     networks:
       - tinisoft-network
 
+  # Zookeeper - Kafka için gerekli
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tinisoft-network
+
+  # Kafka - High-volume event streaming için
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824
+      KAFKA_COMPRESSION_TYPE: snappy
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tinisoft-network
+
   # Microservices
   products-api:
     build:
@@ -134,12 +256,17 @@ services:
     ports:
       - "5001:5001"
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__DefaultConnection: "Host=products-db;Port=5432;Database=products_db;Username=postgres;Password=postgres"
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: "Host=products-db;Port=5432;Database=products_db;Username=postgres;Password=postgres;Maximum Pool Size=100;Command Timeout=30;Timeout=30;Connection Lifetime=0;Pooling=true;"
       RabbitMQ__HostName: "rabbitmq"
       RabbitMQ__Port: "5672"
-      RabbitMQ__UserName: "guest"
-      RabbitMQ__Password: "guest"
+      RabbitMQ__UserName: guest
+      RabbitMQ__Password: guest
+      Redis__ConnectionString: "redis:6379"
+      Jwt__SecretKey: TinisoftSuperSecretJWTKey2024Minimum32CharactersLongForSecurity!
+      Jwt__Issuer: tinisoft
+      Jwt__Audience: tinisoft
+      Jwt__ExpirationMinutes: 1440
     depends_on:
       products-db:
         condition: service_healthy
@@ -155,12 +282,12 @@ services:
     ports:
       - "5002:5002"
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__DefaultConnection: "Host=inventory-db;Port=5432;Database=inventory_db;Username=postgres;Password=postgres"
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: "Host=inventory-db;Port=5432;Database=inventory_db;Username=postgres;Password=postgres;Maximum Pool Size=100;Command Timeout=30;Timeout=30;Connection Lifetime=0;Pooling=true;"
       RabbitMQ__HostName: "rabbitmq"
       RabbitMQ__Port: "5672"
-      RabbitMQ__UserName: "guest"
-      RabbitMQ__Password: "guest"
+      RabbitMQ__UserName: guest
+      RabbitMQ__Password: guest
     depends_on:
       inventory-db:
         condition: service_healthy
@@ -176,12 +303,15 @@ services:
     ports:
       - "5003:5003"
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__DefaultConnection: "Host=payments-db;Port=5432;Database=payments_db;Username=postgres;Password=postgres"
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: "Host=payments-db;Port=5432;Database=payments_db;Username=postgres;Password=postgres;Maximum Pool Size=100;Command Timeout=30;Timeout=30;Connection Lifetime=0;Pooling=true;"
       RabbitMQ__HostName: "rabbitmq"
       RabbitMQ__Port: "5672"
-      RabbitMQ__UserName: "guest"
-      RabbitMQ__Password: "guest"
+      RabbitMQ__UserName: guest
+      RabbitMQ__Password: guest
+      PayTR__MerchantId: 
+      PayTR__MerchantKey: 
+      PayTR__MerchantSalt: 
     depends_on:
       payments-db:
         condition: service_healthy
@@ -197,12 +327,12 @@ services:
     ports:
       - "5004:5004"
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__DefaultConnection: "Host=orders-db;Port=5432;Database=orders_db;Username=postgres;Password=postgres"
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: "Host=orders-db;Port=5432;Database=orders_db;Username=postgres;Password=postgres;Maximum Pool Size=100;Command Timeout=30;Timeout=30;Connection Lifetime=0;Pooling=true;"
       RabbitMQ__HostName: "rabbitmq"
       RabbitMQ__Port: "5672"
-      RabbitMQ__UserName: "guest"
-      RabbitMQ__Password: "guest"
+      RabbitMQ__UserName: guest
+      RabbitMQ__Password: guest
     depends_on:
       orders-db:
         condition: service_healthy
@@ -218,14 +348,113 @@ services:
     ports:
       - "5005:5005"
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__DefaultConnection: "Host=marketplace-db;Port=5432;Database=marketplace_db;Username=postgres;Password=postgres"
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: "Host=marketplace-db;Port=5432;Database=marketplace_db;Username=postgres;Password=postgres;Maximum Pool Size=100;Command Timeout=30;Timeout=30;Connection Lifetime=0;Pooling=true;"
       RabbitMQ__HostName: "rabbitmq"
       RabbitMQ__Port: "5672"
-      RabbitMQ__UserName: "guest"
-      RabbitMQ__Password: "guest"
+      RabbitMQ__UserName: guest
+      RabbitMQ__Password: guest
     depends_on:
       marketplace-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - tinisoft-network
+
+  customers-api:
+    build:
+      context: .
+      dockerfile: src/Tinisoft.Customers.API/Dockerfile
+    ports:
+      - "5006:5006"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: "Host=customers-db;Port=5432;Database=customers_db;Username=postgres;Password=postgres;Maximum Pool Size=100;Command Timeout=30;Timeout=30;Connection Lifetime=0;Pooling=true;"
+      RabbitMQ__HostName: "rabbitmq"
+      RabbitMQ__Port: "5672"
+      RabbitMQ__UserName: guest
+      RabbitMQ__Password: guest
+    depends_on:
+      customers-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - tinisoft-network
+
+  shipping-api:
+    build:
+      context: .
+      dockerfile: src/Tinisoft.Shipping.API/Dockerfile
+    ports:
+      - "5007:5007"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: "Host=shipping-db;Port=5432;Database=shipping_db;Username=postgres;Password=postgres;Maximum Pool Size=100;Command Timeout=30;Timeout=30;Connection Lifetime=0;Pooling=true;"
+      RabbitMQ__HostName: "rabbitmq"
+      RabbitMQ__Port: "5672"
+      RabbitMQ__UserName: guest
+      RabbitMQ__Password: guest
+      Jwt__SecretKey: TinisoftSuperSecretJWTKey2024Minimum32CharactersLongForSecurity!
+      Jwt__Issuer: tinisoft
+      Jwt__Audience: tinisoft
+      Jwt__ExpirationMinutes: 1440
+    depends_on:
+      shipping-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - tinisoft-network
+
+  notifications-api:
+    build:
+      context: .
+      dockerfile: src/Tinisoft.Notifications.API/Dockerfile
+    ports:
+      - "5008:5008"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: "Host=notifications-db;Port=5432;Database=notifications_db;Username=postgres;Password=postgres;Maximum Pool Size=100;Command Timeout=30;Timeout=30;Connection Lifetime=0;Pooling=true;"
+      RabbitMQ__HostName: "rabbitmq"
+      RabbitMQ__Port: "5672"
+      RabbitMQ__UserName: guest
+      RabbitMQ__Password: guest
+      Jwt__SecretKey: TinisoftSuperSecretJWTKey2024Minimum32CharactersLongForSecurity!
+      Jwt__Issuer: tinisoft
+      Jwt__Audience: tinisoft
+      Jwt__ExpirationMinutes: 1440
+    depends_on:
+      notifications-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - tinisoft-network
+
+  invoices-api:
+    build:
+      context: .
+      dockerfile: src/Tinisoft.Invoices.API/Dockerfile
+    ports:
+      - "5009:5009"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: "Host=invoices-db;Port=5432;Database=invoices_db;Username=postgres;Password=postgres;Maximum Pool Size=100;Command Timeout=30;Timeout=30;Connection Lifetime=0;Pooling=true;"
+      Redis__ConnectionString: "redis:6379"
+      RabbitMQ__HostName: "rabbitmq"
+      RabbitMQ__Port: "5672"
+      RabbitMQ__UserName: guest
+      RabbitMQ__Password: guest
+      Jwt__SecretKey: TinisoftSuperSecretJWTKey2024Minimum32CharactersLongForSecurity!
+      Jwt__Issuer: tinisoft
+      Jwt__Audience: tinisoft
+      Jwt__ExpirationMinutes: 1440
+    depends_on:
+      invoices-db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
@@ -245,6 +474,10 @@ services:
       - payments-api
       - orders-api
       - marketplace-api
+      - customers-api
+      - shipping-api
+      - notifications-api
+      - invoices-api
     networks:
       - tinisoft-network
 
@@ -254,8 +487,14 @@ volumes:
   payments_db_data:
   orders_db_data:
   marketplace_db_data:
+  customers_db_data:
+  shipping_db_data:
+  notifications_db_data:
+  invoices_db_data:
   redis_data:
   rabbitmq_data:
+  zookeeper_data:
+  kafka_data:
 
 networks:
   tinisoft-network:

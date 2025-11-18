@@ -28,6 +28,7 @@ public class StockMovement : BaseEntity, ITenantEntity
     // OUT: Çıkış (Satış, Transfer Giden, Fire, Hasar)
     // ADJUSTMENT: Düzeltme
     // TRANSFER: Transfer (hem kaynak hem hedef için kayıt tutulur)
+    // RESERVED: Rezervasyon (Sipariş için stok rezerve edildi)
     
     public int Quantity { get; set; } // Hareket miktarı (pozitif/negatif)
     public int QuantityBefore { get; set; } // Hareket öncesi stok

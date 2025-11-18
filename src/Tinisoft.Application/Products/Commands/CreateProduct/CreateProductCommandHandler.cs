@@ -4,6 +4,7 @@ using Tinisoft.Domain.Entities;
 using Tinisoft.Infrastructure.Persistence;
 using Tinisoft.Infrastructure.Services;
 using Tinisoft.Application.Products.Services;
+using Tinisoft.Application.ExchangeRates.Services;
 using Tinisoft.Shared.Events;
 using Tinisoft.Shared.Contracts;
 using Finbuckle.MultiTenant;
@@ -18,6 +19,7 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly IImageProcessingService _imageProcessingService;
     private readonly IMeilisearchService _meilisearchService;
+    private readonly IExchangeRateService _exchangeRateService;
     private readonly ILogger<CreateProductCommandHandler> _logger;
 
     public CreateProductCommandHandler(
@@ -26,6 +28,7 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
         IMultiTenantContextAccessor tenantAccessor,
         IImageProcessingService imageProcessingService,
         IMeilisearchService meilisearchService,
+        IExchangeRateService exchangeRateService,
         ILogger<CreateProductCommandHandler> logger)
     {
         _dbContext = dbContext;
@@ -33,12 +36,20 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
         _tenantAccessor = tenantAccessor;
         _imageProcessingService = imageProcessingService;
         _meilisearchService = meilisearchService;
+        _exchangeRateService = exchangeRateService;
         _logger = logger;
     }
 
     public async Task<CreateProductResponse> Handle(CreateProductCommand request, CancellationToken cancellationToken)
     {
         var tenantId = Guid.Parse(_tenantAccessor.MultiTenantContext!.TenantInfo!.Id!);
+
+        // Tenant bilgisini çek (currency ayarları için)
+        var tenant = await _dbContext.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId, cancellationToken);
+        if (tenant == null)
+        {
+            throw new InvalidOperationException("Tenant bulunamadı");
+        }
 
         // Slug kontrolü
         var existingProduct = await _dbContext.Products
@@ -47,6 +58,47 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
         if (existingProduct != null)
         {
             throw new InvalidOperationException($"Slug '{request.Slug}' zaten kullanılıyor");
+        }
+
+        // Currency conversion logic
+        decimal finalPrice = request.Price;
+        decimal? exchangeRateAtPurchase = null;
+        string saleCurrency = request.Currency ?? tenant.SaleCurrency ?? "TRY";
+
+        // Eğer purchase currency ve price varsa, otomatik TL'ye çevir
+        if (!string.IsNullOrEmpty(request.PurchaseCurrency) && 
+            request.PurchasePrice.HasValue && 
+            request.AutoConvertSalePrice &&
+            request.PurchaseCurrency.ToUpper() != saleCurrency.ToUpper())
+        {
+            // Exchange rate getir (margin ile birlikte)
+            var effectiveRate = await _exchangeRateService.GetEffectiveRateAsync(
+                request.PurchaseCurrency, 
+                tenant.CurrencyMarginPercent, 
+                cancellationToken);
+
+            if (effectiveRate.HasValue)
+            {
+                // Purchase price'ı sale currency'ye çevir
+                finalPrice = request.PurchasePrice.Value * effectiveRate.Value;
+                exchangeRateAtPurchase = effectiveRate.Value;
+                
+                _logger.LogInformation(
+                    "Product price converted: {PurchasePrice} {PurchaseCurrency} = {SalePrice} {SaleCurrency} (Rate: {Rate})",
+                    request.PurchasePrice.Value, request.PurchaseCurrency, finalPrice, saleCurrency, effectiveRate.Value);
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "Exchange rate not found for {Currency}, using purchase price as sale price",
+                    request.PurchaseCurrency);
+                finalPrice = request.PurchasePrice.Value;
+            }
+        }
+        else if (!string.IsNullOrEmpty(request.PurchaseCurrency) && request.PurchasePrice.HasValue)
+        {
+            // Auto convert kapalı, purchase price'ı direkt kullan
+            finalPrice = request.PurchasePrice.Value;
         }
 
         var product = new Product
@@ -59,10 +111,14 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
             SKU = request.SKU,
             Barcode = request.Barcode,
             GTIN = request.GTIN,
-            Price = request.Price,
+            Price = finalPrice, // Converted price
             CompareAtPrice = request.CompareAtPrice,
             CostPerItem = request.CostPerItem,
-            Currency = request.Currency,
+            Currency = saleCurrency,
+            PurchaseCurrency = request.PurchaseCurrency,
+            PurchasePrice = request.PurchasePrice,
+            AutoConvertSalePrice = request.AutoConvertSalePrice,
+            ExchangeRateAtPurchase = exchangeRateAtPurchase,
             Status = request.Status,
             IsActive = request.IsActive,
             TrackInventory = request.TrackInventory,

@@ -14,10 +14,15 @@ public class CreateProductCommand : IRequest<CreateProductResponse>
     public string? GTIN { get; set; }
     
     // Pricing
-    public decimal Price { get; set; }
+    public decimal Price { get; set; } // Satış fiyatı (sitede gösterilecek)
     public decimal? CompareAtPrice { get; set; }
     public decimal CostPerItem { get; set; }
-    public string Currency { get; set; } = "TRY";
+    public string Currency { get; set; } = "TRY"; // Satış para birimi (sitede gösterilecek)
+    
+    // Multi-Currency Support
+    public string? PurchaseCurrency { get; set; } // Giriş para birimi (EUR, USD, etc.)
+    public decimal? PurchasePrice { get; set; } // Giriş fiyatı (EUR/USD olarak girilen)
+    public bool AutoConvertSalePrice { get; set; } = true; // Otomatik TL'ye çevir mi?
     
     // Status
     public string Status { get; set; } = "Draft"; // Draft, Active, Archived
