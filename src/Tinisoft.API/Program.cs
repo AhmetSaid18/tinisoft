@@ -110,5 +110,6 @@ using (var scope = app.Services.CreateScope())
         });
 }
 
+app.Urls.Add("http://0.0.0.0:5010");
 app.Run();
 

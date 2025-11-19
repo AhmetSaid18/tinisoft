@@ -1,0 +1,890 @@
+[
+  {
+    "file": "src/Tinisoft.API/Controllers/AdminController.cs",
+    "controller": "AdminController",
+    "base_route": "api/admin",
+    "verb": "GET",
+    "template": "statistics",
+    "signature": "public async Task<ActionResult<GetSystemStatisticsResponse>> GetSystemStatistics()"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/AdminTemplatesController.cs",
+    "controller": "AdminTemplatesController",
+    "base_route": "api/admin/templates",
+    "verb": "GET",
+    "template": "",
+    "signature": "public async Task<ActionResult<GetAllTemplatesResponse>> GetAllTemplates()"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/AdminTemplatesController.cs",
+    "controller": "AdminTemplatesController",
+    "base_route": "api/admin/templates",
+    "verb": "POST",
+    "template": "",
+    "signature": "public async Task<ActionResult<CreateTemplateResponse>> CreateTemplate([FromBody] CreateTemplateCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/AdminTemplatesController.cs",
+    "controller": "AdminTemplatesController",
+    "base_route": "api/admin/templates",
+    "verb": "PUT",
+    "template": "{id}",
+    "signature": "public async Task<ActionResult<UpdateTemplateResponse>> UpdateTemplate(Guid id, [FromBody] UpdateTemplateCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/AdminTemplatesController.cs",
+    "controller": "AdminTemplatesController",
+    "base_route": "api/admin/templates",
+    "verb": "DELETE",
+    "template": "{id}",
+    "signature": "public async Task<ActionResult<DeleteTemplateResponse>> DeleteTemplate(Guid id)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/AdminTemplatesController.cs",
+    "controller": "AdminTemplatesController",
+    "base_route": "api/admin/templates",
+    "verb": "PATCH",
+    "template": "{id}/toggle-active",
+    "signature": "public async Task<ActionResult<ToggleTemplateActiveResponse>> ToggleTemplateActive(Guid id, [FromBody] ToggleTemplateActiveCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/AuthController.cs",
+    "controller": "AuthController",
+    "base_route": "api/auth",
+    "verb": "POST",
+    "template": "register",
+    "signature": "public async Task<ActionResult<RegisterResponse>> Register([FromBody] RegisterCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/AuthController.cs",
+    "controller": "AuthController",
+    "base_route": "api/auth",
+    "verb": "POST",
+    "template": "login",
+    "signature": "public async Task<ActionResult<LoginResponse>> Login([FromBody] LoginCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/CouponsController.cs",
+    "controller": "CouponsController",
+    "base_route": "api/coupons",
+    "verb": "GET",
+    "template": "",
+    "signature": "public async Task<ActionResult<GetCouponsResponse>> GetCoupons([FromQuery] GetCouponsQuery query)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/CouponsController.cs",
+    "controller": "CouponsController",
+    "base_route": "api/coupons",
+    "verb": "POST",
+    "template": "",
+    "signature": "public async Task<ActionResult<CreateCouponResponse>> CreateCoupon([FromBody] CreateCouponCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/CouponsController.cs",
+    "controller": "CouponsController",
+    "base_route": "api/coupons",
+    "verb": "PUT",
+    "template": "{id}",
+    "signature": "public async Task<ActionResult<UpdateCouponResponse>> UpdateCoupon(Guid id, [FromBody] UpdateCouponCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/CouponsController.cs",
+    "controller": "CouponsController",
+    "base_route": "api/coupons",
+    "verb": "GET",
+    "template": "{id}",
+    "signature": "public async Task<ActionResult<GetCouponResponse>> GetCoupon(Guid id)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/CouponsController.cs",
+    "controller": "CouponsController",
+    "base_route": "api/coupons",
+    "verb": "GET",
+    "template": "{id}/statistics",
+    "signature": "public async Task<ActionResult<GetCouponStatisticsResponse>> GetCouponStatistics(Guid id)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/CouponsController.cs",
+    "controller": "CouponsController",
+    "base_route": "api/coupons",
+    "verb": "DELETE",
+    "template": "{id}",
+    "signature": "public async Task<ActionResult<DeleteCouponResponse>> DeleteCoupon(Guid id)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/InventoryController.cs",
+    "controller": "InventoryController",
+    "base_route": "api/[controller]",
+    "verb": "GET",
+    "template": "products/{productId}",
+    "signature": "public async Task<ActionResult<GetStockLevelResponse>> GetStockLevel( Guid productId, [FromQuery] Guid? variantId = null)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/InventoryController.cs",
+    "controller": "InventoryController",
+    "base_route": "api/[controller]",
+    "verb": "POST",
+    "template": "adjust",
+    "signature": "public async Task<ActionResult<AdjustStockResponse>> AdjustStock([FromBody] AdjustStockCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/InventoryController.cs",
+    "controller": "InventoryController",
+    "base_route": "api/[controller]",
+    "verb": "GET",
+    "template": "orders/{orderId}/picking-list",
+    "signature": "public async Task<ActionResult<GetPickingListResponse>> GetPickingList(Guid orderId)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/InventoryController.cs",
+    "controller": "InventoryController",
+    "base_route": "api/[controller]",
+    "verb": "POST",
+    "template": "pick",
+    "signature": "public async Task<ActionResult<PickOrderItemResponse>> PickOrderItem([FromBody] PickOrderItemCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/InventoryController.cs",
+    "controller": "InventoryController",
+    "base_route": "api/[controller]",
+    "verb": "POST",
+    "template": "transfer",
+    "signature": "public async Task<ActionResult<TransferStockResponse>> TransferStock([FromBody] TransferStockCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/InventoryController.cs",
+    "controller": "InventoryController",
+    "base_route": "api/[controller]",
+    "verb": "POST",
+    "template": "locations",
+    "signature": "public async Task<ActionResult<CreateWarehouseLocationResponse>> CreateWarehouseLocation([FromBody] CreateWarehouseLocationCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/InventoryController.cs",
+    "controller": "InventoryController",
+    "base_route": "api/[controller]",
+    "verb": "GET",
+    "template": "movements",
+    "signature": "public async Task<ActionResult<GetStockMovementsResponse>> GetStockMovements([FromQuery] GetStockMovementsQuery query)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/InventoryController.cs",
+    "controller": "InventoryController",
+    "base_route": "api/[controller]",
+    "verb": "GET",
+    "template": "alerts/low-stock",
+    "signature": "public async Task<ActionResult<GetLowStockAlertsResponse>> GetLowStockAlerts([FromQuery] GetLowStockAlertsQuery query)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/InventoryController.cs",
+    "controller": "InventoryController",
+    "base_route": "api/[controller]",
+    "verb": "POST",
+    "template": "count",
+    "signature": "public async Task<ActionResult<CountInventoryResponse>> CountInventory([FromBody] CountInventoryCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/InventoryController.cs",
+    "controller": "InventoryController",
+    "base_route": "api/[controller]",
+    "verb": "GET",
+    "template": "warehouse-stock",
+    "signature": "public async Task<ActionResult<GetWarehouseStockResponse>> GetWarehouseStock([FromQuery] GetWarehouseStockQuery query)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/PaymentsController.cs",
+    "controller": "PaymentsController",
+    "base_route": "api/[controller]",
+    "verb": "POST",
+    "template": "process",
+    "signature": "public async Task<ActionResult<ProcessPaymentResponse>> ProcessPayment([FromBody] ProcessPaymentCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/PaymentsController.cs",
+    "controller": "PaymentsController",
+    "base_route": "api/[controller]",
+    "verb": "POST",
+    "template": "verify",
+    "signature": "public async Task<ActionResult<VerifyPaymentResponse>> VerifyPayment([FromBody] VerifyPaymentCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/PaymentsController.cs",
+    "controller": "PaymentsController",
+    "base_route": "api/[controller]",
+    "verb": "POST",
+    "template": "callback/paytr",
+    "signature": "public async Task<IActionResult> PayTRCallback([FromForm] Dictionary<string, string> data)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/ProductsController.cs",
+    "controller": "ProductsController",
+    "base_route": "api/[controller]",
+    "verb": "GET",
+    "template": "",
+    "signature": "public async Task<ActionResult<GetProductsResponse>> GetProducts([FromQuery] GetProductsQuery query)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/ProductsController.cs",
+    "controller": "ProductsController",
+    "base_route": "api/[controller]",
+    "verb": "GET",
+    "template": "cursor",
+    "signature": "public async Task<ActionResult<GetProductsCursorResponse>> GetProductsCursor([FromQuery] GetProductsCursorQuery query)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/ProductsController.cs",
+    "controller": "ProductsController",
+    "base_route": "api/[controller]",
+    "verb": "GET",
+    "template": "{id}",
+    "signature": "public async Task<ActionResult<GetProductResponse>> GetProduct(Guid id)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/ProductsController.cs",
+    "controller": "ProductsController",
+    "base_route": "api/[controller]",
+    "verb": "POST",
+    "template": "",
+    "signature": "public async Task<ActionResult<CreateProductResponse>> CreateProduct([FromBody] CreateProductCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/ProductsController.cs",
+    "controller": "ProductsController",
+    "base_route": "api/[controller]",
+    "verb": "PUT",
+    "template": "{id}",
+    "signature": "public async Task<ActionResult<UpdateProductResponse>> UpdateProduct(Guid id, [FromBody] UpdateProductCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/ProductsController.cs",
+    "controller": "ProductsController",
+    "base_route": "api/[controller]",
+    "verb": "DELETE",
+    "template": "{id}",
+    "signature": "public async Task<IActionResult> DeleteProduct(Guid id)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/PublicController.cs",
+    "controller": "PublicController",
+    "base_route": "api/public",
+    "verb": "GET",
+    "template": "bootstrap",
+    "signature": "public async Task<ActionResult<GetBootstrapDataResponse>> Bootstrap()"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/PublicFeedsController.cs",
+    "controller": "PublicFeedsController",
+    "base_route": "api/public/feeds",
+    "verb": "GET",
+    "template": "google-shopping.xml",
+    "signature": "public async Task<IActionResult> GetGoogleShoppingFeed()"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/PublicFeedsController.cs",
+    "controller": "PublicFeedsController",
+    "base_route": "api/public/feeds",
+    "verb": "GET",
+    "template": "cimri.xml",
+    "signature": "public async Task<IActionResult> GetCimriFeed()"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/PublicFeedsController.cs",
+    "controller": "PublicFeedsController",
+    "base_route": "api/public/feeds",
+    "verb": "GET",
+    "template": "products.xml",
+    "signature": "public async Task<IActionResult> GetCustomFeed([FromQuery] string? format = \"google\")"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/ResellersController.cs",
+    "controller": "ResellersController",
+    "base_route": "api/[controller]",
+    "verb": "POST",
+    "template": "",
+    "signature": "public async Task<ActionResult<CreateResellerResponse>> CreateReseller([FromBody] CreateResellerCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/ResellersController.cs",
+    "controller": "ResellersController",
+    "base_route": "api/[controller]",
+    "verb": "GET",
+    "template": "",
+    "signature": "public async Task<ActionResult<GetResellersResponse>> GetResellers([FromQuery] GetResellersQuery query)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/ResellersController.cs",
+    "controller": "ResellersController",
+    "base_route": "api/[controller]",
+    "verb": "POST",
+    "template": "{resellerId}/prices",
+    "signature": "public async Task<ActionResult<CreateResellerPriceResponse>> CreateResellerPrice( Guid resellerId, [FromBody] CreateResellerPriceCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/ReviewsController.cs",
+    "controller": "ReviewsController",
+    "base_route": "api/reviews",
+    "verb": "GET",
+    "template": "product/{productId}",
+    "signature": "public async Task<ActionResult<GetProductReviewsResponse>> GetProductReviews( Guid productId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string? sortBy = null, [FromQuery] string? sortOrder = null, [FromQuery] int? minRating = null, [FromQuery] int? maxRating = null, [FromQuery] bool? isVerifiedPurchase = null, [FromQuery] bool? hasReply = null, [FromQuery] bool? onlyWithImages = null)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/ReviewsController.cs",
+    "controller": "ReviewsController",
+    "base_route": "api/reviews",
+    "verb": "POST",
+    "template": "",
+    "signature": "public async Task<ActionResult<CreateReviewResponse>> CreateReview([FromBody] CreateReviewCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/ReviewsController.cs",
+    "controller": "ReviewsController",
+    "base_route": "api/reviews",
+    "verb": "PUT",
+    "template": "{id}",
+    "signature": "public async Task<ActionResult<UpdateReviewResponse>> UpdateReview(Guid id, [FromBody] UpdateReviewCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/ReviewsController.cs",
+    "controller": "ReviewsController",
+    "base_route": "api/reviews",
+    "verb": "DELETE",
+    "template": "{id}",
+    "signature": "public async Task<ActionResult<DeleteReviewResponse>> DeleteReview(Guid id)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/ReviewsController.cs",
+    "controller": "ReviewsController",
+    "base_route": "api/reviews",
+    "verb": "POST",
+    "template": "{id}/vote",
+    "signature": "public async Task<ActionResult<VoteReviewResponse>> VoteReview(Guid id, [FromBody] VoteReviewCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/ReviewsController.cs",
+    "controller": "ReviewsController",
+    "base_route": "api/reviews",
+    "verb": "POST",
+    "template": "{id}/approve",
+    "signature": "public async Task<ActionResult<ApproveReviewResponse>> ApproveReview(Guid id, [FromBody] ApproveReviewCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/ReviewsController.cs",
+    "controller": "ReviewsController",
+    "base_route": "api/reviews",
+    "verb": "POST",
+    "template": "{id}/reply",
+    "signature": "public async Task<ActionResult<ReplyToReviewResponse>> ReplyToReview(Guid id, [FromBody] ReplyToReviewCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/TemplatesController.cs",
+    "controller": "TemplatesController",
+    "base_route": "api/templates",
+    "verb": "GET",
+    "template": "available",
+    "signature": "public async Task<ActionResult<GetAvailableTemplatesResponse>> GetAvailableTemplates()"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/TemplatesController.cs",
+    "controller": "TemplatesController",
+    "base_route": "api/templates",
+    "verb": "GET",
+    "template": "selected",
+    "signature": "public async Task<ActionResult<GetSelectedTemplateResponse>> GetSelectedTemplate()"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/TemplatesController.cs",
+    "controller": "TemplatesController",
+    "base_route": "api/templates",
+    "verb": "POST",
+    "template": "select",
+    "signature": "public async Task<ActionResult<SelectTemplateResponse>> SelectTemplate([FromBody] SelectTemplateCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/TenantController.cs",
+    "controller": "TenantController",
+    "base_route": "api/tenant",
+    "verb": "GET",
+    "template": "public",
+    "signature": "public async Task<ActionResult<GetTenantPublicInfoResponse>> GetPublicInfo([FromQuery] string? slug = null)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/TenantController.cs",
+    "controller": "TenantController",
+    "base_route": "api/tenant",
+    "verb": "GET",
+    "template": "settings",
+    "signature": "public async Task<ActionResult<GetTenantSettingsResponse>> GetSettings()"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/TenantController.cs",
+    "controller": "TenantController",
+    "base_route": "api/tenant",
+    "verb": "PUT",
+    "template": "settings",
+    "signature": "public async Task<ActionResult<UpdateTenantSettingsResponse>> UpdateSettings([FromBody] UpdateTenantSettingsCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/TenantController.cs",
+    "controller": "TenantController",
+    "base_route": "api/tenant",
+    "verb": "GET",
+    "template": "layout",
+    "signature": "public async Task<ActionResult<GetLayoutSettingsResponse>> GetLayoutSettings()"
+  },
+  {
+    "file": "src/Tinisoft.API/Controllers/TenantController.cs",
+    "controller": "TenantController",
+    "base_route": "api/tenant",
+    "verb": "PUT",
+    "template": "layout",
+    "signature": "public async Task<ActionResult<UpdateLayoutSettingsResponse>> UpdateLayoutSettings([FromBody] UpdateLayoutSettingsCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.Customers.API/Controllers/CustomersController.cs",
+    "controller": "CustomersController",
+    "base_route": "api/customers",
+    "verb": "POST",
+    "template": "register",
+    "signature": "public async Task<ActionResult<CustomerAuthResponse>> Register([FromBody] RegisterCustomerCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.Customers.API/Controllers/CustomersController.cs",
+    "controller": "CustomersController",
+    "base_route": "api/customers",
+    "verb": "POST",
+    "template": "login",
+    "signature": "public async Task<ActionResult<CustomerLoginResponse>> Login([FromBody] LoginCustomerCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.Customers.API/Controllers/CustomersController.cs",
+    "controller": "CustomersController",
+    "base_route": "api/customers",
+    "verb": "GET",
+    "template": "profile",
+    "signature": "public async Task<ActionResult<CustomerDto>> GetProfile()"
+  },
+  {
+    "file": "src/Tinisoft.Customers.API/Controllers/CustomersController.cs",
+    "controller": "CustomersController",
+    "base_route": "api/customers",
+    "verb": "PUT",
+    "template": "profile",
+    "signature": "public async Task<ActionResult<CustomerDto>> UpdateProfile([FromBody] UpdateCustomerProfileCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.Customers.API/Controllers/CustomersController.cs",
+    "controller": "CustomersController",
+    "base_route": "api/customers",
+    "verb": "POST",
+    "template": "addresses",
+    "signature": "public async Task<ActionResult<CustomerAddressDto>> AddAddress([FromBody] AddCustomerAddressCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.Customers.API/Controllers/CustomersController.cs",
+    "controller": "CustomersController",
+    "base_route": "api/customers",
+    "verb": "GET",
+    "template": "addresses",
+    "signature": "public async Task<ActionResult<List<CustomerAddressDto>>> GetAddresses()"
+  },
+  {
+    "file": "src/Tinisoft.Customers.API/Controllers/CustomersController.cs",
+    "controller": "CustomersController",
+    "base_route": "api/customers",
+    "verb": "GET",
+    "template": "cart",
+    "signature": "public async Task<ActionResult<GetCartResponse>> GetCart()"
+  },
+  {
+    "file": "src/Tinisoft.Customers.API/Controllers/CustomersController.cs",
+    "controller": "CustomersController",
+    "base_route": "api/customers",
+    "verb": "POST",
+    "template": "cart/items",
+    "signature": "public async Task<ActionResult<AddCartItemResponse>> AddCartItem([FromBody] AddCartItemCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.Customers.API/Controllers/CustomersController.cs",
+    "controller": "CustomersController",
+    "base_route": "api/customers",
+    "verb": "PUT",
+    "template": "cart/items/{id}",
+    "signature": "public async Task<ActionResult<UpdateCartItemResponse>> UpdateCartItem(Guid id, [FromBody] UpdateCartItemCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.Customers.API/Controllers/CustomersController.cs",
+    "controller": "CustomersController",
+    "base_route": "api/customers",
+    "verb": "DELETE",
+    "template": "cart/items/{id}",
+    "signature": "public async Task<ActionResult<RemoveCartItemResponse>> RemoveCartItem(Guid id)"
+  },
+  {
+    "file": "src/Tinisoft.Customers.API/Controllers/CustomersController.cs",
+    "controller": "CustomersController",
+    "base_route": "api/customers",
+    "verb": "DELETE",
+    "template": "cart",
+    "signature": "public async Task<ActionResult<ClearCartResponse>> ClearCart()"
+  },
+  {
+    "file": "src/Tinisoft.Customers.API/Controllers/CustomersController.cs",
+    "controller": "CustomersController",
+    "base_route": "api/customers",
+    "verb": "POST",
+    "template": "orders/checkout",
+    "signature": "public async Task<ActionResult<CheckoutFromCartResponse>> CheckoutFromCart([FromBody] CheckoutFromCartCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.Customers.API/Controllers/CustomersController.cs",
+    "controller": "CustomersController",
+    "base_route": "api/customers",
+    "verb": "GET",
+    "template": "orders",
+    "signature": "public async Task<ActionResult<GetCustomerOrdersResponse>> GetOrders([FromQuery] GetCustomerOrdersQuery query)"
+  },
+  {
+    "file": "src/Tinisoft.Customers.API/Controllers/CustomersController.cs",
+    "controller": "CustomersController",
+    "base_route": "api/customers",
+    "verb": "GET",
+    "template": "orders/{id}",
+    "signature": "public async Task<ActionResult<GetCustomerOrderResponse>> GetOrder(Guid id)"
+  },
+  {
+    "file": "src/Tinisoft.Customers.API/Controllers/CustomersController.cs",
+    "controller": "CustomersController",
+    "base_route": "api/customers",
+    "verb": "POST",
+    "template": "cart/apply-coupon",
+    "signature": "public async Task<ActionResult<ApplyCouponToCartResponse>> ApplyCouponToCart([FromBody] ApplyCouponToCartCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.Customers.API/Controllers/CustomersController.cs",
+    "controller": "CustomersController",
+    "base_route": "api/customers",
+    "verb": "DELETE",
+    "template": "cart/coupon",
+    "signature": "public async Task<ActionResult<RemoveCouponFromCartResponse>> RemoveCouponFromCart()"
+  },
+  {
+    "file": "src/Tinisoft.Inventory.API/Controllers/InventoryController.cs",
+    "controller": "InventoryController",
+    "base_route": "api/inventory",
+    "verb": "GET",
+    "template": "products/{productId}",
+    "signature": "public async Task<ActionResult<GetStockLevelResponse>> GetStockLevel( Guid productId, [FromQuery] Guid? variantId = null)"
+  },
+  {
+    "file": "src/Tinisoft.Inventory.API/Controllers/InventoryController.cs",
+    "controller": "InventoryController",
+    "base_route": "api/inventory",
+    "verb": "POST",
+    "template": "adjust",
+    "signature": "public async Task<ActionResult<AdjustStockResponse>> AdjustStock([FromBody] AdjustStockCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.Invoices.API/Controllers/InvoicesController.cs",
+    "controller": "InvoicesController",
+    "base_route": "api/invoices",
+    "verb": "GET",
+    "template": "",
+    "signature": "public async Task<ActionResult<GetInvoicesResponse>> GetInvoices([FromQuery] GetInvoicesQuery query)"
+  },
+  {
+    "file": "src/Tinisoft.Invoices.API/Controllers/InvoicesController.cs",
+    "controller": "InvoicesController",
+    "base_route": "api/invoices",
+    "verb": "GET",
+    "template": "{id}",
+    "signature": "public async Task<ActionResult<GetInvoiceResponse>> GetInvoice( Guid id, [FromQuery] bool includePdf = false)"
+  },
+  {
+    "file": "src/Tinisoft.Invoices.API/Controllers/InvoicesController.cs",
+    "controller": "InvoicesController",
+    "base_route": "api/invoices",
+    "verb": "POST",
+    "template": "",
+    "signature": "public async Task<ActionResult<CreateInvoiceResponse>> CreateInvoice([FromBody] CreateInvoiceCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.Invoices.API/Controllers/InvoicesController.cs",
+    "controller": "InvoicesController",
+    "base_route": "api/invoices",
+    "verb": "POST",
+    "template": "{id}/cancel",
+    "signature": "public async Task<ActionResult<CancelInvoiceResponse>> CancelInvoice( Guid id, [FromBody] CancelInvoiceCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.Invoices.API/Controllers/InvoicesController.cs",
+    "controller": "InvoicesController",
+    "base_route": "api/invoices",
+    "verb": "POST",
+    "template": "{id}/send-to-gib",
+    "signature": "public async Task<ActionResult<SendInvoiceToGIBResponse>> SendInvoiceToGIB(Guid id)"
+  },
+  {
+    "file": "src/Tinisoft.Invoices.API/Controllers/InvoicesController.cs",
+    "controller": "InvoicesController",
+    "base_route": "api/invoices",
+    "verb": "GET",
+    "template": "settings",
+    "signature": "public async Task<ActionResult<GetInvoiceSettingsResponse>> GetInvoiceSettings()"
+  },
+  {
+    "file": "src/Tinisoft.Invoices.API/Controllers/InvoicesController.cs",
+    "controller": "InvoicesController",
+    "base_route": "api/invoices",
+    "verb": "PUT",
+    "template": "settings",
+    "signature": "public async Task<ActionResult<UpdateInvoiceSettingsResponse>> UpdateInvoiceSettings( [FromBody] UpdateInvoiceSettingsCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.Invoices.API/Controllers/InvoicesController.cs",
+    "controller": "InvoicesController",
+    "base_route": "api/invoices",
+    "verb": "GET",
+    "template": "{id}/gib-status",
+    "signature": "public async Task<ActionResult<GetInvoiceStatusFromGIBResponse>> GetInvoiceStatusFromGIB(Guid id)"
+  },
+  {
+    "file": "src/Tinisoft.Invoices.API/Controllers/InvoicesController.cs",
+    "controller": "InvoicesController",
+    "base_route": "api/invoices",
+    "verb": "GET",
+    "template": "inbox",
+    "signature": "public async Task<ActionResult<GetInboxInvoicesResponse>> GetInboxInvoices( [FromQuery] DateTime? startDate = null, [FromQuery] DateTime? endDate = null, [FromQuery] string? senderVKN = null)"
+  },
+  {
+    "file": "src/Tinisoft.Marketplace.API/Controllers/MarketplaceController.cs",
+    "controller": "MarketplaceController",
+    "base_route": "api/marketplace",
+    "verb": "POST",
+    "template": "sync/products",
+    "signature": "public async Task<ActionResult<SyncProductsResponse>> SyncProducts([FromBody] SyncProductsCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.Notifications.API/Controllers/NotificationsController.cs",
+    "controller": "NotificationsController",
+    "base_route": "api/notifications",
+    "verb": "POST",
+    "template": "email-providers",
+    "signature": "public async Task<ActionResult<CreateEmailProviderResponse>> CreateEmailProvider([FromBody] CreateEmailProviderCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.Notifications.API/Controllers/NotificationsController.cs",
+    "controller": "NotificationsController",
+    "base_route": "api/notifications",
+    "verb": "POST",
+    "template": "email-templates",
+    "signature": "public async Task<ActionResult<CreateEmailTemplateResponse>> CreateEmailTemplate([FromBody] CreateEmailTemplateCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.Notifications.API/Controllers/NotificationsController.cs",
+    "controller": "NotificationsController",
+    "base_route": "api/notifications",
+    "verb": "GET",
+    "template": "email-templates",
+    "signature": "public async Task<ActionResult<GetEmailTemplatesResponse>> GetEmailTemplates([FromQuery] GetEmailTemplatesQuery query)"
+  },
+  {
+    "file": "src/Tinisoft.Notifications.API/Controllers/NotificationsController.cs",
+    "controller": "NotificationsController",
+    "base_route": "api/notifications",
+    "verb": "POST",
+    "template": "send-email",
+    "signature": "public async Task<ActionResult<SendEmailResponse>> SendEmail([FromBody] SendEmailCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.Orders.API/Controllers/OrdersController.cs",
+    "controller": "OrdersController",
+    "base_route": "api/orders",
+    "verb": "POST",
+    "template": "",
+    "signature": "public async Task<ActionResult<CreateOrderResponse>> CreateOrder([FromBody] CreateOrderCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.Orders.API/Controllers/OrdersController.cs",
+    "controller": "OrdersController",
+    "base_route": "api/orders",
+    "verb": "GET",
+    "template": "{id}",
+    "signature": "public async Task<ActionResult<GetOrderResponse>> GetOrder(Guid id)"
+  },
+  {
+    "file": "src/Tinisoft.Orders.API/Controllers/OrdersController.cs",
+    "controller": "OrdersController",
+    "base_route": "api/orders",
+    "verb": "PUT",
+    "template": "{id}/status",
+    "signature": "public async Task<ActionResult<UpdateOrderStatusResponse>> UpdateOrderStatus( Guid id, [FromBody] UpdateOrderStatusCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.Payments.API/Controllers/PaymentsController.cs",
+    "controller": "PaymentsController",
+    "base_route": "api/payments",
+    "verb": "POST",
+    "template": "process",
+    "signature": "public async Task<ActionResult<ProcessPaymentResponse>> ProcessPayment([FromBody] ProcessPaymentCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.Payments.API/Controllers/PaymentsController.cs",
+    "controller": "PaymentsController",
+    "base_route": "api/payments",
+    "verb": "POST",
+    "template": "verify",
+    "signature": "public async Task<ActionResult<VerifyPaymentResponse>> VerifyPayment([FromBody] VerifyPaymentCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.Payments.API/Controllers/PaymentsController.cs",
+    "controller": "PaymentsController",
+    "base_route": "api/payments",
+    "verb": "POST",
+    "template": "callback/paytr",
+    "signature": "public async Task<IActionResult> PayTRCallback([FromForm] Dictionary<string, string> data)"
+  },
+  {
+    "file": "src/Tinisoft.Products.API/Controllers/ProductsController.cs",
+    "controller": "ProductsController",
+    "base_route": "api/products",
+    "verb": "GET",
+    "template": "",
+    "signature": "public async Task<ActionResult<GetProductsResponse>> GetProducts([FromQuery] GetProductsQuery query)"
+  },
+  {
+    "file": "src/Tinisoft.Products.API/Controllers/ProductsController.cs",
+    "controller": "ProductsController",
+    "base_route": "api/products",
+    "verb": "GET",
+    "template": "{id}",
+    "signature": "public async Task<ActionResult<GetProductResponse>> GetProduct(Guid id)"
+  },
+  {
+    "file": "src/Tinisoft.Products.API/Controllers/ProductsController.cs",
+    "controller": "ProductsController",
+    "base_route": "api/products",
+    "verb": "POST",
+    "template": "",
+    "signature": "public async Task<ActionResult<CreateProductResponse>> CreateProduct([FromBody] CreateProductCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.Products.API/Controllers/ProductsController.cs",
+    "controller": "ProductsController",
+    "base_route": "api/products",
+    "verb": "PUT",
+    "template": "{id}",
+    "signature": "public async Task<ActionResult<UpdateProductResponse>> UpdateProduct(Guid id, [FromBody] UpdateProductCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.Products.API/Controllers/ProductsController.cs",
+    "controller": "ProductsController",
+    "base_route": "api/products",
+    "verb": "DELETE",
+    "template": "{id}",
+    "signature": "public async Task<IActionResult> DeleteProduct(Guid id)"
+  },
+  {
+    "file": "src/Tinisoft.Products.API/Controllers/StorefrontController.cs",
+    "controller": "StorefrontController",
+    "base_route": "api/storefront",
+    "verb": "GET",
+    "template": "products",
+    "signature": "public async Task<ActionResult<GetStorefrontProductsResponse>> GetProducts([FromQuery] GetStorefrontProductsQuery query)"
+  },
+  {
+    "file": "src/Tinisoft.Products.API/Controllers/StorefrontController.cs",
+    "controller": "StorefrontController",
+    "base_route": "api/storefront",
+    "verb": "GET",
+    "template": "products/{id}",
+    "signature": "public async Task<ActionResult<GetStorefrontProductResponse>> GetProduct(Guid id, [FromQuery] string? preferredCurrency = null)"
+  },
+  {
+    "file": "src/Tinisoft.Products.API/Controllers/StorefrontController.cs",
+    "controller": "StorefrontController",
+    "base_route": "api/storefront",
+    "verb": "GET",
+    "template": "categories",
+    "signature": "public async Task<ActionResult<GetStorefrontCategoriesResponse>> GetCategories()"
+  },
+  {
+    "file": "src/Tinisoft.Products.API/Controllers/TaxController.cs",
+    "controller": "TaxController",
+    "base_route": "api/tax",
+    "verb": "POST",
+    "template": "calculate",
+    "signature": "public async Task<ActionResult<CalculateTaxResponse>> CalculateTax([FromBody] CalculateTaxCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.Products.API/Controllers/TaxController.cs",
+    "controller": "TaxController",
+    "base_route": "api/tax",
+    "verb": "GET",
+    "template": "rates",
+    "signature": "public async Task<ActionResult<List<TaxRateDto>>> GetTaxRates([FromQuery] bool? isActive = null)"
+  },
+  {
+    "file": "src/Tinisoft.Products.API/Controllers/TaxController.cs",
+    "controller": "TaxController",
+    "base_route": "api/tax",
+    "verb": "POST",
+    "template": "rates",
+    "signature": "public async Task<ActionResult<CreateTaxRateResponse>> CreateTaxRate([FromBody] CreateTaxRateCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.Products.API/Controllers/TaxController.cs",
+    "controller": "TaxController",
+    "base_route": "api/tax",
+    "verb": "PUT",
+    "template": "rates/{id}",
+    "signature": "public async Task<ActionResult<UpdateTaxRateResponse>> UpdateTaxRate(Guid id, [FromBody] UpdateTaxRateCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.Products.API/Controllers/TaxController.cs",
+    "controller": "TaxController",
+    "base_route": "api/tax",
+    "verb": "DELETE",
+    "template": "rates/{id}",
+    "signature": "public async Task<IActionResult> DeleteTaxRate(Guid id)"
+  },
+  {
+    "file": "src/Tinisoft.Shipping.API/Controllers/ShippingController.cs",
+    "controller": "ShippingController",
+    "base_route": "api/shipping",
+    "verb": "GET",
+    "template": "providers",
+    "signature": "public async Task<ActionResult<GetShippingProvidersResponse>> GetShippingProviders([FromQuery] GetShippingProvidersQuery query)"
+  },
+  {
+    "file": "src/Tinisoft.Shipping.API/Controllers/ShippingController.cs",
+    "controller": "ShippingController",
+    "base_route": "api/shipping",
+    "verb": "POST",
+    "template": "providers",
+    "signature": "public async Task<ActionResult<CreateShippingProviderResponse>> CreateShippingProvider([FromBody] CreateShippingProviderCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.Shipping.API/Controllers/ShippingController.cs",
+    "controller": "ShippingController",
+    "base_route": "api/shipping",
+    "verb": "PUT",
+    "template": "providers/{id}",
+    "signature": "public async Task<ActionResult<UpdateShippingProviderResponse>> UpdateShippingProvider(Guid id, [FromBody] UpdateShippingProviderCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.Shipping.API/Controllers/ShippingController.cs",
+    "controller": "ShippingController",
+    "base_route": "api/shipping",
+    "verb": "POST",
+    "template": "calculate-cost",
+    "signature": "public async Task<ActionResult<CalculateShippingCostResponse>> CalculateShippingCost([FromBody] CalculateShippingCostCommand command)"
+  },
+  {
+    "file": "src/Tinisoft.Shipping.API/Controllers/ShippingController.cs",
+    "controller": "ShippingController",
+    "base_route": "api/shipping",
+    "verb": "POST",
+    "template": "shipments",
+    "signature": "public async Task<ActionResult<CreateShipmentResponse>> CreateShipment([FromBody] CreateShipmentCommand command)"
+  }
+]
