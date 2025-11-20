@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Tinisoft.Application.Common.Exceptions;
 using Finbuckle.MultiTenant;
 using System.Security.Cryptography.X509Certificates;
@@ -9,12 +10,12 @@ namespace Tinisoft.Application.Invoices.Commands.UpdateInvoiceSettings;
 
 public class UpdateInvoiceSettingsCommandHandler : IRequestHandler<UpdateInvoiceSettingsCommand, UpdateInvoiceSettingsResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly ILogger<UpdateInvoiceSettingsCommandHandler> _logger;
 
     public UpdateInvoiceSettingsCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         ILogger<UpdateInvoiceSettingsCommandHandler> logger)
     {
@@ -159,4 +160,6 @@ public class UpdateInvoiceSettingsCommandHandler : IRequestHandler<UpdateInvoice
         };
     }
 }
+
+
 

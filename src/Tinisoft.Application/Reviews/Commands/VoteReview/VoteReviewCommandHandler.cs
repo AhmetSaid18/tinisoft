@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Tinisoft.Application.Common.Exceptions;
 using Finbuckle.MultiTenant;
 using Microsoft.AspNetCore.Http;
@@ -9,13 +10,13 @@ namespace Tinisoft.Application.Reviews.Commands.VoteReview;
 
 public class VoteReviewCommandHandler : IRequestHandler<VoteReviewCommand, VoteReviewResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger<VoteReviewCommandHandler> _logger;
 
     public VoteReviewCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         IHttpContextAccessor httpContextAccessor,
         ILogger<VoteReviewCommandHandler> logger)
@@ -47,7 +48,7 @@ public class VoteReviewCommandHandler : IRequestHandler<VoteReviewCommand, VoteR
         var ipAddress = _httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString();
 
         // Duplicate vote kontrolü
-        var existingVote = await _dbContext.Set<ReviewVote>()
+        var existingVote = await _dbContext.Set<Entities.ReviewVote>()
             .FirstOrDefaultAsync(v => 
                 v.TenantId == tenantId &&
                 v.ReviewId == request.ReviewId &&
@@ -71,7 +72,7 @@ public class VoteReviewCommandHandler : IRequestHandler<VoteReviewCommand, VoteR
                     review.NotHelpfulCount = Math.Max(0, review.NotHelpfulCount - 1);
                 }
 
-                _dbContext.Set<ReviewVote>().Remove(existingVote);
+                _dbContext.Set<Entities.ReviewVote>().Remove(existingVote);
                 
                 await _dbContext.SaveChangesAsync(cancellationToken);
 
@@ -104,7 +105,7 @@ public class VoteReviewCommandHandler : IRequestHandler<VoteReviewCommand, VoteR
         else
         {
             // Yeni oy ekle
-            var vote = new ReviewVote
+            var vote = new Entities.ReviewVote
             {
                 TenantId = tenantId,
                 ReviewId = request.ReviewId,
@@ -113,7 +114,7 @@ public class VoteReviewCommandHandler : IRequestHandler<VoteReviewCommand, VoteR
                 IsHelpful = request.IsHelpful
             };
 
-            _dbContext.Set<ReviewVote>().Add(vote);
+            _dbContext.Set<Entities.ReviewVote>().Add(vote);
 
             if (request.IsHelpful)
             {
@@ -139,4 +140,6 @@ public class VoteReviewCommandHandler : IRequestHandler<VoteReviewCommand, VoteR
         };
     }
 }
+
+
 

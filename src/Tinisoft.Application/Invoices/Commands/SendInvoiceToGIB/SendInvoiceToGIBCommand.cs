@@ -18,3 +18,5 @@ public class SendInvoiceToGIBResponse
     public string Message { get; set; } = string.Empty;
 }
 
+
+

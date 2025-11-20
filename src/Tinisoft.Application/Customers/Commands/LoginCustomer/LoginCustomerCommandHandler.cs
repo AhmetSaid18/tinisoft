@@ -1,8 +1,8 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Tinisoft.Domain.Entities;
-using Tinisoft.Infrastructure.Persistence;
-using Tinisoft.Infrastructure.Services;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Tinisoft.Application.Common.Interfaces;
 using Finbuckle.MultiTenant;
 
@@ -10,14 +10,14 @@ namespace Tinisoft.Application.Customers.Commands.LoginCustomer;
 
 public class LoginCustomerCommandHandler : IRequestHandler<LoginCustomerCommand, CustomerLoginResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IJwtTokenService _jwtTokenService;
     private readonly ILogger<LoginCustomerCommandHandler> _logger;
 
     public LoginCustomerCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         IPasswordHasher passwordHasher,
         IJwtTokenService jwtTokenService,
@@ -66,5 +66,7 @@ public class LoginCustomerCommandHandler : IRequestHandler<LoginCustomerCommand,
         };
     }
 }
+
+
 
 

@@ -18,3 +18,5 @@ public class CreateEmailTemplateResponse
     public string TemplateName { get; set; } = string.Empty;
 }
 
+
+

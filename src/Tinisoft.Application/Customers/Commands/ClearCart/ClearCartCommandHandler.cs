@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Tinisoft.Application.Common.Interfaces;
 using Finbuckle.MultiTenant;
 
@@ -8,13 +9,13 @@ namespace Tinisoft.Application.Customers.Commands.ClearCart;
 
 public class ClearCartCommandHandler : IRequestHandler<ClearCartCommand, ClearCartResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly ICurrentCustomerService _currentCustomerService;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly ILogger<ClearCartCommandHandler> _logger;
 
     public ClearCartCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         ICurrentCustomerService currentCustomerService,
         IMultiTenantContextAccessor tenantAccessor,
         ILogger<ClearCartCommandHandler> logger)
@@ -61,4 +62,6 @@ public class ClearCartCommandHandler : IRequestHandler<ClearCartCommand, ClearCa
         return new ClearCartResponse { Success = true };
     }
 }
+
+
 

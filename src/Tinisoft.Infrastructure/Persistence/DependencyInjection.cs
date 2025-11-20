@@ -5,6 +5,7 @@ using Microsoft.Extensions.Hosting;
 using Tinisoft.Infrastructure.Persistence;
 using Finbuckle.MultiTenant;
 using Finbuckle.MultiTenant.Stores;
+using Finbuckle.MultiTenant.AspNetCore;
 using Tinisoft.Infrastructure.MultiTenant;
 
 namespace Tinisoft.Infrastructure.Persistence;
@@ -19,10 +20,10 @@ public static class DependencyInjection
         services.AddDbContext<TenantStoreDbContext>(options =>
             options.UseNpgsql(connectionString));
 
-        services.AddMultiTenant<TenantInfo>()
+        services.AddMultiTenant<MultiTenant.TenantInfo>()
             .WithHeaderStrategy("X-Tenant-Id")
             .WithHostStrategy() // Host header'dan tenant bulur
-            .WithEFCoreStore<TenantStoreDbContext, TenantInfo>();
+            .WithEFCoreStore<TenantStoreDbContext, MultiTenant.TenantInfo>();
 
         // Global DbContext (tenant'a bağlı olmayan entity'ler için - ExchangeRate, etc.)
         services.AddDbContext<GlobalDbContext>(options =>
@@ -55,8 +56,7 @@ public static class DependencyInjection
             // Query Tracking - Read-only query'ler için NoTracking (performans)
             options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
             
-            // Query Splitting - N+1 problem'ini önlemek için
-            options.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
+            // Query Splitting - N+1 problem'ini önlemek için (EF Core 8.0'da default SplitQuery)
             
             // Enable sensitive data logging sadece development'ta
             // Not: Environment kontrolü için IWebHostEnvironment kullanılabilir

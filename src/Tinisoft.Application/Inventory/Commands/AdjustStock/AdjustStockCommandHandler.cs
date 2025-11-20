@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Tinisoft.Shared.Events;
 using Tinisoft.Shared.Contracts;
 using Finbuckle.MultiTenant;
@@ -9,13 +10,13 @@ namespace Tinisoft.Application.Inventory.Commands.AdjustStock;
 
 public class AdjustStockCommandHandler : IRequestHandler<AdjustStockCommand, AdjustStockResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IEventBus _eventBus;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly ILogger<AdjustStockCommandHandler> _logger;
 
     public AdjustStockCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IEventBus eventBus,
         IMultiTenantContextAccessor tenantAccessor,
         ILogger<AdjustStockCommandHandler> logger)
@@ -130,4 +131,6 @@ public class AdjustStockCommandHandler : IRequestHandler<AdjustStockCommand, Adj
         }
     }
 }
+
+
 

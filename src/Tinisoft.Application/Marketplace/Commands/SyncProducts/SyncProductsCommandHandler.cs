@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Finbuckle.MultiTenant;
 using Tinisoft.Application.Marketplace.Services;
 using Tinisoft.Domain.Entities;
@@ -10,13 +11,13 @@ namespace Tinisoft.Application.Marketplace.Commands.SyncProducts;
 
 public class SyncProductsCommandHandler : IRequestHandler<SyncProductsCommand, SyncProductsResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly IMarketplaceServiceFactory _marketplaceServiceFactory;
     private readonly ILogger<SyncProductsCommandHandler> _logger;
 
     public SyncProductsCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         IMarketplaceServiceFactory marketplaceServiceFactory,
         ILogger<SyncProductsCommandHandler> logger)
@@ -63,4 +64,6 @@ public class SyncProductsCommandHandler : IRequestHandler<SyncProductsCommand, S
         };
     }
 }
+
+
 

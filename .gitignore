@@ -16,11 +16,6 @@ obj/
 *.swo
 *~
 
-# Environment files
-.env
-.env.local
-.env.*.local
-
 # Docker
 docker-compose.override.yml
 
@@ -49,3 +44,4 @@ out/
 tmp/
 temp/
 *.tmp
+

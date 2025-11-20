@@ -15,3 +15,5 @@ public class SendEmailResult
     public string? ProviderResponseJson { get; set; }
 }
 
+
+

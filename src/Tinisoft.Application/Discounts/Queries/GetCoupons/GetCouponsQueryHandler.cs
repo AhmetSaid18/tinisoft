@@ -1,18 +1,19 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Finbuckle.MultiTenant;
 
 namespace Tinisoft.Application.Discounts.Queries.GetCoupons;
 
 public class GetCouponsQueryHandler : IRequestHandler<GetCouponsQuery, GetCouponsResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly ILogger<GetCouponsQueryHandler> _logger;
 
     public GetCouponsQueryHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         ILogger<GetCouponsQueryHandler> logger)
     {
@@ -88,4 +89,6 @@ public class GetCouponsQueryHandler : IRequestHandler<GetCouponsQuery, GetCoupon
         };
     }
 }
+
+
 

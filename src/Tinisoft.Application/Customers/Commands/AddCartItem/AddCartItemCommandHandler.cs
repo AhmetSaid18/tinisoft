@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Tinisoft.Application.Common.Interfaces;
 using Finbuckle.MultiTenant;
 
@@ -8,13 +9,13 @@ namespace Tinisoft.Application.Customers.Commands.AddCartItem;
 
 public class AddCartItemCommandHandler : IRequestHandler<AddCartItemCommand, AddCartItemResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly ICurrentCustomerService _currentCustomerService;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly ILogger<AddCartItemCommandHandler> _logger;
 
     public AddCartItemCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         ICurrentCustomerService currentCustomerService,
         IMultiTenantContextAccessor tenantAccessor,
         ILogger<AddCartItemCommandHandler> logger)
@@ -152,4 +153,6 @@ public class AddCartItemCommandHandler : IRequestHandler<AddCartItemCommand, Add
         };
     }
 }
+
+
 

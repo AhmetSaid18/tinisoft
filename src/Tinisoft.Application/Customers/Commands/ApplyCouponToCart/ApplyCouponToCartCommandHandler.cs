@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Tinisoft.Application.Common.Interfaces;
 using Tinisoft.Application.Discounts.Services;
 using Finbuckle.MultiTenant;
@@ -9,14 +10,14 @@ namespace Tinisoft.Application.Customers.Commands.ApplyCouponToCart;
 
 public class ApplyCouponToCartCommandHandler : IRequestHandler<ApplyCouponToCartCommand, ApplyCouponToCartResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly ICurrentCustomerService _currentCustomerService;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly ICouponValidationService _couponValidationService;
     private readonly ILogger<ApplyCouponToCartCommandHandler> _logger;
 
     public ApplyCouponToCartCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         ICurrentCustomerService currentCustomerService,
         IMultiTenantContextAccessor tenantAccessor,
         ICouponValidationService couponValidationService,
@@ -45,7 +46,7 @@ public class ApplyCouponToCartCommandHandler : IRequestHandler<ApplyCouponToCart
                 .ThenInclude(ci => ci.Product)
                     .ThenInclude(p => p.ProductCategories)
                         .ThenInclude(pc => pc.Category)
-            .AsSplitQuery()
+            
             .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.CustomerId == customerId.Value, cancellationToken);
 
         if (cart == null || !cart.Items.Any())
@@ -112,4 +113,6 @@ public class ApplyCouponToCartCommandHandler : IRequestHandler<ApplyCouponToCart
         };
     }
 }
+
+
 

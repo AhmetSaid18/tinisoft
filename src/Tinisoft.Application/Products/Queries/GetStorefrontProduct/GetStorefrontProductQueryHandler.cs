@@ -2,7 +2,8 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using System.Text.Json;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Tinisoft.Application.ExchangeRates.Services;
 using Finbuckle.MultiTenant;
 
@@ -10,14 +11,14 @@ namespace Tinisoft.Application.Products.Queries.GetStorefrontProduct;
 
 public class GetStorefrontProductQueryHandler : IRequestHandler<GetStorefrontProductQuery, GetStorefrontProductResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly IDistributedCache _cache;
     private readonly IExchangeRateService _exchangeRateService;
     private readonly ILogger<GetStorefrontProductQueryHandler> _logger;
 
     public GetStorefrontProductQueryHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         IDistributedCache cache,
         IExchangeRateService exchangeRateService,
@@ -67,7 +68,7 @@ public class GetStorefrontProductQueryHandler : IRequestHandler<GetStorefrontPro
             .Include(p => p.Variants)
             .Include(p => p.Images.OrderBy(img => img.Position))
             .Include(p => p.Options.OrderBy(opt => opt.Position))
-            .AsSplitQuery()
+            
             .FirstOrDefaultAsync(p => p.Id == request.ProductId && p.TenantId == tenantId && p.IsActive && p.Status == "Active", cancellationToken);
 
         if (product == null)
@@ -164,10 +165,10 @@ public class GetStorefrontProductQueryHandler : IRequestHandler<GetStorefrontPro
             {
                 Id = opt.Id,
                 Name = opt.Name,
-                Values = opt.Values?.Split(',').Select(v => v.Trim()).ToList() ?? new List<string>(),
+                Values = opt.Values ?? new List<string>(),
                 Position = opt.Position
             }).ToList(),
-            Tags = product.ProductTags?.Select(pt => pt.Tag?.Name ?? "").Where(t => !string.IsNullOrEmpty(t)).ToList() ?? new List<string>(),
+            Tags = product.Tags ?? new List<string>(),
             CreatedAt = product.CreatedAt
         };
 
@@ -181,4 +182,6 @@ public class GetStorefrontProductQueryHandler : IRequestHandler<GetStorefrontPro
         return response;
     }
 }
+
+
 

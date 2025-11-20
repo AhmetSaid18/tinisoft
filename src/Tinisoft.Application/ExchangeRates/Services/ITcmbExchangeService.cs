@@ -18,3 +18,5 @@ public interface ITcmbExchangeService
     Task<decimal?> GetRateAsync(string targetCurrency, CancellationToken cancellationToken = default);
 }
 
+
+

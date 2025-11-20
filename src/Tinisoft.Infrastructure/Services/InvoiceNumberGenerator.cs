@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Tinisoft.Infrastructure.Persistence;
 using Tinisoft.Application.Invoices.Services;
+using Microsoft.Extensions.Logging;
 
 namespace Tinisoft.Infrastructure.Services;
 

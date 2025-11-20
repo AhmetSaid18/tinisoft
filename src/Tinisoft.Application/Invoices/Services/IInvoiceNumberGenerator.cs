@@ -16,3 +16,5 @@ public class InvoiceNumberResult
     public string FullNumber { get; set; } = string.Empty; // Örn: "FT2024001A" veya sadece "FT0001"
 }
 
+
+

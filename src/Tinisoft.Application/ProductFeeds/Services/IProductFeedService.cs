@@ -21,3 +21,5 @@ public interface IProductFeedService
     Task<string> GenerateCustomFeedAsync(string format, CancellationToken cancellationToken = default);
 }
 
+
+

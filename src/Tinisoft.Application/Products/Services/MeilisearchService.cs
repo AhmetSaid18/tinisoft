@@ -2,19 +2,20 @@ using Meilisearch;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Tinisoft.Domain.Entities;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 
 namespace Tinisoft.Application.Products.Services;
 
 public class MeilisearchService : IMeilisearchService
 {
     private readonly MeilisearchClient? _meilisearchClient;
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly ILogger<MeilisearchService> _logger;
 
     public MeilisearchService(
         MeilisearchClient? meilisearchClient,
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         ILogger<MeilisearchService> logger)
     {
         _meilisearchClient = meilisearchClient;
@@ -34,12 +35,8 @@ public class MeilisearchService : IMeilisearchService
         {
             var index = _meilisearchClient.Index($"products_{product.TenantId}");
             
-            // Index oluştur (yoksa)
+            // Index oluştur (yoksa) - Meilisearch 0.17.1'de GetAsync yok, direkt oluşturmayı dene
             try
-            {
-                await index.GetAsync(cancellationToken);
-            }
-            catch
             {
                 await _meilisearchClient.CreateIndexAsync($"products_{product.TenantId}", "id", cancellationToken);
                 
@@ -51,6 +48,10 @@ public class MeilisearchService : IMeilisearchService
                     SortableAttributes = new[] { "price", "createdAt", "title" }
                 };
                 await index.UpdateSettingsAsync(settings, cancellationToken);
+            }
+            catch
+            {
+                // Index zaten varsa hata vermez, devam et
             }
 
             // ProductCategories'i yükle (eğer yüklenmemişse)
@@ -136,14 +137,14 @@ public class MeilisearchService : IMeilisearchService
 
             var index = _meilisearchClient.Index($"products_{tenantId}");
             
-            // Index oluştur
+            // Index oluştur (yoksa) - Meilisearch 0.17.1'de GetAsync yok, direkt oluşturmayı dene
             try
             {
-                await index.GetAsync(cancellationToken);
+                await _meilisearchClient.CreateIndexAsync($"products_{tenantId}", "id", cancellationToken);
             }
             catch
             {
-                await _meilisearchClient.CreateIndexAsync($"products_{tenantId}", "id", cancellationToken);
+                // Index zaten varsa hata vermez, devam et
             }
 
             // Tüm dokümanları ekle
@@ -157,4 +158,6 @@ public class MeilisearchService : IMeilisearchService
         }
     }
 }
+
+
 

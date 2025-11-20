@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Finbuckle.MultiTenant;
 using Tinisoft.Application.Common.Exceptions;
 
@@ -8,12 +9,12 @@ namespace Tinisoft.Application.Inventory.Commands.CountInventory;
 
 public class CountInventoryCommandHandler : IRequestHandler<CountInventoryCommand, CountInventoryResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly ILogger<CountInventoryCommandHandler> _logger;
 
     public CountInventoryCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         ILogger<CountInventoryCommandHandler> logger)
     {
@@ -87,4 +88,6 @@ public class CountInventoryCommandHandler : IRequestHandler<CountInventoryComman
         };
     }
 }
+
+
 

@@ -3,17 +3,18 @@ using Microsoft.EntityFrameworkCore;
 using Tinisoft.Application.Common.Interfaces;
 using Tinisoft.Application.Customers.Models;
 using Tinisoft.Domain.Entities;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 
 namespace Tinisoft.Application.Customers.Commands.AddCustomerAddress;
 
 public class AddCustomerAddressCommandHandler : IRequestHandler<AddCustomerAddressCommand, CustomerAddressDto>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly ICurrentCustomerService _currentCustomerService;
 
     public AddCustomerAddressCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         ICurrentCustomerService currentCustomerService)
     {
         _dbContext = dbContext;
@@ -59,18 +60,28 @@ public class AddCustomerAddressCommandHandler : IRequestHandler<AddCustomerAddre
         // Default address güncellemeleri
         if (request.IsDefaultShipping)
         {
-            await _dbContext.CustomerAddresses
+            var otherShippingAddresses = await _dbContext.CustomerAddresses
                 .Where(ca => ca.CustomerId == customer.Id && ca.Id != address.Id && ca.IsDefaultShipping)
-                .ExecuteUpdateAsync(updates => updates.SetProperty(ca => ca.IsDefaultShipping, false), cancellationToken);
+                .ToListAsync(cancellationToken);
+            
+            foreach (var addr in otherShippingAddresses)
+            {
+                addr.IsDefaultShipping = false;
+            }
 
             customer.DefaultShippingAddressId = address.Id;
         }
 
         if (request.IsDefaultBilling)
         {
-            await _dbContext.CustomerAddresses
+            var otherBillingAddresses = await _dbContext.CustomerAddresses
                 .Where(ca => ca.CustomerId == customer.Id && ca.Id != address.Id && ca.IsDefaultBilling)
-                .ExecuteUpdateAsync(updates => updates.SetProperty(ca => ca.IsDefaultBilling, false), cancellationToken);
+                .ToListAsync(cancellationToken);
+            
+            foreach (var addr in otherBillingAddresses)
+            {
+                addr.IsDefaultBilling = false;
+            }
 
             customer.DefaultBillingAddressId = address.Id;
         }
@@ -93,5 +104,7 @@ public class AddCustomerAddressCommandHandler : IRequestHandler<AddCustomerAddre
         };
     }
 }
+
+
 
 

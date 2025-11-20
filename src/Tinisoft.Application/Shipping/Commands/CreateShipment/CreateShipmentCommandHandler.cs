@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Finbuckle.MultiTenant;
 using Tinisoft.Application.Shipping.Services;
 using Tinisoft.Application.Common.Exceptions;
@@ -9,13 +10,13 @@ namespace Tinisoft.Application.Shipping.Commands.CreateShipment;
 
 public class CreateShipmentCommandHandler : IRequestHandler<CreateShipmentCommand, CreateShipmentResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly IShippingServiceFactory _shippingServiceFactory;
     private readonly ILogger<CreateShipmentCommandHandler> _logger;
 
     public CreateShipmentCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         IShippingServiceFactory shippingServiceFactory,
         ILogger<CreateShipmentCommandHandler> logger)
@@ -160,4 +161,6 @@ public class CreateShipmentCommandHandler : IRequestHandler<CreateShipmentComman
         }
     }
 }
+
+
 

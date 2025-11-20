@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Tinisoft.Application.Common.Interfaces;
 using Finbuckle.MultiTenant;
 
@@ -8,13 +9,13 @@ namespace Tinisoft.Application.Customers.Queries.GetCart;
 
 public class GetCartQueryHandler : IRequestHandler<GetCartQuery, GetCartResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly ICurrentCustomerService _currentCustomerService;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly ILogger<GetCartQueryHandler> _logger;
 
     public GetCartQueryHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         ICurrentCustomerService currentCustomerService,
         IMultiTenantContextAccessor tenantAccessor,
         ILogger<GetCartQueryHandler> logger)
@@ -41,7 +42,7 @@ public class GetCartQueryHandler : IRequestHandler<GetCartQuery, GetCartResponse
                 .ThenInclude(ci => ci.Product)
                     .ThenInclude(p => p.Images.OrderBy(img => img.Position).Take(1))
             .Include(c => c.Coupon)
-            .AsSplitQuery()
+            
             .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.CustomerId == customerId.Value, cancellationToken);
 
         if (cart == null)
@@ -103,4 +104,6 @@ public class GetCartQueryHandler : IRequestHandler<GetCartQuery, GetCartResponse
         };
     }
 }
+
+
 

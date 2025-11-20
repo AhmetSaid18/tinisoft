@@ -54,3 +54,5 @@ public class GetTenantPublicInfoResponse
     public Dictionary<string, object>? LayoutSettings { get; set; }
 }
 
+
+

@@ -10,3 +10,5 @@ public class CartItemForDiscount
     public decimal TotalPrice { get; set; } // Quantity * UnitPrice
 }
 
+
+

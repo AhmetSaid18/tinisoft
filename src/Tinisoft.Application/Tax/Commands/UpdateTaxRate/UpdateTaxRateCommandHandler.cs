@@ -1,18 +1,19 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Finbuckle.MultiTenant;
 
 namespace Tinisoft.Application.Tax.Commands.UpdateTaxRate;
 
 public class UpdateTaxRateCommandHandler : IRequestHandler<UpdateTaxRateCommand, UpdateTaxRateResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly ILogger<UpdateTaxRateCommandHandler> _logger;
 
     public UpdateTaxRateCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         ILogger<UpdateTaxRateCommandHandler> logger)
     {
@@ -25,7 +26,7 @@ public class UpdateTaxRateCommandHandler : IRequestHandler<UpdateTaxRateCommand,
     {
         var tenantId = Guid.Parse(_tenantAccessor.MultiTenantContext!.TenantInfo!.Id!);
 
-        var taxRate = await _dbContext.Set<Domain.Entities.TaxRate>()
+        var taxRate = await _dbContext.Set<Entities.TaxRate>()
             .FirstOrDefaultAsync(t => t.Id == request.TaxRateId && t.TenantId == tenantId, cancellationToken);
 
         if (taxRate == null)
@@ -36,7 +37,7 @@ public class UpdateTaxRateCommandHandler : IRequestHandler<UpdateTaxRateCommand,
         // Code değişiyorsa unique kontrolü
         if (taxRate.Code != request.Code)
         {
-            var existing = await _dbContext.Set<Domain.Entities.TaxRate>()
+            var existing = await _dbContext.Set<Entities.TaxRate>()
                 .FirstOrDefaultAsync(t => t.TenantId == tenantId && t.Code == request.Code && t.Id != request.TaxRateId, cancellationToken);
 
             if (existing != null)
@@ -70,4 +71,6 @@ public class UpdateTaxRateCommandHandler : IRequestHandler<UpdateTaxRateCommand,
         };
     }
 }
+
+
 

@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Tinisoft.Application.Common.Exceptions;
 using Finbuckle.MultiTenant;
 using Tinisoft.Shared.Events;
@@ -10,13 +11,13 @@ namespace Tinisoft.Application.Reviews.Commands.DeleteReview;
 
 public class DeleteReviewCommandHandler : IRequestHandler<DeleteReviewCommand, DeleteReviewResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly IEventBus _eventBus;
     private readonly ILogger<DeleteReviewCommandHandler> _logger;
 
     public DeleteReviewCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         IEventBus eventBus,
         ILogger<DeleteReviewCommandHandler> logger)
@@ -44,13 +45,13 @@ public class DeleteReviewCommandHandler : IRequestHandler<DeleteReviewCommand, D
         var rating = review.Rating;
 
         // İlişkili vote'ları sil (cascade delete)
-        var votes = await _dbContext.Set<ReviewVote>()
+        var votes = await _dbContext.Set<Entities.ReviewVote>()
             .Where(v => v.TenantId == tenantId && v.ReviewId == request.ReviewId)
             .ToListAsync(cancellationToken);
 
         if (votes.Any())
         {
-            _dbContext.Set<ReviewVote>().RemoveRange(votes);
+            _dbContext.Set<Entities.ReviewVote>().RemoveRange(votes);
         }
 
         // Yorumu sil
@@ -104,4 +105,6 @@ public class DeleteReviewCommandHandler : IRequestHandler<DeleteReviewCommand, D
         }
     }
 }
+
+
 

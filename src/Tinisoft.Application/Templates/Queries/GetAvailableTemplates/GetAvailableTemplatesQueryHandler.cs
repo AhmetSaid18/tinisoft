@@ -1,17 +1,18 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Tinisoft.Domain.Entities;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 
 namespace Tinisoft.Application.Templates.Queries.GetAvailableTemplates;
 
 public class GetAvailableTemplatesQueryHandler : IRequestHandler<GetAvailableTemplatesQuery, GetAvailableTemplatesResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly ILogger<GetAvailableTemplatesQueryHandler> _logger;
 
     public GetAvailableTemplatesQueryHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         ILogger<GetAvailableTemplatesQueryHandler> logger)
     {
         _dbContext = dbContext;
@@ -44,4 +45,6 @@ public class GetAvailableTemplatesQueryHandler : IRequestHandler<GetAvailableTem
         };
     }
 }
+
+
 

@@ -1,7 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
-using Tinisoft.Infrastructure.Services;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Tinisoft.Shared.Events;
 using Tinisoft.Shared.Contracts;
 using Finbuckle.MultiTenant;
@@ -10,14 +10,14 @@ namespace Tinisoft.Application.Payments.Commands.ProcessPayment;
 
 public class ProcessPaymentCommandHandler : IRequestHandler<ProcessPaymentCommand, ProcessPaymentResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IPayTRService _payTRService;
     private readonly IEventBus _eventBus;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly ILogger<ProcessPaymentCommandHandler> _logger;
 
     public ProcessPaymentCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IPayTRService payTRService,
         IEventBus eventBus,
         IMultiTenantContextAccessor tenantAccessor,
@@ -103,4 +103,6 @@ public class ProcessPaymentCommandHandler : IRequestHandler<ProcessPaymentComman
         };
     }
 }
+
+
 

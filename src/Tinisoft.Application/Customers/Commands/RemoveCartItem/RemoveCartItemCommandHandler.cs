@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Tinisoft.Application.Common.Interfaces;
 using Finbuckle.MultiTenant;
 
@@ -8,13 +9,13 @@ namespace Tinisoft.Application.Customers.Commands.RemoveCartItem;
 
 public class RemoveCartItemCommandHandler : IRequestHandler<RemoveCartItemCommand, RemoveCartItemResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly ICurrentCustomerService _currentCustomerService;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly ILogger<RemoveCartItemCommandHandler> _logger;
 
     public RemoveCartItemCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         ICurrentCustomerService currentCustomerService,
         IMultiTenantContextAccessor tenantAccessor,
         ILogger<RemoveCartItemCommandHandler> logger)
@@ -69,4 +70,6 @@ public class RemoveCartItemCommandHandler : IRequestHandler<RemoveCartItemComman
         };
     }
 }
+
+
 

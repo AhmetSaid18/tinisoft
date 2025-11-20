@@ -1,7 +1,8 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Tinisoft.Domain.Entities;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Finbuckle.MultiTenant;
 using Tinisoft.Application.Common.Exceptions;
 
@@ -9,12 +10,12 @@ namespace Tinisoft.Application.Tenant.Queries.GetTenantPublicInfo;
 
 public class GetTenantPublicInfoQueryHandler : IRequestHandler<GetTenantPublicInfoQuery, GetTenantPublicInfoResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly ILogger<GetTenantPublicInfoQueryHandler> _logger;
 
     public GetTenantPublicInfoQueryHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         ILogger<GetTenantPublicInfoQueryHandler> logger)
     {
@@ -25,19 +26,19 @@ public class GetTenantPublicInfoQueryHandler : IRequestHandler<GetTenantPublicIn
 
     public async Task<GetTenantPublicInfoResponse> Handle(GetTenantPublicInfoQuery request, CancellationToken cancellationToken)
     {
-        Tenant? tenant;
+        Entities.Tenant? tenant;
 
         if (!string.IsNullOrWhiteSpace(request.Slug))
         {
             // Slug ile tenant bul
-            tenant = await _dbContext.Set<Tenant>()
+            tenant = await _dbContext.Set<Entities.Tenant>()
                 .FirstOrDefaultAsync(t => t.Slug == request.Slug && t.IsActive, cancellationToken);
         }
         else
         {
             // Multi-tenant context'ten tenant bul
             var tenantId = Guid.Parse(_tenantAccessor.MultiTenantContext!.TenantInfo!.Id!);
-            tenant = await _dbContext.Set<Tenant>()
+            tenant = await _dbContext.Set<Entities.Tenant>()
                 .FirstOrDefaultAsync(t => t.Id == tenantId && t.IsActive, cancellationToken);
         }
 
@@ -96,4 +97,6 @@ public class GetTenantPublicInfoQueryHandler : IRequestHandler<GetTenantPublicIn
         };
     }
 }
+
+
 

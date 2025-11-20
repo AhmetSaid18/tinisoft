@@ -65,7 +65,7 @@ public class ExceptionHandlingMiddleware
                 };
                 break;
 
-            case ValidationException validationEx:
+            case Tinisoft.Application.Common.Exceptions.ValidationException validationEx:
                 code = HttpStatusCode.BadRequest;
                 response = new
                 {

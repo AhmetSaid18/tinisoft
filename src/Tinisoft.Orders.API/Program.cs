@@ -47,7 +47,12 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
-app.UseMiddleware<RateLimitingMiddleware>();
+// RateLimitingMiddleware - sadece Redis varsa kullan
+var redisConnectionString = builder.Configuration.GetSection("Redis:ConnectionString").Value;
+if (!string.IsNullOrEmpty(redisConnectionString))
+{
+    app.UseMiddleware<RateLimitingMiddleware>();
+}
 app.UseHttpsRedirection();
 app.UseCors();
 app.UseAuthorization();

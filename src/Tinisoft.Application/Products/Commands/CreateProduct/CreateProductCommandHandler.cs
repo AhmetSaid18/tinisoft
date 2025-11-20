@@ -1,8 +1,8 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Tinisoft.Domain.Entities;
-using Tinisoft.Infrastructure.Persistence;
-using Tinisoft.Infrastructure.Services;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Tinisoft.Application.Products.Services;
 using Tinisoft.Application.ExchangeRates.Services;
 using Tinisoft.Shared.Events;
@@ -14,7 +14,7 @@ namespace Tinisoft.Application.Products.Commands.CreateProduct;
 
 public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand, CreateProductResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IEventBus _eventBus;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly IImageProcessingService _imageProcessingService;
@@ -23,7 +23,7 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
     private readonly ILogger<CreateProductCommandHandler> _logger;
 
     public CreateProductCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IEventBus eventBus,
         IMultiTenantContextAccessor tenantAccessor,
         IImageProcessingService imageProcessingService,
@@ -352,4 +352,6 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
         };
     }
 }
+
+
 

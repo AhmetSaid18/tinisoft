@@ -16,3 +16,5 @@ public interface IResellerPricingService
     Task<decimal> GetEffectivePriceAsync(Guid? resellerId, Guid productId, int quantity = 1, CancellationToken cancellationToken = default);
 }
 
+
+

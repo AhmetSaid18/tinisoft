@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Tinisoft.Application.Common.Exceptions;
 using Finbuckle.MultiTenant;
 using Tinisoft.Shared.Events;
@@ -11,7 +12,7 @@ namespace Tinisoft.Application.Invoices.Commands.SendInvoiceToGIB;
 
 public class SendInvoiceToGIBCommandHandler : IRequestHandler<SendInvoiceToGIBCommand, SendInvoiceToGIBResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly IUBLXMLGenerator _ublXmlGenerator;
     private readonly IGIBService _gibService;
@@ -19,7 +20,7 @@ public class SendInvoiceToGIBCommandHandler : IRequestHandler<SendInvoiceToGIBCo
     private readonly ILogger<SendInvoiceToGIBCommandHandler> _logger;
 
     public SendInvoiceToGIBCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         IUBLXMLGenerator ublXmlGenerator,
         IGIBService gibService,
@@ -175,4 +176,6 @@ public class SendInvoiceToGIBCommandHandler : IRequestHandler<SendInvoiceToGIBCo
         }
     }
 }
+
+
 

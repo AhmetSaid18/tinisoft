@@ -1,7 +1,8 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Tinisoft.Domain.Entities;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Tinisoft.Application.Common.Exceptions;
 using Tinisoft.Application.Invoices.Services;
 using Finbuckle.MultiTenant;
@@ -13,7 +14,7 @@ namespace Tinisoft.Application.Invoices.Commands.CreateInvoice;
 
 public class CreateInvoiceCommandHandler : IRequestHandler<CreateInvoiceCommand, CreateInvoiceResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly IInvoiceNumberGenerator _invoiceNumberGenerator;
     private readonly IUBLXMLGenerator _ublXmlGenerator;
@@ -23,7 +24,7 @@ public class CreateInvoiceCommandHandler : IRequestHandler<CreateInvoiceCommand,
     private readonly ILogger<CreateInvoiceCommandHandler> _logger;
 
     public CreateInvoiceCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         IInvoiceNumberGenerator invoiceNumberGenerator,
         IUBLXMLGenerator ublXmlGenerator,
@@ -291,4 +292,6 @@ internal class InvoiceTaxDetailDto
     public decimal TaxableAmount { get; set; }
     public decimal TaxAmount { get; set; }
 }
+
+
 

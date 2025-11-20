@@ -17,3 +17,5 @@ public class VoteReviewResponse
     public string Message { get; set; } = string.Empty;
 }
 
+
+

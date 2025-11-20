@@ -1,19 +1,20 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Tinisoft.Domain.Entities;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Finbuckle.MultiTenant;
 
 namespace Tinisoft.Application.Tax.Commands.CreateTaxRate;
 
 public class CreateTaxRateCommandHandler : IRequestHandler<CreateTaxRateCommand, CreateTaxRateResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly ILogger<CreateTaxRateCommandHandler> _logger;
 
     public CreateTaxRateCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         ILogger<CreateTaxRateCommandHandler> logger)
     {
@@ -27,7 +28,7 @@ public class CreateTaxRateCommandHandler : IRequestHandler<CreateTaxRateCommand,
         var tenantId = Guid.Parse(_tenantAccessor.MultiTenantContext!.TenantInfo!.Id!);
 
         // Code'un unique olduğunu kontrol et
-        var existing = await _dbContext.Set<TaxRate>()
+        var existing = await _dbContext.Set<Entities.TaxRate>()
             .FirstOrDefaultAsync(t => t.TenantId == tenantId && t.Code == request.Code, cancellationToken);
 
         if (existing != null)
@@ -35,7 +36,7 @@ public class CreateTaxRateCommandHandler : IRequestHandler<CreateTaxRateCommand,
             throw new InvalidOperationException($"Vergi oranı kodu '{request.Code}' zaten kullanılıyor");
         }
 
-        var taxRate = new TaxRate
+        var taxRate = new Entities.TaxRate
         {
             TenantId = tenantId,
             Name = request.Name,
@@ -53,7 +54,7 @@ public class CreateTaxRateCommandHandler : IRequestHandler<CreateTaxRateCommand,
             IsActive = true
         };
 
-        _dbContext.Set<TaxRate>().Add(taxRate);
+        _dbContext.Set<Entities.TaxRate>().Add(taxRate);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Tax rate created: {TaxRateId} - {Name} ({Code})", taxRate.Id, taxRate.Name, taxRate.Code);
@@ -65,4 +66,6 @@ public class CreateTaxRateCommandHandler : IRequestHandler<CreateTaxRateCommand,
         };
     }
 }
+
+
 

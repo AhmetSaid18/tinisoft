@@ -1,5 +1,5 @@
 using Tinisoft.Customers.API.Attributes;
-using Tinisoft.Infrastructure.Services;
+using Tinisoft.Application.Common.Interfaces;
 
 namespace Tinisoft.Customers.API.Middleware;
 

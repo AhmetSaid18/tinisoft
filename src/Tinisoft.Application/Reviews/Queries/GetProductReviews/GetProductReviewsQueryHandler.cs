@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Tinisoft.Application.Common.Exceptions;
 using Finbuckle.MultiTenant;
 
@@ -8,12 +9,12 @@ namespace Tinisoft.Application.Reviews.Queries.GetProductReviews;
 
 public class GetProductReviewsQueryHandler : IRequestHandler<GetProductReviewsQuery, GetProductReviewsResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly ILogger<GetProductReviewsQueryHandler> _logger;
 
     public GetProductReviewsQueryHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         ILogger<GetProductReviewsQueryHandler> logger)
     {
@@ -160,4 +161,6 @@ public class GetProductReviewsQueryHandler : IRequestHandler<GetProductReviewsQu
         };
     }
 }
+
+
 

@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Tinisoft.Application.Common.Exceptions;
 using Finbuckle.MultiTenant;
 
@@ -8,11 +9,11 @@ namespace Tinisoft.Application.Invoices.Queries.GetInvoiceSettings;
 
 public class GetInvoiceSettingsQueryHandler : IRequestHandler<GetInvoiceSettingsQuery, GetInvoiceSettingsResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
 
     public GetInvoiceSettingsQueryHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor)
     {
         _dbContext = dbContext;
@@ -88,4 +89,6 @@ public class GetInvoiceSettingsQueryHandler : IRequestHandler<GetInvoiceSettings
         };
     }
 }
+
+
 

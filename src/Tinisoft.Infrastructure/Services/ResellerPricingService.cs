@@ -1,7 +1,10 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Tinisoft.Application.Resellers.Services;
+using Microsoft.Extensions.Logging;
 using Tinisoft.Infrastructure.Persistence;
 
+using Microsoft.Extensions.Logging;
 namespace Tinisoft.Infrastructure.Services;
 
 public class ResellerPricingService : IResellerPricingService

@@ -1,7 +1,8 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Tinisoft.Domain.Entities;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Finbuckle.MultiTenant;
 using Tinisoft.Application.Common.Exceptions;
 
@@ -9,12 +10,12 @@ namespace Tinisoft.Application.Inventory.Commands.PickOrderItem;
 
 public class PickOrderItemCommandHandler : IRequestHandler<PickOrderItemCommand, PickOrderItemResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly ILogger<PickOrderItemCommandHandler> _logger;
 
     public PickOrderItemCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         ILogger<PickOrderItemCommandHandler> logger)
     {
@@ -117,4 +118,6 @@ public class PickOrderItemCommandHandler : IRequestHandler<PickOrderItemCommand,
         };
     }
 }
+
+
 

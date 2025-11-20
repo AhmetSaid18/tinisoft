@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Tinisoft.Infrastructure.Persistence;
 using Tinisoft.Infrastructure.Services;
 using StackExchange.Redis;
@@ -31,6 +32,11 @@ public static class DependencyInjection
                 options.Configuration = redisConnectionString;
             });
         }
+        else
+        {
+            // Redis yoksa null register et (RateLimitingMiddleware için)
+            services.AddSingleton<IConnectionMultiplexer>(_ => null!);
+        }
 
         // Hangfire
         var connectionString = configuration.GetConnectionString("DefaultConnection");
@@ -55,10 +61,10 @@ public static class DependencyInjection
         services.AddScoped<IStorageService, R2StorageService>();
 
         // Image Processing
-        services.AddScoped<IImageProcessingService, ImageProcessingService>();
+        services.AddScoped<Tinisoft.Application.Common.Interfaces.IImageProcessingService, ImageProcessingService>();
 
         // PayTR
-        services.AddHttpClient<IPayTRService, PayTRService>();
+        services.AddHttpClient<Tinisoft.Application.Common.Interfaces.IPayTRService, PayTRService>();
 
         // Application services
         services.AddScoped<IAuditLogService, AuditLogService>();
@@ -94,15 +100,16 @@ public static class DependencyInjection
         services.AddHttpClient<Tinisoft.Application.Invoices.Services.IGIBService, GIBService>();
         services.AddScoped<Tinisoft.Application.Invoices.Services.IPDFGenerator, PDFGenerator>();
         
-        // Invoice Jobs
+        // Jobs
+        services.AddScoped<Jobs.SyncExchangeRatesJob>();
         services.AddScoped<Jobs.SyncInvoiceStatusFromGIBJob>();
         
         // Circuit Breaker - Database koruması için
-        services.AddSingleton<CircuitBreakerService>();
+        services.AddSingleton<Tinisoft.Shared.Contracts.ICircuitBreakerService, CircuitBreakerService>();
 
         // Authentication services
-        services.AddScoped<IJwtTokenService, JwtTokenService>();
-        services.AddScoped<IPasswordHasher, PasswordHasher>();
+        services.AddScoped<Tinisoft.Application.Common.Interfaces.IJwtTokenService, JwtTokenService>();
+        services.AddScoped<Tinisoft.Application.Common.Interfaces.IPasswordHasher, PasswordHasher>();
 
         // Event Bus - Hybrid (Kafka + RabbitMQ) veya sadece RabbitMQ
         var useKafka = !string.IsNullOrEmpty(configuration["Kafka:BootstrapServers"]);

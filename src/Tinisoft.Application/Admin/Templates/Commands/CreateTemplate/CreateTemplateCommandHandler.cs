@@ -1,18 +1,19 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Tinisoft.Domain.Entities;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Tinisoft.Application.Common.Exceptions;
 
 namespace Tinisoft.Application.Admin.Templates.Commands.CreateTemplate;
 
 public class CreateTemplateCommandHandler : IRequestHandler<CreateTemplateCommand, CreateTemplateResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly ILogger<CreateTemplateCommandHandler> _logger;
 
     public CreateTemplateCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         ILogger<CreateTemplateCommandHandler> logger)
     {
         _dbContext = dbContext;
@@ -59,4 +60,6 @@ public class CreateTemplateCommandHandler : IRequestHandler<CreateTemplateComman
         };
     }
 }
+
+
 

@@ -1,17 +1,18 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Finbuckle.MultiTenant;
 
 namespace Tinisoft.Application.Tax.Queries.GetTaxRates;
 
 public class GetTaxRatesQueryHandler : IRequestHandler<GetTaxRatesQuery, List<TaxRateDto>>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
 
     public GetTaxRatesQueryHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor)
     {
         _dbContext = dbContext;
@@ -22,7 +23,7 @@ public class GetTaxRatesQueryHandler : IRequestHandler<GetTaxRatesQuery, List<Ta
     {
         var tenantId = Guid.Parse(_tenantAccessor.MultiTenantContext!.TenantInfo!.Id!);
 
-        var query = _dbContext.Set<Domain.Entities.TaxRate>()
+        var query = _dbContext.Set<Entities.TaxRate>()
             .Where(tr => tr.TenantId == tenantId)
             .AsQueryable();
 
@@ -55,4 +56,6 @@ public class GetTaxRatesQueryHandler : IRequestHandler<GetTaxRatesQuery, List<Ta
         return taxRates;
     }
 }
+
+
 

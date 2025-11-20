@@ -25,3 +25,5 @@ public class UpdateLayoutSettingsResponse
     public string Message { get; set; } = "Layout ayarları başarıyla güncellendi.";
 }
 
+
+

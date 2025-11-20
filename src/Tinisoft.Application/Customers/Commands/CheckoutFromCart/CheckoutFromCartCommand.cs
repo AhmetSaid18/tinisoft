@@ -35,3 +35,5 @@ public class CheckoutFromCartResponse
     public string? PaymentUrl { get; set; } // Payment provider'dan dönecek (ileride)
 }
 
+
+

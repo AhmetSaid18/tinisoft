@@ -5,6 +5,8 @@ using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 
+using Tinisoft.Application.Common.Interfaces;
+
 namespace Tinisoft.Infrastructure.Services;
 
 public class JwtTokenService : IJwtTokenService
@@ -86,4 +88,5 @@ public class JwtTokenService : IJwtTokenService
         }
     }
 }
+
 

@@ -1,18 +1,19 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Tinisoft.Domain.Entities;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Tinisoft.Application.Common.Exceptions;
 
 namespace Tinisoft.Application.Admin.Templates.Commands.DeleteTemplate;
 
 public class DeleteTemplateCommandHandler : IRequestHandler<DeleteTemplateCommand, DeleteTemplateResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly ILogger<DeleteTemplateCommandHandler> _logger;
 
     public DeleteTemplateCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         ILogger<DeleteTemplateCommandHandler> logger)
     {
         _dbContext = dbContext;
@@ -30,7 +31,7 @@ public class DeleteTemplateCommandHandler : IRequestHandler<DeleteTemplateComman
         }
 
         // Bu template'i kullanan tenant var mı kontrol et
-        var tenantCount = await _dbContext.Set<Tenant>()
+        var tenantCount = await _dbContext.Set<Entities.Tenant>()
             .CountAsync(t => t.SelectedTemplateCode == template.Code && t.SelectedTemplateVersion == template.Version, cancellationToken);
 
         if (tenantCount > 0)
@@ -50,4 +51,6 @@ public class DeleteTemplateCommandHandler : IRequestHandler<DeleteTemplateComman
         };
     }
 }
+
+
 

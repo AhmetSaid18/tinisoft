@@ -32,3 +32,5 @@ public class CreateResellerPriceResponse
     public decimal Price { get; set; }
 }
 
+
+

@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Tinisoft.Application.Common.Exceptions;
 using Finbuckle.MultiTenant;
 using Tinisoft.Shared.Events;
@@ -10,13 +11,13 @@ namespace Tinisoft.Application.Reviews.Commands.ReplyToReview;
 
 public class ReplyToReviewCommandHandler : IRequestHandler<ReplyToReviewCommand, ReplyToReviewResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly IEventBus _eventBus;
     private readonly ILogger<ReplyToReviewCommandHandler> _logger;
 
     public ReplyToReviewCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         IEventBus eventBus,
         ILogger<ReplyToReviewCommandHandler> logger)
@@ -87,4 +88,6 @@ public class ReplyToReviewCommandHandler : IRequestHandler<ReplyToReviewCommand,
         };
     }
 }
+
+
 

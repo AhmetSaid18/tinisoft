@@ -29,3 +29,5 @@ public class CreateWarehouseLocationResponse
     public string Message { get; set; } = string.Empty;
 }
 
+
+

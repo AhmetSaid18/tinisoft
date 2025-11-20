@@ -24,3 +24,5 @@ public class ShippingProviderDto
     public bool HasApiKey { get; set; } // API key var mı? (güvenlik için key'i göstermiyoruz)
 }
 
+
+

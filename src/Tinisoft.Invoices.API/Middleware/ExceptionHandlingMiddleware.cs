@@ -47,7 +47,7 @@ public class ExceptionHandlingMiddleware
                 code = HttpStatusCode.Unauthorized;
                 result = JsonSerializer.Serialize(new { error = unauthorizedException.Message });
                 break;
-            case ValidationException validationException:
+            case Tinisoft.Application.Common.Exceptions.ValidationException validationException:
                 code = HttpStatusCode.BadRequest;
                 result = JsonSerializer.Serialize(new { errors = validationException.Errors });
                 break;

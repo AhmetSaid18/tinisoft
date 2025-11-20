@@ -26,3 +26,5 @@ public class UpdateTaxRateResponse
     public string Name { get; set; } = string.Empty;
 }
 
+
+

@@ -1,4 +1,5 @@
 using Tinisoft.Application.Shipping.Services;
+using Microsoft.Extensions.Logging;
 
 namespace Tinisoft.Infrastructure.Services;
 

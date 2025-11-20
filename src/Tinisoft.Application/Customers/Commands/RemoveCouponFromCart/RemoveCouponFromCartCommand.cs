@@ -15,3 +15,5 @@ public class RemoveCouponFromCartResponse
     public decimal CartTotal { get; set; }
 }
 
+
+

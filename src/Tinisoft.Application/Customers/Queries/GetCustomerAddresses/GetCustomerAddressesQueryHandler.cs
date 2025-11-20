@@ -2,17 +2,18 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Tinisoft.Application.Common.Interfaces;
 using Tinisoft.Application.Customers.Models;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 
 namespace Tinisoft.Application.Customers.Queries.GetCustomerAddresses;
 
 public class GetCustomerAddressesQueryHandler : IRequestHandler<GetCustomerAddressesQuery, List<CustomerAddressDto>>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly ICurrentCustomerService _currentCustomerService;
 
     public GetCustomerAddressesQueryHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         ICurrentCustomerService currentCustomerService)
     {
         _dbContext = dbContext;
@@ -49,5 +50,7 @@ public class GetCustomerAddressesQueryHandler : IRequestHandler<GetCustomerAddre
         return addresses;
     }
 }
+
+
 
 

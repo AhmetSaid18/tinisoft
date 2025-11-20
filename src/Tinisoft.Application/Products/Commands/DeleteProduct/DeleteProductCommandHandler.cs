@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Tinisoft.Application.Products.Services;
 using Tinisoft.Shared.Events;
 using Tinisoft.Shared.Contracts;
@@ -10,14 +11,14 @@ namespace Tinisoft.Application.Products.Commands.DeleteProduct;
 
 public class DeleteProductCommandHandler : IRequestHandler<DeleteProductCommand, Unit>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IEventBus _eventBus;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly IMeilisearchService _meilisearchService;
     private readonly ILogger<DeleteProductCommandHandler> _logger;
 
     public DeleteProductCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IEventBus eventBus,
         IMultiTenantContextAccessor tenantAccessor,
         IMeilisearchService meilisearchService,
@@ -71,4 +72,6 @@ public class DeleteProductCommandHandler : IRequestHandler<DeleteProductCommand,
         return Unit.Value;
     }
 }
+
+
 

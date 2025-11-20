@@ -1,7 +1,8 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Tinisoft.Domain.Entities;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Finbuckle.MultiTenant;
 using Tinisoft.Application.Common.Exceptions;
 
@@ -9,12 +10,12 @@ namespace Tinisoft.Application.Inventory.Commands.TransferStock;
 
 public class TransferStockCommandHandler : IRequestHandler<TransferStockCommand, TransferStockResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly ILogger<TransferStockCommandHandler> _logger;
 
     public TransferStockCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         ILogger<TransferStockCommandHandler> logger)
     {
@@ -154,4 +155,6 @@ public class TransferStockCommandHandler : IRequestHandler<TransferStockCommand,
         };
     }
 }
+
+
 

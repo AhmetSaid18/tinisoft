@@ -89,10 +89,12 @@ if (app.Environment.IsDevelopment())
 // Schedule Hangfire Jobs
 using (var scope = app.Services.CreateScope())
 {
+    var recurringJobManager = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
+    
     // Exchange Rate Sync Job - Her saat başı çalışsın
-    RecurringJob.AddOrUpdate<SyncExchangeRatesJob>(
+    recurringJobManager.AddOrUpdate(
         "sync-exchange-rates",
-        job => job.ExecuteAsync(CancellationToken.None),
+        () => scope.ServiceProvider.GetRequiredService<SyncExchangeRatesJob>().ExecuteAsync(CancellationToken.None),
         Cron.Hourly,
         new RecurringJobOptions
         {
@@ -100,9 +102,9 @@ using (var scope = app.Services.CreateScope())
         });
 
     // Invoice Status Sync Job - Her 30 dakikada bir çalışsın
-    RecurringJob.AddOrUpdate<SyncInvoiceStatusFromGIBJob>(
+    recurringJobManager.AddOrUpdate(
         "sync-invoice-status-from-gib",
-        job => job.ExecuteAsync(CancellationToken.None),
+        () => scope.ServiceProvider.GetRequiredService<SyncInvoiceStatusFromGIBJob>().ExecuteAsync(CancellationToken.None),
         "*/30 * * * *", // Her 30 dakikada bir
         new RecurringJobOptions
         {

@@ -14,3 +14,5 @@ public class GetSelectedTemplateResponse
     public bool IsTemplateSelected => !string.IsNullOrWhiteSpace(TemplateCode);
 }
 
+
+

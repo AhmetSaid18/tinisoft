@@ -1,12 +1,20 @@
 using System.Xml;
+using Microsoft.Extensions.Logging;
 using System.Xml.Linq;
+using Microsoft.Extensions.Logging;
 using System.Text;
+using Microsoft.Extensions.Logging;
 using Tinisoft.Domain.Entities;
+using Microsoft.Extensions.Logging;
 using Tinisoft.Application.Invoices.Services;
+using Microsoft.Extensions.Logging;
 using System.Security.Cryptography.X509Certificates;
+using Microsoft.Extensions.Logging;
 using System.Security.Cryptography.Xml;
+using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
+using Microsoft.Extensions.Logging;
 namespace Tinisoft.Infrastructure.Services;
 
 /// <summary>
@@ -96,7 +104,7 @@ public class UBLXMLGenerator : IUBLXMLGenerator
                         : null,
 
                     // Payment Means (ödeme yöntemi)
-                    CreatePaymentMeans(invoice),
+                    CreatePaymentMeans(invoice, settings),
 
                     // Payment Terms (ödeme koşulları)
                     invoice.PaymentDueDate.HasValue
@@ -233,7 +241,7 @@ public class UBLXMLGenerator : IUBLXMLGenerator
             new XElement(nsCac + "ActualDeliveryDate", invoice.DeliveryDate.Value.ToString("yyyy-MM-dd")));
     }
 
-    private XElement CreatePaymentMeans(Invoice invoice)
+    private XElement CreatePaymentMeans(Invoice invoice, TenantInvoiceSettings settings)
     {
         var paymentCode = invoice.PaymentMethod switch
         {
@@ -245,9 +253,9 @@ public class UBLXMLGenerator : IUBLXMLGenerator
 
         return new XElement(nsCac + "PaymentMeans",
             new XElement(nsCbc + "PaymentMeansCode", paymentCode),
-            invoice.PaymentMethod == "Havale" && !string.IsNullOrEmpty(invoice.Tenant?.IBAN)
+            invoice.PaymentMethod == "Havale" && !string.IsNullOrEmpty(settings.IBAN)
                 ? new XElement(nsCac + "PayeeFinancialAccount",
-                    new XElement(nsCbc + "ID", invoice.Tenant?.IBAN))
+                    new XElement(nsCbc + "ID", settings.IBAN))
                 : null);
     }
 

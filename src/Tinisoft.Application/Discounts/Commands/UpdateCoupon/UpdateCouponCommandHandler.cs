@@ -1,18 +1,19 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Finbuckle.MultiTenant;
 
 namespace Tinisoft.Application.Discounts.Commands.UpdateCoupon;
 
 public class UpdateCouponCommandHandler : IRequestHandler<UpdateCouponCommand, UpdateCouponResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly ILogger<UpdateCouponCommandHandler> _logger;
 
     public UpdateCouponCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         ILogger<UpdateCouponCommandHandler> logger)
     {
@@ -58,4 +59,6 @@ public class UpdateCouponCommandHandler : IRequestHandler<UpdateCouponCommand, U
         };
     }
 }
+
+
 

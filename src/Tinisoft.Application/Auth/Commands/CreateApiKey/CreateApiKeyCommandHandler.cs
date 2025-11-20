@@ -1,7 +1,8 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Tinisoft.Domain.Entities;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Finbuckle.MultiTenant;
 using System.Security.Cryptography;
 using System.Text;
@@ -10,12 +11,12 @@ namespace Tinisoft.Application.Auth.Commands.CreateApiKey;
 
 public class CreateApiKeyCommandHandler : IRequestHandler<CreateApiKeyCommand, CreateApiKeyResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly ILogger<CreateApiKeyCommandHandler> _logger;
 
     public CreateApiKeyCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         ILogger<CreateApiKeyCommandHandler> logger)
     {
@@ -69,4 +70,6 @@ public class CreateApiKeyCommandHandler : IRequestHandler<CreateApiKeyCommand, C
         return Convert.ToBase64String(hashBytes);
     }
 }
+
+
 

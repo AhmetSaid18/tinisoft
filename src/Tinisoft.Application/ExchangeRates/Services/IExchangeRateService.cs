@@ -16,3 +16,5 @@ public interface IExchangeRateService
     Task<decimal?> GetEffectiveRateAsync(string targetCurrency, decimal marginPercent = 0, CancellationToken cancellationToken = default);
 }
 
+
+

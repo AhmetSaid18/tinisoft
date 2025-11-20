@@ -120,3 +120,5 @@ public class VariantDto
     public int? InventoryQuantity { get; set; }
 }
 
+
+

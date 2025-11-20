@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Finbuckle.MultiTenant;
 using Tinisoft.Application.Notifications.Services;
 using System.Net.Mail;
@@ -10,13 +11,13 @@ namespace Tinisoft.Application.Notifications.Commands.SendEmail;
 
 public class SendEmailCommandHandler : IRequestHandler<SendEmailCommand, SendEmailResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly IEmailService _emailService;
     private readonly ILogger<SendEmailCommandHandler> _logger;
 
     public SendEmailCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         IEmailService emailService,
         ILogger<SendEmailCommandHandler> logger)
@@ -136,4 +137,6 @@ public class SendEmailCommandHandler : IRequestHandler<SendEmailCommand, SendEma
         }
     }
 }
+
+
 

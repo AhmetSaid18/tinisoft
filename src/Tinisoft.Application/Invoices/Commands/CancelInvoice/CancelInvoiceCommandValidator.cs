@@ -15,3 +15,5 @@ public class CancelInvoiceCommandValidator : AbstractValidator<CancelInvoiceComm
     }
 }
 
+
+

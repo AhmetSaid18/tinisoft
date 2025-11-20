@@ -21,3 +21,5 @@ public class CreateTemplateResponse
     public string Message { get; set; } = "Template başarıyla oluşturuldu.";
 }
 
+
+

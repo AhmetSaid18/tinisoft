@@ -1,18 +1,19 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Finbuckle.MultiTenant;
 
 namespace Tinisoft.Application.Tax.Commands.DeleteTaxRate;
 
 public class DeleteTaxRateCommandHandler : IRequestHandler<DeleteTaxRateCommand, Unit>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly ILogger<DeleteTaxRateCommandHandler> _logger;
 
     public DeleteTaxRateCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         ILogger<DeleteTaxRateCommandHandler> logger)
     {
@@ -25,7 +26,7 @@ public class DeleteTaxRateCommandHandler : IRequestHandler<DeleteTaxRateCommand,
     {
         var tenantId = Guid.Parse(_tenantAccessor.MultiTenantContext!.TenantInfo!.Id!);
 
-        var taxRate = await _dbContext.Set<Domain.Entities.TaxRate>()
+        var taxRate = await _dbContext.Set<Entities.TaxRate>()
             .FirstOrDefaultAsync(t => t.Id == request.TaxRateId && t.TenantId == tenantId, cancellationToken);
 
         if (taxRate == null)
@@ -36,7 +37,7 @@ public class DeleteTaxRateCommandHandler : IRequestHandler<DeleteTaxRateCommand,
         // Kullanılıyor mu kontrol et
         var isUsed = await _dbContext.Products
             .AnyAsync(p => p.TaxRateId == request.TaxRateId, cancellationToken) ||
-            await _dbContext.Set<Domain.Entities.TaxRule>()
+            await _dbContext.Set<Entities.TaxRule>()
             .AnyAsync(tr => tr.TaxRateId == request.TaxRateId, cancellationToken);
 
         if (isUsed)
@@ -47,7 +48,7 @@ public class DeleteTaxRateCommandHandler : IRequestHandler<DeleteTaxRateCommand,
         }
         else
         {
-            _dbContext.Set<Domain.Entities.TaxRate>().Remove(taxRate);
+            _dbContext.Set<Entities.TaxRate>().Remove(taxRate);
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -57,4 +58,6 @@ public class DeleteTaxRateCommandHandler : IRequestHandler<DeleteTaxRateCommand,
         return Unit.Value;
     }
 }
+
+
 

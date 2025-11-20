@@ -1,21 +1,21 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Tinisoft.Domain.Entities;
-using Tinisoft.Infrastructure.Persistence;
-using Tinisoft.Infrastructure.Services;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Tinisoft.Application.Common.Exceptions;
 
 namespace Tinisoft.Application.Auth.Commands.Login;
 
 public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IJwtTokenService _jwtTokenService;
     private readonly ILogger<LoginCommandHandler> _logger;
 
     public LoginCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IPasswordHasher passwordHasher,
         IJwtTokenService jwtTokenService,
         ILogger<LoginCommandHandler> logger)
@@ -100,4 +100,6 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
         };
     }
 }
+
+
 

@@ -13,3 +13,5 @@ public class DeleteTemplateResponse
     public string Message { get; set; } = "Template başarıyla silindi.";
 }
 
+
+

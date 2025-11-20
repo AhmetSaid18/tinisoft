@@ -3,8 +3,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using System.Text;
 using System.Text.Json;
-using Tinisoft.Infrastructure.Persistence;
-using Tinisoft.Infrastructure.Services;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
+using Tinisoft.Shared.Contracts;
 using Finbuckle.MultiTenant;
 using Meilisearch;
 
@@ -16,19 +17,19 @@ namespace Tinisoft.Application.Products.Queries.GetProductsCursor;
 /// </summary>
 public class GetProductsCursorQueryHandler : IRequestHandler<GetProductsCursorQuery, GetProductsCursorResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly IDistributedCache _cache;
     private readonly MeilisearchClient? _meilisearchClient;
-    private readonly CircuitBreakerService _circuitBreaker;
+    private readonly ICircuitBreakerService _circuitBreaker;
     private readonly ILogger<GetProductsCursorQueryHandler> _logger;
 
     public GetProductsCursorQueryHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         IDistributedCache cache,
         MeilisearchClient? meilisearchClient,
-        CircuitBreakerService circuitBreaker,
+        ICircuitBreakerService circuitBreaker,
         ILogger<GetProductsCursorQueryHandler> logger)
     {
         _dbContext = dbContext;
@@ -44,12 +45,14 @@ public class GetProductsCursorQueryHandler : IRequestHandler<GetProductsCursorQu
         var tenantId = Guid.Parse(_tenantAccessor.MultiTenantContext!.TenantInfo!.Id!);
         var validatedLimit = request.GetValidatedLimit();
 
+        // Cache key
+        var cacheKey = $"products:cursor:{tenantId}:{validatedLimit}:{request.Cursor}:{request.Search}:{request.CategoryId}:{request.IsActive}:{request.SortBy}:{request.SortOrder}";
+
         // Circuit Breaker kontrolü - Database yükü çok olduğunda koruma
         if (await _circuitBreaker.IsCircuitOpenAsync(cancellationToken))
         {
             _logger.LogWarning("Circuit breaker is OPEN - returning cached or default response");
             // Circuit açıkken cache'den döndür veya default response
-            var cacheKey = $"products:cursor:{tenantId}:{validatedLimit}:{request.Cursor}:{request.Search}:{request.CategoryId}:{request.IsActive}:{request.SortBy}:{request.SortOrder}";
             var cachedResult = await _cache.GetStringAsync(cacheKey, cancellationToken);
             if (!string.IsNullOrEmpty(cachedResult))
             {
@@ -65,12 +68,9 @@ public class GetProductsCursorQueryHandler : IRequestHandler<GetProductsCursorQu
                 Limit = validatedLimit
             };
         }
-
-        // Cache key
-        var cacheKey2 = $"products:cursor:{tenantId}:{validatedLimit}:{request.Cursor}:{request.Search}:{request.CategoryId}:{request.IsActive}:{request.SortBy}:{request.SortOrder}";
         
         // Try cache first
-        var cachedResult2 = await _cache.GetStringAsync(cacheKey2, cancellationToken);
+        var cachedResult2 = await _cache.GetStringAsync(cacheKey, cancellationToken);
         if (!string.IsNullOrEmpty(cachedResult2))
         {
             await _circuitBreaker.RecordSuccessAsync(cancellationToken);
@@ -272,7 +272,7 @@ public class GetProductsCursorQueryHandler : IRequestHandler<GetProductsCursorQu
             AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5),
             SlidingExpiration = TimeSpan.FromMinutes(2)
         };
-        await _cache.SetStringAsync(cacheKey2, JsonSerializer.Serialize(response), cacheOptions, cancellationToken);
+        await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(response), cacheOptions, cancellationToken);
 
         // Circuit breaker success kaydet
         await _circuitBreaker.RecordSuccessAsync(cancellationToken);
@@ -374,4 +374,6 @@ public class ProductSearchDocument
     public Guid? CategoryId { get; set; }
     public DateTime CreatedAt { get; set; }
 }
+
+
 

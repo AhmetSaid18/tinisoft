@@ -37,3 +37,5 @@ public class GetCouponResponse
     public DateTime? UpdatedAt { get; set; }
 }
 
+
+

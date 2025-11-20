@@ -18,3 +18,5 @@ public class GetStockLevelResponse
     public bool IsLowStock { get; set; } // Eğer stok eşiğinin altındaysa
 }
 
+
+

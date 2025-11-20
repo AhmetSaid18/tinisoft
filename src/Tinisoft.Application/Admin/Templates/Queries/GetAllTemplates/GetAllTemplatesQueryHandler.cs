@@ -1,17 +1,18 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Tinisoft.Domain.Entities;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 
 namespace Tinisoft.Application.Admin.Templates.Queries.GetAllTemplates;
 
 public class GetAllTemplatesQueryHandler : IRequestHandler<GetAllTemplatesQuery, GetAllTemplatesResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly ILogger<GetAllTemplatesQueryHandler> _logger;
 
     public GetAllTemplatesQueryHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         ILogger<GetAllTemplatesQueryHandler> logger)
     {
         _dbContext = dbContext;
@@ -32,7 +33,7 @@ public class GetAllTemplatesQueryHandler : IRequestHandler<GetAllTemplatesQuery,
                 IsActive = t.IsActive,
                 CreatedAt = t.CreatedAt,
                 UpdatedAt = t.UpdatedAt,
-                TenantCount = _dbContext.Set<Tenant>()
+                TenantCount = _dbContext.Set<Entities.Tenant>()
                     .Count(tenant => tenant.SelectedTemplateCode == t.Code && tenant.SelectedTemplateVersion == t.Version)
             })
             .OrderBy(t => t.Code)
@@ -45,4 +46,6 @@ public class GetAllTemplatesQueryHandler : IRequestHandler<GetAllTemplatesQuery,
         };
     }
 }
+
+
 

@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Finbuckle.MultiTenant;
 using Tinisoft.Application.Common.Exceptions;
 
@@ -8,12 +9,12 @@ namespace Tinisoft.Application.Shipping.Commands.UpdateShippingProvider;
 
 public class UpdateShippingProviderCommandHandler : IRequestHandler<UpdateShippingProviderCommand, UpdateShippingProviderResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly ILogger<UpdateShippingProviderCommandHandler> _logger;
 
     public UpdateShippingProviderCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         ILogger<UpdateShippingProviderCommandHandler> logger)
     {
@@ -85,4 +86,6 @@ public class UpdateShippingProviderCommandHandler : IRequestHandler<UpdateShippi
         };
     }
 }
+
+
 

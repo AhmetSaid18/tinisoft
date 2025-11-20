@@ -7,3 +7,5 @@ public class DeleteTaxRateCommand : IRequest<Unit>
     public Guid TaxRateId { get; set; }
 }
 
+
+

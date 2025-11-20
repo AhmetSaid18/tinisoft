@@ -51,3 +51,5 @@ public class GetTenantSettingsResponse
     public int? BaseFontSize { get; set; }
 }
 
+
+

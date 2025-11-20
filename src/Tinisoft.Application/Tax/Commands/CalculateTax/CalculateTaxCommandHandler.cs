@@ -1,18 +1,19 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Finbuckle.MultiTenant;
 
 namespace Tinisoft.Application.Tax.Commands.CalculateTax;
 
 public class CalculateTaxCommandHandler : IRequestHandler<CalculateTaxCommand, CalculateTaxResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly ILogger<CalculateTaxCommandHandler> _logger;
 
     public CalculateTaxCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         ILogger<CalculateTaxCommandHandler> logger)
     {
@@ -29,12 +30,12 @@ public class CalculateTaxCommandHandler : IRequestHandler<CalculateTaxCommand, C
         var totalTaxAmount = 0m;
 
         // 1. Önce ürünün kendi vergi oranını kontrol et
-        TaxRate? taxRate = null;
+        Entities.TaxRate? taxRate = null;
         
         if (request.TaxRateId.HasValue)
         {
             // Manuel vergi oranı seçilmişse
-            taxRate = await _dbContext.Set<TaxRate>()
+            taxRate = await _dbContext.Set<Entities.TaxRate>()
                 .FirstOrDefaultAsync(t => t.Id == request.TaxRateId.Value && 
                                           t.TenantId == tenantId && 
                                           t.IsActive, cancellationToken);
@@ -56,7 +57,7 @@ public class CalculateTaxCommandHandler : IRequestHandler<CalculateTaxCommand, C
         // 2. Eğer ürün vergi oranı yoksa, TaxRule'lardan bul
         if (taxRate == null)
         {
-            var taxRules = await _dbContext.Set<TaxRule>()
+            var taxRules = await _dbContext.Set<Entities.TaxRule>()
                 .Include(tr => tr.TaxRate)
                 .Where(tr => tr.TenantId == tenantId && 
                             tr.IsActive &&
@@ -126,7 +127,7 @@ public class CalculateTaxCommandHandler : IRequestHandler<CalculateTaxCommand, C
         // 3. Varsayılan vergi oranı (KDV %20 - Türkiye standart)
         if (taxRate == null)
         {
-            taxRate = await _dbContext.Set<TaxRate>()
+            taxRate = await _dbContext.Set<Entities.TaxRate>()
                 .FirstOrDefaultAsync(t => t.TenantId == tenantId && 
                                          t.Code == "KDV20" && 
                                          t.IsActive, cancellationToken);
@@ -134,7 +135,7 @@ public class CalculateTaxCommandHandler : IRequestHandler<CalculateTaxCommand, C
             // Eğer yoksa oluştur
             if (taxRate == null)
             {
-                taxRate = new Domain.Entities.TaxRate
+                taxRate = new Entities.TaxRate
                 {
                     TenantId = tenantId,
                     Name = "KDV %20",
@@ -145,7 +146,7 @@ public class CalculateTaxCommandHandler : IRequestHandler<CalculateTaxCommand, C
                     IsIncludedInPrice = false,
                     IsActive = true
                 };
-                _dbContext.Set<Domain.Entities.TaxRate>().Add(taxRate);
+                _dbContext.Set<Entities.TaxRate>().Add(taxRate);
                 await _dbContext.SaveChangesAsync(cancellationToken);
             }
         }
@@ -177,4 +178,6 @@ public class CalculateTaxCommandHandler : IRequestHandler<CalculateTaxCommand, C
         };
     }
 }
+
+
 

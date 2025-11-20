@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Tinisoft.Application.Discounts.Services;
 using Tinisoft.Infrastructure.Persistence;
 using Finbuckle.MultiTenant;
+using Microsoft.Extensions.Logging;
 
 namespace Tinisoft.Infrastructure.Services;
 

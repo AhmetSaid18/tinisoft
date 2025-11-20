@@ -4,6 +4,7 @@ using QuestPDF.Infrastructure;
 using Tinisoft.Domain.Entities;
 using Tinisoft.Application.Invoices.Services;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 
 namespace Tinisoft.Infrastructure.Services;
 
@@ -327,13 +328,7 @@ public class PDFGenerator : IPDFGenerator
 
                     page.Footer()
                         .AlignCenter()
-                        .Text(x =>
-                        {
-                            x.Span("Bu fatura elektronik ortamda oluşturulmuştur, yasal geçerliliğe sahiptir.");
-                            x.CurrentPageNumber();
-                            x.Span(" / ");
-                            x.TotalPages();
-                        })
+                        .Text("Bu fatura elektronik ortamda oluşturulmuştur, yasal geçerliliğe sahiptir.")
                         .FontSize(8)
                         .FontColor(Colors.Grey.Medium);
                 });

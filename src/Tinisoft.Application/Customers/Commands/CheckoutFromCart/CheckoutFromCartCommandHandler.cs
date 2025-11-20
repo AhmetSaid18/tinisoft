@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Tinisoft.Application.Common.Interfaces;
 using Tinisoft.Shared.Events;
 using Finbuckle.MultiTenant;
@@ -10,14 +11,14 @@ namespace Tinisoft.Application.Customers.Commands.CheckoutFromCart;
 
 public class CheckoutFromCartCommandHandler : IRequestHandler<CheckoutFromCartCommand, CheckoutFromCartResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly ICurrentCustomerService _currentCustomerService;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly IEventBus _eventBus;
     private readonly ILogger<CheckoutFromCartCommandHandler> _logger;
 
     public CheckoutFromCartCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         ICurrentCustomerService currentCustomerService,
         IMultiTenantContextAccessor tenantAccessor,
         IEventBus eventBus,
@@ -54,7 +55,7 @@ public class CheckoutFromCartCommandHandler : IRequestHandler<CheckoutFromCartCo
         var cart = await _dbContext.Carts
             .Include(c => c.Items)
                 .ThenInclude(ci => ci.Product)
-            .AsSplitQuery()
+            
             .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.CustomerId == customerId.Value, cancellationToken);
 
         if (cart == null || !cart.Items.Any())
@@ -289,4 +290,6 @@ public class CheckoutFromCartCommandHandler : IRequestHandler<CheckoutFromCartCo
         };
     }
 }
+
+
 

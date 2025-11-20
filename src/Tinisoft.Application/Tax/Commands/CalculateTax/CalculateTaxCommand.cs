@@ -33,3 +33,5 @@ public class TaxDetailDto
     public string Type { get; set; } = string.Empty; // VAT, SalesTax, etc.
 }
 
+
+

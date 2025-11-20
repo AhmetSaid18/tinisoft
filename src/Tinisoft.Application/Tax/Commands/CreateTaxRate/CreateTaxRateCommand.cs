@@ -24,3 +24,5 @@ public class CreateTaxRateResponse
     public string Name { get; set; } = string.Empty;
 }
 
+
+

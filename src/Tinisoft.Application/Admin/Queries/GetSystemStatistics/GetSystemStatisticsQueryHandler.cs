@@ -2,17 +2,18 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Tinisoft.Domain.Entities;
 using Tinisoft.Domain.Common;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 
 namespace Tinisoft.Application.Admin.Queries.GetSystemStatistics;
 
 public class GetSystemStatisticsQueryHandler : IRequestHandler<GetSystemStatisticsQuery, GetSystemStatisticsResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly ILogger<GetSystemStatisticsQueryHandler> _logger;
 
     public GetSystemStatisticsQueryHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         ILogger<GetSystemStatisticsQueryHandler> logger)
     {
         _dbContext = dbContext;
@@ -22,8 +23,8 @@ public class GetSystemStatisticsQueryHandler : IRequestHandler<GetSystemStatisti
     public async Task<GetSystemStatisticsResponse> Handle(GetSystemStatisticsQuery request, CancellationToken cancellationToken)
     {
         var totalUsers = await _dbContext.Set<User>().CountAsync(cancellationToken);
-        var totalTenants = await _dbContext.Set<Tenant>().CountAsync(cancellationToken);
-        var activeTenants = await _dbContext.Set<Tenant>().CountAsync(t => t.IsActive, cancellationToken);
+        var totalTenants = await _dbContext.Set<Entities.Tenant>().CountAsync(cancellationToken);
+        var activeTenants = await _dbContext.Set<Entities.Tenant>().CountAsync(t => t.IsActive, cancellationToken);
         var totalProducts = await _dbContext.Set<Product>().CountAsync(cancellationToken);
         var totalOrders = await _dbContext.Set<Order>().CountAsync(cancellationToken);
 
@@ -85,4 +86,6 @@ public class GetSystemStatisticsQueryHandler : IRequestHandler<GetSystemStatisti
         return 0;
     }
 }
+
+
 

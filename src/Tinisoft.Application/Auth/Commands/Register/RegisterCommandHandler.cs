@@ -2,21 +2,21 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Tinisoft.Domain.Entities;
 using Tinisoft.Domain.Common;
-using Tinisoft.Infrastructure.Persistence;
-using Tinisoft.Infrastructure.Services;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Tinisoft.Application.Common.Exceptions;
 
 namespace Tinisoft.Application.Auth.Commands.Register;
 
 public class RegisterCommandHandler : IRequestHandler<RegisterCommand, RegisterResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IJwtTokenService _jwtTokenService;
     private readonly ILogger<RegisterCommandHandler> _logger;
 
     public RegisterCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IPasswordHasher passwordHasher,
         IJwtTokenService jwtTokenService,
         ILogger<RegisterCommandHandler> logger)
@@ -65,7 +65,7 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, RegisterR
             }
 
             // Slug kontrolü
-            var existingTenant = await _dbContext.Set<Tenant>()
+            var existingTenant = await _dbContext.Set<Entities.Tenant>()
                 .FirstOrDefaultAsync(t => t.Slug == request.TenantSlug, cancellationToken);
 
             if (existingTenant != null)
@@ -82,7 +82,7 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, RegisterR
                 throw new BadRequestException("Sistemde aktif plan bulunamadı.");
             }
 
-            var tenant = new Tenant
+            var tenant = new Entities.Tenant
             {
                 Name = request.TenantName,
                 Slug = request.TenantSlug,
@@ -91,7 +91,7 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, RegisterR
                 SubscriptionStartDate = DateTime.UtcNow
             };
 
-            _dbContext.Set<Tenant>().Add(tenant);
+            _dbContext.Set<Entities.Tenant>().Add(tenant);
             await _dbContext.SaveChangesAsync(cancellationToken); // Tenant ID için
 
             tenantId = tenant.Id;
@@ -99,14 +99,14 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, RegisterR
             // Domain ekle (eğer verilmişse)
             if (!string.IsNullOrWhiteSpace(request.Domain))
             {
-                var domain = new Domain
+                var domain = new Entities.Domain
                 {
                     TenantId = tenant.Id,
                     Host = request.Domain,
                     IsPrimary = true,
                     IsVerified = false // Domain doğrulaması yapılacak
                 };
-                _dbContext.Set<Domain>().Add(domain);
+                _dbContext.Set<Entities.Domain>().Add(domain);
             }
 
             // UserTenantRole oluştur (Owner)
@@ -137,4 +137,6 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, RegisterR
         };
     }
 }
+
+
 

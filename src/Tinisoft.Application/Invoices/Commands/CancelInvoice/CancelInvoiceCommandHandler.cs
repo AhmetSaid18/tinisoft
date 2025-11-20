@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Tinisoft.Application.Common.Exceptions;
 using Finbuckle.MultiTenant;
 using Tinisoft.Shared.Events;
@@ -11,7 +12,7 @@ namespace Tinisoft.Application.Invoices.Commands.CancelInvoice;
 
 public class CancelInvoiceCommandHandler : IRequestHandler<CancelInvoiceCommand, CancelInvoiceResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly IInvoiceNumberGenerator _invoiceNumberGenerator;
     private readonly IUBLXMLGenerator _ublXmlGenerator;
@@ -20,7 +21,7 @@ public class CancelInvoiceCommandHandler : IRequestHandler<CancelInvoiceCommand,
     private readonly ILogger<CancelInvoiceCommandHandler> _logger;
 
     public CancelInvoiceCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         IInvoiceNumberGenerator invoiceNumberGenerator,
         IUBLXMLGenerator ublXmlGenerator,
@@ -124,4 +125,6 @@ public class CancelInvoiceCommandHandler : IRequestHandler<CancelInvoiceCommand,
         };
     }
 }
+
+
 

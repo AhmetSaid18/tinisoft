@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Tinisoft.Application.Common.Interfaces;
 using Finbuckle.MultiTenant;
 using System.Text.Json;
@@ -9,13 +10,13 @@ namespace Tinisoft.Application.Customers.Queries.GetCustomerOrders;
 
 public class GetCustomerOrdersQueryHandler : IRequestHandler<GetCustomerOrdersQuery, GetCustomerOrdersResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly ICurrentCustomerService _currentCustomerService;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly ILogger<GetCustomerOrdersQueryHandler> _logger;
 
     public GetCustomerOrdersQueryHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         ICurrentCustomerService currentCustomerService,
         IMultiTenantContextAccessor tenantAccessor,
         ILogger<GetCustomerOrdersQueryHandler> logger)
@@ -100,4 +101,6 @@ public class GetCustomerOrdersQueryHandler : IRequestHandler<GetCustomerOrdersQu
         public decimal Total { get; set; }
     }
 }
+
+
 

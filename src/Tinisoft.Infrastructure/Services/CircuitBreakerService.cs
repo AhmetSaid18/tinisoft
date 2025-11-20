@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Caching.Distributed;
 using System.Text.Json;
+using Tinisoft.Shared.Contracts;
+using Microsoft.Extensions.Logging;
 
 namespace Tinisoft.Infrastructure.Services;
 
@@ -7,7 +9,7 @@ namespace Tinisoft.Infrastructure.Services;
 /// Circuit Breaker Pattern - Database yükü çok olduğunda koruma
 /// Cold start senaryosunda database'i korur
 /// </summary>
-public class CircuitBreakerService
+public class CircuitBreakerService : ICircuitBreakerService
 {
     private readonly IDistributedCache _cache;
     private readonly ILogger<CircuitBreakerService> _logger;

@@ -47,7 +47,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
-app.UseMiddleware<RateLimitingMiddleware>();
+app.UseMiddleware<Tinisoft.Infrastructure.Middleware.RateLimitingMiddleware>();
 app.UseHttpsRedirection();
 app.UseCors();
 app.UseAuthorization();

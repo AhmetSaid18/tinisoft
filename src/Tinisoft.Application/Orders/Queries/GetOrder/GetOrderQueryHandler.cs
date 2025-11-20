@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Finbuckle.MultiTenant;
 using System.Text.Json;
 
@@ -8,11 +9,11 @@ namespace Tinisoft.Application.Orders.Queries.GetOrder;
 
 public class GetOrderQueryHandler : IRequestHandler<GetOrderQuery, GetOrderResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
 
     public GetOrderQueryHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor)
     {
         _dbContext = dbContext;
@@ -63,4 +64,6 @@ public class GetOrderQueryHandler : IRequestHandler<GetOrderQuery, GetOrderRespo
         };
     }
 }
+
+
 

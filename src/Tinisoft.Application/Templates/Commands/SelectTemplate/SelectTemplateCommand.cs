@@ -17,3 +17,5 @@ public class SelectTemplateResponse
     public bool SetupStarted { get; set; } // Background job'lar başlatıldı mı?
 }
 
+
+

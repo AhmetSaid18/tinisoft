@@ -1,6 +1,9 @@
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.PixelFormats;
 using Tinisoft.Infrastructure.Services;
+using Tinisoft.Application.Common.Interfaces;
+using Microsoft.Extensions.Logging;
 
 namespace Tinisoft.Infrastructure.Services;
 
@@ -76,9 +79,9 @@ public class ImageProcessingService : IImageProcessingService
     {
         try
         {
-            var clone = image.Clone();
+            // Resize maintaining aspect ratio - CloneAs kullan (ImageSharp 3.x)
+            using var clone = image.CloneAs<Rgba32>();
             
-            // Resize maintaining aspect ratio
             clone.Mutate(x => x.Resize(new ResizeOptions
             {
                 Size = new Size(maxWidth, maxHeight),

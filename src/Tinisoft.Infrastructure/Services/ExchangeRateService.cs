@@ -33,13 +33,13 @@ public class ExchangeRateService : IExchangeRateService
     {
         var currency = targetCurrency.ToUpper();
         
-        // Önce cache'den bak
+        // Önce cache'den bak - decimal? için wrapper class kullan
         var cacheKey = $"{CACHE_KEY_PREFIX}{currency}";
-        var cachedRate = await _cacheService.GetAsync<decimal?>(cacheKey, cancellationToken);
-        if (cachedRate.HasValue)
+        var cachedWrapper = await _cacheService.GetAsync<DecimalWrapper>(cacheKey, cancellationToken);
+        if (cachedWrapper != null && cachedWrapper.Value.HasValue)
         {
-            _logger.LogDebug("Exchange rate found in cache: {Currency} = {Rate}", currency, cachedRate.Value);
-            return cachedRate.Value;
+            _logger.LogDebug("Exchange rate found in cache: {Currency} = {Rate}", currency, cachedWrapper.Value.Value);
+            return cachedWrapper.Value.Value;
         }
 
         // Cache'de yoksa DB'den en son kur'u getir
@@ -54,11 +54,22 @@ public class ExchangeRateService : IExchangeRateService
             return null;
         }
 
-        // Cache'e yaz (1 saat geçerli)
-        await _cacheService.SetAsync(cacheKey, exchangeRate.Rate, TimeSpan.FromHours(1), cancellationToken);
+        // Cache'e yaz (1 saat geçerli) - wrapper class kullan
+        await _cacheService.SetAsync(cacheKey, new DecimalWrapper(exchangeRate.Rate), TimeSpan.FromHours(1), null, cancellationToken);
 
         _logger.LogDebug("Exchange rate fetched from DB: {Currency} = {Rate}", currency, exchangeRate.Rate);
         return exchangeRate.Rate;
+    }
+
+    // Wrapper class for nullable decimal (ICacheService requires class type)
+    private class DecimalWrapper
+    {
+        public decimal? Value { get; set; }
+        
+        public DecimalWrapper(decimal? value)
+        {
+            Value = value;
+        }
     }
 
     public async Task<decimal?> GetEffectiveRateAsync(string targetCurrency, decimal marginPercent = 0, CancellationToken cancellationToken = default)

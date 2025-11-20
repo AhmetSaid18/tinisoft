@@ -1,12 +1,20 @@
 using System.Text;
+using Microsoft.Extensions.Logging;
 using System.Xml.Linq;
+using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Logging;
 using Tinisoft.Application.Common.Interfaces;
+using Microsoft.Extensions.Logging;
 using Tinisoft.Application.ProductFeeds.Services;
+using Microsoft.Extensions.Logging;
 using Tinisoft.Infrastructure.Persistence;
+using Microsoft.Extensions.Logging;
 using Finbuckle.MultiTenant;
 
+using Microsoft.Extensions.Logging;
 namespace Tinisoft.Infrastructure.Services;
 
 public class ProductFeedService : IProductFeedService
@@ -73,7 +81,7 @@ public class ProductFeedService : IProductFeedService
                             new XElement("g:title", p.Title),
                             new XElement("g:description", p.ShortDescription ?? p.Description ?? ""),
                             new XElement("g:link", $"https://{tenant.Slug}.tinisoft.com/product/{p.Slug}"),
-                            new XElement("g:image_link", p.Images.FirstOrDefault()?.Url ?? ""),
+                            new XElement("g:image_link", p.Images.FirstOrDefault()?.OriginalUrl ?? ""),
                             new XElement("g:price", $"{p.Price} {p.Currency}"),
                             new XElement("g:availability", p.InventoryQuantity > 0 ? "in stock" : "out of stock"),
                             new XElement("g:condition", "new")
@@ -97,7 +105,7 @@ public class ProductFeedService : IProductFeedService
         var feedXml = xml.ToString();
         
         // Cache'e yaz (10 dakika)
-        await _cacheService.SetAsync(cacheKey, feedXml, TimeSpan.FromMinutes(10), cancellationToken);
+        await _cacheService.SetAsync(cacheKey, feedXml, TimeSpan.FromMinutes(10), null, cancellationToken);
 
         _logger.LogInformation("Google Shopping feed generated: {ProductCount} products", products.Count);
         return feedXml;
@@ -140,7 +148,7 @@ public class ProductFeedService : IProductFeedService
                     new XElement("currency", p.Currency),
                     new XElement("category", p.ProductType ?? ""),
                     new XElement("brand", p.Vendor ?? ""),
-                    new XElement("image", p.Images.FirstOrDefault()?.Url ?? ""),
+                    new XElement("image", p.Images.FirstOrDefault()?.OriginalUrl ?? ""),
                     new XElement("url", $"https://{tenant.Slug}.tinisoft.com/product/{p.Slug}"),
                     new XElement("description", p.ShortDescription ?? p.Description ?? ""),
                     !string.IsNullOrEmpty(p.SKU) ? new XElement("sku", p.SKU) : null,
@@ -152,7 +160,7 @@ public class ProductFeedService : IProductFeedService
         var feedXml = xml.ToString();
         
         // Cache'e yaz (10 dakika)
-        await _cacheService.SetAsync(cacheKey, feedXml, TimeSpan.FromMinutes(10), cancellationToken);
+        await _cacheService.SetAsync(cacheKey, feedXml, TimeSpan.FromMinutes(10), null, cancellationToken);
 
         _logger.LogInformation("Cimri feed generated: {ProductCount} products", products.Count);
         return feedXml;

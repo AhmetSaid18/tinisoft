@@ -2,25 +2,26 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using System.Text.Json;
-using Tinisoft.Infrastructure.Persistence;
-using Tinisoft.Infrastructure.Services;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
+using Tinisoft.Shared.Contracts;
 using Finbuckle.MultiTenant;
 
 namespace Tinisoft.Application.Products.Queries.GetProducts;
 
 public class GetProductsQueryHandler : IRequestHandler<GetProductsQuery, GetProductsResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly IDistributedCache _cache;
-    private readonly CircuitBreakerService _circuitBreaker;
+    private readonly ICircuitBreakerService _circuitBreaker;
     private readonly ILogger<GetProductsQueryHandler> _logger;
 
     public GetProductsQueryHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         IDistributedCache cache,
-        CircuitBreakerService circuitBreaker,
+        ICircuitBreakerService circuitBreaker,
         ILogger<GetProductsQueryHandler> logger)
     {
         _dbContext = dbContext;
@@ -168,3 +169,5 @@ public class GetProductsQueryHandler : IRequestHandler<GetProductsQuery, GetProd
         return response;
     }
 }
+
+

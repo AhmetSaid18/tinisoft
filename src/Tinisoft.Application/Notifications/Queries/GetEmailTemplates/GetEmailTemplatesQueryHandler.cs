@@ -1,18 +1,19 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Finbuckle.MultiTenant;
 
 namespace Tinisoft.Application.Notifications.Queries.GetEmailTemplates;
 
 public class GetEmailTemplatesQueryHandler : IRequestHandler<GetEmailTemplatesQuery, GetEmailTemplatesResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly ILogger<GetEmailTemplatesQueryHandler> _logger;
 
     public GetEmailTemplatesQueryHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         ILogger<GetEmailTemplatesQueryHandler> logger)
     {
@@ -52,4 +53,6 @@ public class GetEmailTemplatesQueryHandler : IRequestHandler<GetEmailTemplatesQu
         };
     }
 }
+
+
 

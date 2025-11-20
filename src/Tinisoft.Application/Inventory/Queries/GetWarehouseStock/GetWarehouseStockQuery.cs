@@ -51,3 +51,5 @@ public class WarehouseStockDto
     public decimal? Cost { get; set; }
 }
 
+
+

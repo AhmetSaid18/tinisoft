@@ -1,18 +1,19 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Finbuckle.MultiTenant;
 
 namespace Tinisoft.Application.Discounts.Commands.DeleteCoupon;
 
 public class DeleteCouponCommandHandler : IRequestHandler<DeleteCouponCommand, DeleteCouponResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly ILogger<DeleteCouponCommandHandler> _logger;
 
     public DeleteCouponCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         ILogger<DeleteCouponCommandHandler> logger)
     {
@@ -49,4 +50,6 @@ public class DeleteCouponCommandHandler : IRequestHandler<DeleteCouponCommand, D
         return new DeleteCouponResponse { Success = true };
     }
 }
+
+
 

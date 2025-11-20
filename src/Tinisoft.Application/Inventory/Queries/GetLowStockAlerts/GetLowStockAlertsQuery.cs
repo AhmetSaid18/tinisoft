@@ -35,3 +35,5 @@ public class LowStockAlertDto
     public int? DaysUntilOutOfStock { get; set; } // Tahmini tükenme süresi (opsiyonel)
 }
 
+
+

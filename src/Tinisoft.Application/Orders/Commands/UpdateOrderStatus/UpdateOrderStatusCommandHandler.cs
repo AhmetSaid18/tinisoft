@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Tinisoft.Shared.Events;
 using Tinisoft.Shared.Contracts;
 using Finbuckle.MultiTenant;
@@ -9,13 +10,13 @@ namespace Tinisoft.Application.Orders.Commands.UpdateOrderStatus;
 
 public class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrderStatusCommand, UpdateOrderStatusResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IEventBus _eventBus;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly ILogger<UpdateOrderStatusCommandHandler> _logger;
 
     public UpdateOrderStatusCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IEventBus eventBus,
         IMultiTenantContextAccessor tenantAccessor,
         ILogger<UpdateOrderStatusCommandHandler> logger)
@@ -70,4 +71,6 @@ public class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrderStatus
         };
     }
 }
+
+
 

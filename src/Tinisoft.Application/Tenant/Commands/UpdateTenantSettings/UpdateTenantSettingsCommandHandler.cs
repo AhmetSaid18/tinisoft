@@ -1,7 +1,8 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Tinisoft.Domain.Entities;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Finbuckle.MultiTenant;
 using Tinisoft.Application.Common.Exceptions;
 
@@ -9,12 +10,12 @@ namespace Tinisoft.Application.Tenant.Commands.UpdateTenantSettings;
 
 public class UpdateTenantSettingsCommandHandler : IRequestHandler<UpdateTenantSettingsCommand, UpdateTenantSettingsResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly ILogger<UpdateTenantSettingsCommandHandler> _logger;
 
     public UpdateTenantSettingsCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         ILogger<UpdateTenantSettingsCommandHandler> logger)
     {
@@ -27,7 +28,7 @@ public class UpdateTenantSettingsCommandHandler : IRequestHandler<UpdateTenantSe
     {
         var tenantId = Guid.Parse(_tenantAccessor.MultiTenantContext!.TenantInfo!.Id!);
 
-        var tenant = await _dbContext.Set<Tenant>()
+        var tenant = await _dbContext.Set<Entities.Tenant>()
             .FirstOrDefaultAsync(t => t.Id == tenantId, cancellationToken);
 
         if (tenant == null)
@@ -93,4 +94,6 @@ public class UpdateTenantSettingsCommandHandler : IRequestHandler<UpdateTenantSe
         };
     }
 }
+
+
 

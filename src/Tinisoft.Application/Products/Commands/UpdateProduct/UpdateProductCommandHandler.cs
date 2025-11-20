@@ -2,7 +2,8 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using Tinisoft.Domain.Entities;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Tinisoft.Application.Products.Services;
 using Tinisoft.Application.ExchangeRates.Services;
 using Tinisoft.Shared.Events;
@@ -13,7 +14,7 @@ namespace Tinisoft.Application.Products.Commands.UpdateProduct;
 
 public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand, UpdateProductResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IEventBus _eventBus;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly IDistributedCache _cache;
@@ -22,7 +23,7 @@ public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand,
     private readonly ILogger<UpdateProductCommandHandler> _logger;
 
     public UpdateProductCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IEventBus eventBus,
         IMultiTenantContextAccessor tenantAccessor,
         IDistributedCache cache,
@@ -123,8 +124,7 @@ public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand,
         if (request.TwitterImage != null) product.TwitterImage = request.TwitterImage;
         if (request.CanonicalUrl != null) product.CanonicalUrl = request.CanonicalUrl;
         
-        if (request.FeaturedImageUrl != null) product.FeaturedImageUrl = request.FeaturedImageUrl;
-        if (request.ImageUrls != null) product.ImageUrls = request.ImageUrls;
+        // Note: FeaturedImageUrl and ImageUrls are managed through ProductImage entity, not directly on Product
 
         product.UpdatedAt = DateTime.UtcNow;
 
@@ -190,4 +190,6 @@ public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand,
         }
     }
 }
+
+
 

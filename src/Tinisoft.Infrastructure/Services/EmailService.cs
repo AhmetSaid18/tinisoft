@@ -40,12 +40,12 @@ public class EmailService : IEmailService
 
             if (!string.IsNullOrEmpty(notification.CcEmail))
             {
-                mailMessage.Cc.Add(notification.CcEmail);
+                mailMessage.CC.Add(new MailAddress(notification.CcEmail));
             }
 
             if (!string.IsNullOrEmpty(notification.BccEmail))
             {
-                mailMessage.Bcc.Add(notification.BccEmail);
+                mailMessage.Bcc.Add(new MailAddress(notification.BccEmail));
             }
 
             if (!string.IsNullOrEmpty(provider.ReplyToEmail))

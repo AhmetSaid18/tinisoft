@@ -1,18 +1,19 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Finbuckle.MultiTenant;
 
 namespace Tinisoft.Application.Notifications.Commands.CreateEmailProvider;
 
 public class CreateEmailProviderCommandHandler : IRequestHandler<CreateEmailProviderCommand, CreateEmailProviderResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly ILogger<CreateEmailProviderCommandHandler> _logger;
 
     public CreateEmailProviderCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         ILogger<CreateEmailProviderCommandHandler> logger)
     {
@@ -68,4 +69,6 @@ public class CreateEmailProviderCommandHandler : IRequestHandler<CreateEmailProv
         };
     }
 }
+
+
 

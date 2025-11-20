@@ -23,3 +23,5 @@ public class CountInventoryResponse
     public string? Message { get; set; }
 }
 
+
+

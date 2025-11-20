@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using Confluent.Kafka;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Tinisoft.Application.Products.Services;
@@ -82,7 +83,17 @@ public class KafkaConsumerService : BackgroundService
                 }
                 catch (ConsumeException ex)
                 {
-                    _logger.LogError(ex, "Error consuming message from Kafka");
+                    // Topic henüz oluşturulmamışsa (normal durum), sadece debug log
+                    if (ex.Error.Code == ErrorCode.UnknownTopicOrPart)
+                    {
+                        _logger.LogDebug("Kafka topic not yet available: {Reason}. Will retry...", ex.Error.Reason);
+                        // Topic oluşana kadar bekle
+                        await Task.Delay(5000, stoppingToken);
+                    }
+                    else
+                    {
+                        _logger.LogError(ex, "Error consuming message from Kafka: {Reason}", ex.Error.Reason);
+                    }
                     // Hata durumunda continue et, bir sonraki mesaja geç
                 }
                 catch (Exception ex)
@@ -182,7 +193,7 @@ public class KafkaConsumerService : BackgroundService
                 var @event = JsonSerializer.Deserialize<ProductDeletedEvent>(messageJson);
                 if (@event != null)
                 {
-                    await meilisearchService.DeleteProductAsync(@event.ProductId, cancellationToken);
+                    await meilisearchService.DeleteProductAsync(@event.ProductId, @event.TenantId, cancellationToken);
                     _logger.LogInformation("Product deleted from Meilisearch: {ProductId}", @event.ProductId);
                 }
             }

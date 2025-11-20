@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Tinisoft.Application.Common.Exceptions;
 using Finbuckle.MultiTenant;
 using Tinisoft.Application.Invoices.Services;
@@ -9,13 +10,13 @@ namespace Tinisoft.Application.Invoices.Queries.GetInvoiceStatusFromGIB;
 
 public class GetInvoiceStatusFromGIBQueryHandler : IRequestHandler<GetInvoiceStatusFromGIBQuery, GetInvoiceStatusFromGIBResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly IGIBService _gibService;
     private readonly ILogger<GetInvoiceStatusFromGIBQueryHandler> _logger;
 
     public GetInvoiceStatusFromGIBQueryHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         IGIBService gibService,
         ILogger<GetInvoiceStatusFromGIBQueryHandler> logger)
@@ -117,4 +118,6 @@ public class GetInvoiceStatusFromGIBQueryHandler : IRequestHandler<GetInvoiceSta
         }
     }
 }
+
+
 

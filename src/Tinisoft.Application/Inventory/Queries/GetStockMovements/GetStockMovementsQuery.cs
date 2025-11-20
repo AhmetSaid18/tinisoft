@@ -53,3 +53,5 @@ public class StockMovementDto
     public DateTime CreatedAt { get; set; }
 }
 
+
+

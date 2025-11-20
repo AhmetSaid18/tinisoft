@@ -2,18 +2,19 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Tinisoft.Application.Common.Interfaces;
 using Tinisoft.Application.Customers.Models;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 
 namespace Tinisoft.Application.Customers.Commands.UpdateCustomerProfile;
 
 public class UpdateCustomerProfileCommandHandler : IRequestHandler<UpdateCustomerProfileCommand, CustomerDto>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly ICurrentCustomerService _currentCustomerService;
     private readonly IPasswordHasher _passwordHasher;
 
     public UpdateCustomerProfileCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         ICurrentCustomerService currentCustomerService,
         IPasswordHasher passwordHasher)
     {
@@ -73,5 +74,7 @@ public class UpdateCustomerProfileCommandHandler : IRequestHandler<UpdateCustome
         };
     }
 }
+
+
 
 

@@ -10,3 +10,5 @@ public interface IMeilisearchService
     Task ReindexAllProductsAsync(Guid tenantId, CancellationToken cancellationToken = default);
 }
 
+
+

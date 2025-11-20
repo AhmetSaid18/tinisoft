@@ -2,20 +2,21 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using System.Text.Json;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Finbuckle.MultiTenant;
 
 namespace Tinisoft.Application.Products.Queries.GetProduct;
 
 public class GetProductQueryHandler : IRequestHandler<GetProductQuery, GetProductResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly IDistributedCache _cache;
     private readonly ILogger<GetProductQueryHandler> _logger;
 
     public GetProductQueryHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         IDistributedCache cache,
         ILogger<GetProductQueryHandler> logger)
@@ -50,7 +51,7 @@ public class GetProductQueryHandler : IRequestHandler<GetProductQuery, GetProduc
             .Include(p => p.Images.OrderBy(img => img.Position))
             .Include(p => p.Options.OrderBy(opt => opt.Position))
             .Include(p => p.Metafields)
-            .AsSplitQuery() // Performance için split query
+             // Performance için split query
             .FirstOrDefaultAsync(p => p.Id == request.ProductId && p.TenantId == tenantId, cancellationToken);
 
         if (product == null)
@@ -173,3 +174,5 @@ public class GetProductQueryHandler : IRequestHandler<GetProductQuery, GetProduc
         return response;
     }
 }
+
+

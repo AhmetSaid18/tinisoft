@@ -20,3 +20,5 @@ public class ApplyCouponToCartResponse
     public decimal CartTotal { get; set; }
 }
 
+
+

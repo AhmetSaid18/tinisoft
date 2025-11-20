@@ -5,3 +5,5 @@ public interface IMarketplaceServiceFactory
     IMarketplaceService GetService(string marketplace);
 }
 
+
+

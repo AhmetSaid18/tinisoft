@@ -11,3 +11,5 @@ public class ClearCartResponse
     public bool Success { get; set; }
 }
 
+
+

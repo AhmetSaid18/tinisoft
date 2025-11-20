@@ -12,3 +12,5 @@ public class GetLayoutSettingsResponse
     public Dictionary<string, object>? LayoutSettings { get; set; }
 }
 
+
+

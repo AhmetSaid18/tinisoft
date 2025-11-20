@@ -35,3 +35,5 @@ public class CouponUsageDetailDto
     public DateTime UsedAt { get; set; }
 }
 
+
+

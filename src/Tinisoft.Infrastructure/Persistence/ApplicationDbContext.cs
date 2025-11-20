@@ -3,10 +3,11 @@ using Tinisoft.Domain.Entities;
 using Tinisoft.Domain.Common;
 using Finbuckle.MultiTenant;
 using Tinisoft.Infrastructure.MultiTenant;
+using Tinisoft.Application.Common.Interfaces;
 
 namespace Tinisoft.Infrastructure.Persistence;
 
-public class ApplicationDbContext : MultiTenantDbContext
+public class ApplicationDbContext : MultiTenantDbContext, IApplicationDbContext
 {
     public ApplicationDbContext(ITenantInfo tenantInfo) : base(tenantInfo)
     {
@@ -20,7 +21,7 @@ public class ApplicationDbContext : MultiTenantDbContext
     // DbSets
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<Plan> Plans => Set<Plan>();
-    public DbSet<Domain> Domains => Set<Domain>();
+    public DbSet<Tinisoft.Domain.Entities.Domain> Domains => Set<Tinisoft.Domain.Entities.Domain>();
     public DbSet<Template> Templates => Set<Template>();
     public DbSet<User> Users => Set<User>();
     public DbSet<UserTenantRole> UserTenantRoles => Set<UserTenantRole>();
@@ -104,7 +105,7 @@ public class ApplicationDbContext : MultiTenantDbContext
             .HasIndex(o => new { o.TenantId, o.OrderNumber })
             .IsUnique();
 
-        modelBuilder.Entity<Domain>()
+        modelBuilder.Entity<Tinisoft.Domain.Entities.Domain>()
             .HasIndex(d => d.Host)
             .IsUnique();
 
@@ -258,8 +259,8 @@ public class ApplicationDbContext : MultiTenantDbContext
 
         // Category queries için
         modelBuilder.Entity<Category>()
-            .HasIndex(c => new { c.TenantId, c.IsActive, c.ParentId })
-            .HasDatabaseName("IX_Category_TenantId_IsActive_ParentId");
+            .HasIndex(c => new { c.TenantId, c.IsActive, c.ParentCategoryId })
+            .HasDatabaseName("IX_Category_TenantId_IsActive_ParentCategoryId");
 
         // ProductCategory join için
         modelBuilder.Entity<ProductCategory>()
@@ -711,4 +712,5 @@ public class ApplicationDbContext : MultiTenantDbContext
             .HasDatabaseName("IX_TenantInvoiceSettings_TenantId");
     }
 }
+
 

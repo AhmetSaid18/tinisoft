@@ -1,4 +1,4 @@
-namespace Tinisoft.Infrastructure.Services;
+namespace Tinisoft.Application.Common.Interfaces;
 
 public interface IPayTRService
 {

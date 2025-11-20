@@ -53,3 +53,5 @@ public class UpdateTenantSettingsResponse
     public string Message { get; set; } = "Ayarlar başarıyla güncellendi.";
 }
 
+
+

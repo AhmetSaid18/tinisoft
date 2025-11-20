@@ -2,17 +2,18 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Tinisoft.Application.Common.Interfaces;
 using Tinisoft.Application.Customers.Models;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 
 namespace Tinisoft.Application.Customers.Queries.GetCustomerProfile;
 
 public class GetCustomerProfileQueryHandler : IRequestHandler<GetCustomerProfileQuery, CustomerDto>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly ICurrentCustomerService _currentCustomerService;
 
     public GetCustomerProfileQueryHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         ICurrentCustomerService currentCustomerService)
     {
         _dbContext = dbContext;
@@ -48,5 +49,7 @@ public class GetCustomerProfileQueryHandler : IRequestHandler<GetCustomerProfile
         };
     }
 }
+
+
 
 

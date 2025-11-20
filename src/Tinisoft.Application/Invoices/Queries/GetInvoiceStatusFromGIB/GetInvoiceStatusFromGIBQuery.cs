@@ -18,3 +18,5 @@ public class GetInvoiceStatusFromGIBResponse
     public string? GIBInvoiceId { get; set; }
 }
 
+
+

@@ -21,3 +21,5 @@ public class EmailTemplateDto
     public bool IsActive { get; set; }
 }
 
+
+

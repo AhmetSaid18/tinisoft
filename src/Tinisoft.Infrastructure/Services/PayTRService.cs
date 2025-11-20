@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
+using Tinisoft.Application.Common.Interfaces;
 
 namespace Tinisoft.Infrastructure.Services;
 

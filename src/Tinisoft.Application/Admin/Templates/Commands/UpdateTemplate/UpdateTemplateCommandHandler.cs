@@ -1,18 +1,19 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Tinisoft.Domain.Entities;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Tinisoft.Application.Common.Exceptions;
 
 namespace Tinisoft.Application.Admin.Templates.Commands.UpdateTemplate;
 
 public class UpdateTemplateCommandHandler : IRequestHandler<UpdateTemplateCommand, UpdateTemplateResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly ILogger<UpdateTemplateCommandHandler> _logger;
 
     public UpdateTemplateCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         ILogger<UpdateTemplateCommandHandler> logger)
     {
         _dbContext = dbContext;
@@ -53,4 +54,6 @@ public class UpdateTemplateCommandHandler : IRequestHandler<UpdateTemplateComman
         };
     }
 }
+
+
 

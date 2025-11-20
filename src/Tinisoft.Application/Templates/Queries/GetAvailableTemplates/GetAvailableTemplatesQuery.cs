@@ -22,3 +22,5 @@ public class TemplateDto
     public bool IsActive { get; set; }
 }
 
+
+

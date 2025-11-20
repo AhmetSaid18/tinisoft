@@ -1,19 +1,20 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Tinisoft.Domain.Entities;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Finbuckle.MultiTenant;
 
 namespace Tinisoft.Application.Resellers.Commands.CreateResellerPrice;
 
 public class CreateResellerPriceCommandHandler : IRequestHandler<CreateResellerPriceCommand, CreateResellerPriceResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly ILogger<CreateResellerPriceCommandHandler> _logger;
 
     public CreateResellerPriceCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         ILogger<CreateResellerPriceCommandHandler> logger)
     {
@@ -91,4 +92,6 @@ public class CreateResellerPriceCommandHandler : IRequestHandler<CreateResellerP
         };
     }
 }
+
+
 

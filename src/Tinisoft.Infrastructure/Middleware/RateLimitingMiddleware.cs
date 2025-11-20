@@ -2,13 +2,15 @@ using System.Net;
 using System.Text.Json;
 using StackExchange.Redis;
 using Finbuckle.MultiTenant;
+using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Http;
 
 namespace Tinisoft.Infrastructure.Middleware;
 
 public class RateLimitingMiddleware
 {
     private readonly RequestDelegate _next;
-    private readonly IConnectionMultiplexer _redis;
+    private readonly IConnectionMultiplexer? _redis;
     private readonly ILogger<RateLimitingMiddleware> _logger;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
 
@@ -19,7 +21,7 @@ public class RateLimitingMiddleware
 
     public RateLimitingMiddleware(
         RequestDelegate next,
-        IConnectionMultiplexer redis,
+        IConnectionMultiplexer? redis,
         ILogger<RateLimitingMiddleware> logger,
         IMultiTenantContextAccessor tenantAccessor)
     {
@@ -31,6 +33,13 @@ public class RateLimitingMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
+        // Redis yoksa rate limiting'i bypass et
+        if (_redis == null)
+        {
+            await _next(context);
+            return;
+        }
+
         var db = _redis.GetDatabase();
         var ipAddress = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
         var tenantId = _tenantAccessor.MultiTenantContext?.TenantInfo?.Id ?? "unknown";

@@ -1,7 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Tinisoft.API.Attributes;
-using Tinisoft.Infrastructure.Services;
+using Tinisoft.Application.Common.Interfaces;
 
 namespace Tinisoft.API.Middleware;
 

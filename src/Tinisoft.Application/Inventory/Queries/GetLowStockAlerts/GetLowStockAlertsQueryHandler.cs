@@ -1,18 +1,19 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Finbuckle.MultiTenant;
 
 namespace Tinisoft.Application.Inventory.Queries.GetLowStockAlerts;
 
 public class GetLowStockAlertsQueryHandler : IRequestHandler<GetLowStockAlertsQuery, GetLowStockAlertsResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly ILogger<GetLowStockAlertsQueryHandler> _logger;
 
     public GetLowStockAlertsQueryHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         ILogger<GetLowStockAlertsQueryHandler> logger)
     {
@@ -76,4 +77,6 @@ public class GetLowStockAlertsQueryHandler : IRequestHandler<GetLowStockAlertsQu
         };
     }
 }
+
+
 

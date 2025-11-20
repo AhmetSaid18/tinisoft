@@ -25,3 +25,5 @@ public class TemplateDto
     public int TenantCount { get; set; } // Bu template'i kaç tenant kullanıyor
 }
 
+
+

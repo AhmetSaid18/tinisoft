@@ -1,59 +1,58 @@
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Domain.Entities;
 
 namespace Tinisoft.Application.Common.Interfaces;
 
 public interface IApplicationDbContext
 {
-    DbSet<Tenant> Tenants { get; }
-    DbSet<Plan> Plans { get; }
-    DbSet<Domain> Domains { get; }
-    DbSet<Template> Templates { get; }
-    DbSet<User> Users { get; }
-    DbSet<UserTenantRole> UserTenantRoles { get; }
-    DbSet<Product> Products { get; }
-    DbSet<ProductVariant> ProductVariants { get; }
-    DbSet<Category> Categories { get; }
-    DbSet<ProductCategory> ProductCategories { get; }
-    DbSet<Order> Orders { get; }
-    DbSet<OrderItem> OrderItems { get; }
-    DbSet<Webhook> Webhooks { get; }
-    DbSet<WebhookDelivery> WebhookDeliveries { get; }
-    DbSet<AuditLog> AuditLogs { get; }
-    DbSet<Warehouse> Warehouses { get; }
-    DbSet<ApiKey> ApiKeys { get; }
-    DbSet<MarketplaceIntegration> MarketplaceIntegrations { get; }
-    DbSet<ProductImage> ProductImages { get; }
-    DbSet<ProductOption> ProductOptions { get; }
-    DbSet<ProductTag> ProductTags { get; }
-    DbSet<ProductMetafield> ProductMetafields { get; }
-    DbSet<TaxRate> TaxRates { get; }
-    DbSet<TaxRule> TaxRules { get; }
-    DbSet<ProductInventory> ProductInventories { get; }
-    DbSet<Customer> Customers { get; }
-    DbSet<CustomerAddress> CustomerAddresses { get; }
-    DbSet<Cart> Carts { get; }
-    DbSet<CartItem> CartItems { get; }
-    DbSet<Coupon> Coupons { get; }
-    DbSet<ProductReview> ProductReviews { get; }
-    DbSet<CouponProduct> CouponProducts { get; }
-    DbSet<CouponCategory> CouponCategories { get; }
-    DbSet<CouponExcludedProduct> CouponExcludedProducts { get; }
-    DbSet<CouponCustomer> CouponCustomers { get; }
-    DbSet<CouponUsage> CouponUsages { get; }
-    DbSet<Reseller> Resellers { get; }
-    DbSet<ResellerPrice> ResellerPrices { get; }
-    DbSet<ShippingProvider> ShippingProviders { get; }
-    DbSet<Shipment> Shipments { get; }
-    DbSet<EmailProvider> EmailProviders { get; }
-    DbSet<EmailTemplate> EmailTemplates { get; }
-    DbSet<EmailNotification> EmailNotifications { get; }
-    DbSet<ReviewVote> ReviewVotes { get; }
-    DbSet<Invoice> Invoices { get; }
-    DbSet<InvoiceItem> InvoiceItems { get; }
-    DbSet<TenantInvoiceSettings> TenantInvoiceSettings { get; }
-    
+    DbSet<Entities.Tenant> Tenants { get; }
+    DbSet<Entities.Plan> Plans { get; }
+    DbSet<Entities.Domain> Domains { get; }
+    DbSet<Entities.Template> Templates { get; }
+    DbSet<Entities.User> Users { get; }
+    DbSet<Entities.UserTenantRole> UserTenantRoles { get; }
+    DbSet<Entities.Product> Products { get; }
+    DbSet<Entities.ProductVariant> ProductVariants { get; }
+    DbSet<Entities.Category> Categories { get; }
+    DbSet<Entities.ProductCategory> ProductCategories { get; }
+    DbSet<Entities.Order> Orders { get; }
+    DbSet<Entities.OrderItem> OrderItems { get; }
+    DbSet<Entities.Webhook> Webhooks { get; }
+    DbSet<Entities.WebhookDelivery> WebhookDeliveries { get; }
+    DbSet<Entities.AuditLog> AuditLogs { get; }
+    DbSet<Entities.Warehouse> Warehouses { get; }
+    DbSet<Entities.ApiKey> ApiKeys { get; }
+    DbSet<Entities.MarketplaceIntegration> MarketplaceIntegrations { get; }
+    DbSet<Entities.ProductImage> ProductImages { get; }
+    DbSet<Entities.ProductOption> ProductOptions { get; }
+    DbSet<Entities.ProductTag> ProductTags { get; }
+    DbSet<Entities.ProductMetafield> ProductMetafields { get; }
+    DbSet<Entities.TaxRate> TaxRates { get; }
+    DbSet<Entities.TaxRule> TaxRules { get; }
+    DbSet<Entities.ProductInventory> ProductInventories { get; }
+    DbSet<Entities.Customer> Customers { get; }
+    DbSet<Entities.CustomerAddress> CustomerAddresses { get; }
+    DbSet<Entities.Cart> Carts { get; }
+    DbSet<Entities.CartItem> CartItems { get; }
+    DbSet<Entities.Coupon> Coupons { get; }
+    DbSet<Entities.ProductReview> ProductReviews { get; }
+    DbSet<Entities.CouponProduct> CouponProducts { get; }
+    DbSet<Entities.CouponCategory> CouponCategories { get; }
+    DbSet<Entities.CouponExcludedProduct> CouponExcludedProducts { get; }
+    DbSet<Entities.CouponCustomer> CouponCustomers { get; }
+    DbSet<Entities.CouponUsage> CouponUsages { get; }
+    DbSet<Entities.Reseller> Resellers { get; }
+    DbSet<Entities.ResellerPrice> ResellerPrices { get; }
+    DbSet<Entities.ShippingProvider> ShippingProviders { get; }
+    DbSet<Entities.Shipment> Shipments { get; }
+    DbSet<Entities.EmailProvider> EmailProviders { get; }
+    DbSet<Entities.EmailTemplate> EmailTemplates { get; }
+    DbSet<Entities.EmailNotification> EmailNotifications { get; }
+    DbSet<Entities.ReviewVote> ReviewVotes { get; }
+    DbSet<Entities.Invoice> Invoices { get; }
+    DbSet<Entities.InvoiceItem> InvoiceItems { get; }
+    DbSet<Entities.TenantInvoiceSettings> TenantInvoiceSettings { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     DbSet<TEntity> Set<TEntity>() where TEntity : class;
+    Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<TEntity> Entry<TEntity>(TEntity entity) where TEntity : class;
 }
-

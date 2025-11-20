@@ -1,18 +1,19 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Tinisoft.Domain.Entities;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Tinisoft.Application.Common.Exceptions;
 
 namespace Tinisoft.Application.Admin.Templates.Commands.ToggleTemplateActive;
 
 public class ToggleTemplateActiveCommandHandler : IRequestHandler<ToggleTemplateActiveCommand, ToggleTemplateActiveResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly ILogger<ToggleTemplateActiveCommandHandler> _logger;
 
     public ToggleTemplateActiveCommandHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         ILogger<ToggleTemplateActiveCommandHandler> logger)
     {
         _dbContext = dbContext;
@@ -45,4 +46,6 @@ public class ToggleTemplateActiveCommandHandler : IRequestHandler<ToggleTemplate
         };
     }
 }
+
+
 

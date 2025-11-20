@@ -1,6 +1,8 @@
 using System.Security.Cryptography;
 using System.Text;
 
+using Tinisoft.Application.Common.Interfaces;
+
 namespace Tinisoft.Infrastructure.Services;
 
 public class PasswordHasher : IPasswordHasher
@@ -18,4 +20,5 @@ public class PasswordHasher : IPasswordHasher
         return hashOfInput == hashedPassword;
     }
 }
+
 

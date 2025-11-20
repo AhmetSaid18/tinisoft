@@ -1,18 +1,19 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Finbuckle.MultiTenant;
 
 namespace Tinisoft.Application.Inventory.Queries.GetStockMovements;
 
 public class GetStockMovementsQueryHandler : IRequestHandler<GetStockMovementsQuery, GetStockMovementsResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly ILogger<GetStockMovementsQueryHandler> _logger;
 
     public GetStockMovementsQueryHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         ILogger<GetStockMovementsQueryHandler> logger)
     {
@@ -107,4 +108,6 @@ public class GetStockMovementsQueryHandler : IRequestHandler<GetStockMovementsQu
         };
     }
 }
+
+
 

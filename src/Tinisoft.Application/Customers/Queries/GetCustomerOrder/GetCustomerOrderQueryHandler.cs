@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Tinisoft.Application.Common.Interfaces;
 using Finbuckle.MultiTenant;
 using System.Text.Json;
@@ -9,13 +10,13 @@ namespace Tinisoft.Application.Customers.Queries.GetCustomerOrder;
 
 public class GetCustomerOrderQueryHandler : IRequestHandler<GetCustomerOrderQuery, GetCustomerOrderResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly ICurrentCustomerService _currentCustomerService;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly ILogger<GetCustomerOrderQueryHandler> _logger;
 
     public GetCustomerOrderQueryHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         ICurrentCustomerService currentCustomerService,
         IMultiTenantContextAccessor tenantAccessor,
         ILogger<GetCustomerOrderQueryHandler> logger)
@@ -91,4 +92,6 @@ public class GetCustomerOrderQueryHandler : IRequestHandler<GetCustomerOrderQuer
         };
     }
 }
+
+
 

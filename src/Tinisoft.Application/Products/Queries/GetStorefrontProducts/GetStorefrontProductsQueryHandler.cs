@@ -2,7 +2,8 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using System.Text.Json;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Tinisoft.Application.ExchangeRates.Services;
 using Finbuckle.MultiTenant;
 
@@ -10,14 +11,14 @@ namespace Tinisoft.Application.Products.Queries.GetStorefrontProducts;
 
 public class GetStorefrontProductsQueryHandler : IRequestHandler<GetStorefrontProductsQuery, GetStorefrontProductsResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly IDistributedCache _cache;
     private readonly IExchangeRateService _exchangeRateService;
     private readonly ILogger<GetStorefrontProductsQueryHandler> _logger;
 
     public GetStorefrontProductsQueryHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         IDistributedCache cache,
         IExchangeRateService exchangeRateService,
@@ -109,7 +110,7 @@ public class GetStorefrontProductsQueryHandler : IRequestHandler<GetStorefrontPr
                 .Include(p => p.Images.OrderBy(img => img.Position).Take(1)) // Sadece featured image
                 .Include(p => p.ProductCategories)
                     .ThenInclude(pc => pc.Category)
-                .AsSplitQuery()
+                
                 .Skip((validatedPage - 1) * validatedPageSize)
                 .Take(validatedPageSize)
                 .ToListAsync(cancellationToken);
@@ -205,4 +206,6 @@ public class GetStorefrontProductsQueryHandler : IRequestHandler<GetStorefrontPr
         return response;
     }
 }
+
+
 

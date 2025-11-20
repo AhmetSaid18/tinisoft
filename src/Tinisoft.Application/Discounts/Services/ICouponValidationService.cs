@@ -32,3 +32,5 @@ public class CouponValidationResult
     public decimal DiscountAmount { get; set; }
 }
 
+
+

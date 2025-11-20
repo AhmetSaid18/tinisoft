@@ -19,3 +19,5 @@ public class AdjustStockResponse
     public int NewQuantity { get; set; }
 }
 
+
+

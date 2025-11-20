@@ -2,20 +2,21 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using System.Text.Json;
-using Tinisoft.Infrastructure.Persistence;
+using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Shared.Contracts;
 using Finbuckle.MultiTenant;
 
 namespace Tinisoft.Application.Products.Queries.GetStorefrontCategories;
 
 public class GetStorefrontCategoriesQueryHandler : IRequestHandler<GetStorefrontCategoriesQuery, GetStorefrontCategoriesResponse>
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IApplicationDbContext _dbContext;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly IDistributedCache _cache;
     private readonly ILogger<GetStorefrontCategoriesQueryHandler> _logger;
 
     public GetStorefrontCategoriesQueryHandler(
-        ApplicationDbContext dbContext,
+        IApplicationDbContext dbContext,
         IMultiTenantContextAccessor tenantAccessor,
         IDistributedCache cache,
         ILogger<GetStorefrontCategoriesQueryHandler> logger)
@@ -103,4 +104,6 @@ public class GetStorefrontCategoriesQueryHandler : IRequestHandler<GetStorefront
         return response;
     }
 }
+
+
 
