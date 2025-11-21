@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Tinisoft.API.Middleware;
 using Hangfire;
+using Tinisoft.Domain.Entities;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -99,6 +100,32 @@ if (runMigrations)
     {
         await dbContext.Database.MigrateAsync();
         Log.Information("Database migrations applied successfully");
+        
+        // Default plan ekle (eğer yoksa)
+        var hasPlan = await dbContext.Set<Plan>().AnyAsync();
+        if (!hasPlan)
+        {
+            var defaultPlan = new Plan
+            {
+                Id = Guid.NewGuid(),
+                Name = "Free Plan",
+                Description = "Başlangıç için ücretsiz plan - Tüm tenant'lar bu plan ile kaydedilir",
+                MonthlyPrice = 0,
+                YearlyPrice = 0,
+                MaxProducts = 100,
+                MaxOrdersPerMonth = 500,
+                MaxStorageGB = 5,
+                CustomDomainEnabled = false,
+                AdvancedAnalytics = false,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            
+            dbContext.Set<Plan>().Add(defaultPlan);
+            await dbContext.SaveChangesAsync();
+            Log.Information("Default plan created successfully");
+        }
     }
     catch (Exception ex)
     {

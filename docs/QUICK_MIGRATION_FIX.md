@@ -101,6 +101,24 @@ docker exec -it tinisoft-orders-api-1 dotnet ef migrations add InitialCreate \
 
 ---
 
+## 🚀 LOCAL'DE MIGRATION OLUŞTUR (Container'a Kod Yüklenmediyse)
+
+Eğer container'a yeni kodlar yüklenmemişse, local'de migration oluşturup container'a kopyala:
+
+```bash
+# 1. Local'de migration oluştur (Windows PowerShell veya WSL)
+cd src/Tinisoft.API
+dotnet ef migrations add InitialCreate --project ../Tinisoft.Infrastructure --context ApplicationDbContext
+
+# 2. Migration dosyalarını container'a kopyala
+docker cp src/Tinisoft.Infrastructure/Migrations tinisoft-api-1:/src/src/Tinisoft.Infrastructure/
+
+# 3. Database'i güncelle
+docker exec -it tinisoft-api-1 bash -c "cd /src/src/Tinisoft.API && dotnet ef database update --project ../Tinisoft.Infrastructure --context ApplicationDbContext --startup-project ."
+```
+
+---
+
 ## 🔧 PostgreSQL Filter Syntax Hatası Düzeltme
 
 Eğer migration çalıştırırken `syntax error at or near "["` hatası alıyorsan:
@@ -135,25 +153,47 @@ docker exec -it tinisoft-api-1 bash -c "
 "
 ```
 
-**VEYA Container İçinde Direkt Düzelt (ÖNERİLEN):**
+**🚀 KESIN ÇÖZÜM - Container İçinde Direkt Düzelt (HEMEN ÇALIŞTIR!):**
 
 ```bash
-# Container içinde direkt düzelt
-# PostgreSQL'de WHERE clause'da kolon isimlerini tırnak içine almamız gerekiyor
+# 1. Önce migration dosyasındaki TÜM köşeli parantezleri bul ve göster
 docker exec -it tinisoft-api-1 bash -c "
     cd /src/src/Tinisoft.Infrastructure/Migrations && \
-    sed -i 's/WHERE GIBInvoiceId IS NOT NULL/WHERE \"GIBInvoiceId\" IS NOT NULL/g' *InitialCreate*.cs && \
-    sed -i 's/WHERE SKU IS NOT NULL/WHERE \"SKU\" IS NOT NULL/g' *InitialCreate*.cs && \
-    sed -i 's/WHERE CustomerId IS NOT NULL/WHERE \"CustomerId\" IS NOT NULL/g' *InitialCreate*.cs && \
-    sed -i 's/WHERE IpAddress IS NOT NULL/WHERE \"IpAddress\" IS NOT NULL/g' *InitialCreate*.cs && \
-    echo 'Migration dosyaları düzeltildi!'
+    echo '=== Migration dosyasındaki WHERE clauseler ===' && \
+    grep -n 'WHERE' *InitialCreate*.cs
+"
+
+# 2. TÜM köşeli parantezleri düzelt (hem WHERE içinde hem de başka yerlerde)
+docker exec -it tinisoft-api-1 bash -c "
+    cd /src/src/Tinisoft.Infrastructure/Migrations && \
+    # Tüm köşeli parantezleri tırnak içine al
+    sed -i 's/\[\([^]]*\)\]/\"\1\"/g' *InitialCreate*.cs && \
+    echo '✅ Tüm köşeli parantezler düzeltildi!' && \
+    echo '' && \
+    echo '=== Düzeltilmiş WHERE clauseler ===' && \
+    grep -n 'WHERE' *InitialCreate*.cs
+"
+
+# 3. Build hatasını kontrol et
+docker exec -it tinisoft-api-1 bash -c "
+    cd /src/src/Tinisoft.API && \
+    dotnet build --no-restore 2>&1 | tail -20
+"
+
+# 4. Database'i güncelle
+docker exec -it tinisoft-api-1 bash -c "
+    cd /src/src/Tinisoft.API && \
+    dotnet ef database update \
+        --project ../Tinisoft.Infrastructure \
+        --context ApplicationDbContext \
+        --startup-project .
 "
 ```
 
-### Alternatif: Migration'ı Sil ve Yeniden Oluştur
+### ✅ KESIN ÇÖZÜM: Migration'ı Sil ve Yeniden Oluştur (BOZULMUŞ DOSYALAR İÇİN)
 
 ```bash
-# 1. Migration'ı sil
+# 1. Migration'ı sil (bozulmuş migration dosyalarını temizle)
 docker exec -it tinisoft-api-1 bash -c "
     cd /src/src/Tinisoft.API && \
     dotnet ef migrations remove \
@@ -163,11 +203,19 @@ docker exec -it tinisoft-api-1 bash -c "
         --force
 "
 
-# 2. Container'ı yeniden build et (yeni kodları yükle)
-# docker-compose build tinisoft-api
-# docker-compose up -d tinisoft-api
+# 2. Migration klasörünü tamamen temizle (eğer remove çalışmazsa)
+docker exec -it tinisoft-api-1 bash -c "
+    rm -rf /src/src/Tinisoft.Infrastructure/Migrations && \
+    echo 'Migration klasörü temizlendi'
+"
 
-# 3. Migration'ı yeniden oluştur
+# 3. Container'ı restart et (yeni kodları yükle - volume mount varsa otomatik güncellenir)
+docker restart tinisoft-api-1
+
+# 4. Biraz bekle (container'ın başlaması için)
+sleep 5
+
+# 5. Migration'ı yeniden oluştur (artık düzeltilmiş kodlarla)
 docker exec -it tinisoft-api-1 bash -c "
     cd /src/src/Tinisoft.API && \
     dotnet ef migrations add InitialCreate \
@@ -176,7 +224,7 @@ docker exec -it tinisoft-api-1 bash -c "
         --startup-project .
 "
 
-# 4. Database'i güncelle
+# 6. Database'i güncelle
 docker exec -it tinisoft-api-1 bash -c "
     cd /src/src/Tinisoft.API && \
     dotnet ef database update \

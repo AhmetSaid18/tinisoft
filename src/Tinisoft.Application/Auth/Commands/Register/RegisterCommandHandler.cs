@@ -73,8 +73,10 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, RegisterR
                 throw new BadRequestException("Bu slug zaten kullanılıyor.");
             }
 
-            // Plan bul (default plan - şimdilik ilk planı al)
+            // Plan bul (Free Plan - aktif planları al, ilkini kullan)
             var defaultPlan = await _dbContext.Set<Plan>()
+                .Where(p => p.IsActive)
+                .OrderBy(p => p.MonthlyPrice) // En ucuz plan (Free Plan)
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (defaultPlan == null)
