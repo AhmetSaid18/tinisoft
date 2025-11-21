@@ -249,7 +249,7 @@ public class ApplicationDbContext : MultiTenantDbContext, IApplicationDbContext
 
         modelBuilder.Entity<Product>()
             .HasIndex(p => new { p.TenantId, p.SKU })
-            .HasFilter("SKU IS NOT NULL")
+            .HasFilter("\"SKU\" IS NOT NULL")
             .HasDatabaseName("IX_Product_TenantId_SKU");
 
         // Product price sorting için
@@ -640,12 +640,12 @@ public class ApplicationDbContext : MultiTenantDbContext, IApplicationDbContext
         modelBuilder.Entity<ReviewVote>()
             .HasIndex(rv => new { rv.TenantId, rv.ReviewId, rv.CustomerId })
             .HasDatabaseName("IX_ReviewVote_TenantId_ReviewId_CustomerId")
-            .HasFilter("CustomerId IS NOT NULL");
+            .HasFilter("\"CustomerId\" IS NOT NULL");
 
         modelBuilder.Entity<ReviewVote>()
             .HasIndex(rv => new { rv.TenantId, rv.ReviewId, rv.IpAddress })
             .HasDatabaseName("IX_ReviewVote_TenantId_ReviewId_IpAddress")
-            .HasFilter("IpAddress IS NOT NULL");
+            .HasFilter("\"IpAddress\" IS NOT NULL");
 
         // Invoice relationships
         modelBuilder.Entity<Invoice>()
@@ -702,7 +702,7 @@ public class ApplicationDbContext : MultiTenantDbContext, IApplicationDbContext
 
         modelBuilder.Entity<Invoice>()
             .HasIndex(i => new { i.TenantId, i.GIBInvoiceId })
-            .HasFilter("GIBInvoiceId IS NOT NULL")
+            .HasFilter("\"GIBInvoiceId\" IS NOT NULL")
             .HasDatabaseName("IX_Invoice_TenantId_GIBInvoiceId");
 
         // TenantInvoiceSettings indexes
