@@ -253,10 +253,10 @@ services:
       KAFKA_LOG_RETENTION_HOURS: 168
       KAFKA_LOG_SEGMENT_BYTES: 1073741824
       KAFKA_COMPRESSION_TYPE: snappy
-      # Cluster ID uyumsuzluğunu önlemek için: Zookeeper'dan Cluster ID'yi al
-      KAFKA_CLUSTER_ID: ""
     volumes:
       - kafka_data:/var/lib/kafka/data
+      - ./scripts/kafka-pre-start.sh:/kafka-pre-start.sh:ro
+    entrypoint: ["/bin/sh", "-c", "chmod +x /kafka-pre-start.sh && /kafka-pre-start.sh"]
     depends_on:
       zookeeper:
         condition: service_healthy
