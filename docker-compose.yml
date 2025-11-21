@@ -255,8 +255,18 @@ services:
       KAFKA_COMPRESSION_TYPE: snappy
     volumes:
       - kafka_data:/var/lib/kafka/data
-      - ./scripts/kafka-pre-start.sh:/kafka-pre-start.sh:ro
-    entrypoint: ["/bin/sh", "-c", "chmod +x /kafka-pre-start.sh && /kafka-pre-start.sh"]
+    command: >
+      sh -c "
+        echo '🔍 Kafka Pre-Start: Checking meta.properties...' &&
+        if [ -f /var/lib/kafka/data/meta.properties ]; then
+          echo '⚠️  meta.properties found. Removing to prevent Cluster ID mismatch...' &&
+          rm -f /var/lib/kafka/data/meta.properties &&
+          echo '✅ meta.properties removed. Kafka will create new one with matching Cluster ID.'
+        else
+          echo '✅ No meta.properties found. Kafka will create new one.'
+        fi &&
+        /etc/confluent/docker/run
+      "
     depends_on:
       zookeeper:
         condition: service_healthy
