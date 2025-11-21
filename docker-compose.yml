@@ -253,16 +253,20 @@ services:
       KAFKA_LOG_RETENTION_HOURS: 168
       KAFKA_LOG_SEGMENT_BYTES: 1073741824
       KAFKA_COMPRESSION_TYPE: snappy
+      # Cluster ID uyumsuzluğunu önlemek için: Zookeeper'dan Cluster ID'yi al
+      KAFKA_CLUSTER_ID: ""
     volumes:
       - kafka_data:/var/lib/kafka/data
     depends_on:
       zookeeper:
         condition: service_healthy
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 30s
     networks:
       - tinisoft-network
 
