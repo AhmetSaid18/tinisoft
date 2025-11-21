@@ -62,7 +62,9 @@ public static class DependencyInjection
             // Not: Environment kontrolü için IWebHostEnvironment kullanılabilir
         });
 
-        services.AddScoped<ApplicationDbContext>();
+        // IApplicationDbContext interface'ini register et
+        services.AddScoped<Tinisoft.Application.Common.Interfaces.IApplicationDbContext>(sp => 
+            sp.GetRequiredService<ApplicationDbContext>());
 
         return services;
     }
