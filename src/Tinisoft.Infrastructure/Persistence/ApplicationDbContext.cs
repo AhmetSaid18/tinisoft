@@ -702,7 +702,7 @@ public class ApplicationDbContext : MultiTenantDbContext, IApplicationDbContext
 
         modelBuilder.Entity<Invoice>()
             .HasIndex(i => new { i.TenantId, i.GIBInvoiceId })
-            .HasFilter("[GIBInvoiceId] IS NOT NULL")
+            .HasFilter("\"GIBInvoiceId\" IS NOT NULL")
             .HasDatabaseName("IX_Invoice_TenantId_GIBInvoiceId");
 
         // TenantInvoiceSettings indexes
