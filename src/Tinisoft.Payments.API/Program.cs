@@ -59,11 +59,23 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");
 
-if (app.Environment.IsDevelopment())
+// Database migration - Development veya RUN_MIGRATIONS=true ise çalıştır
+var runMigrations = app.Environment.IsDevelopment() || 
+                     builder.Configuration.GetValue<bool>("RunMigrations", false);
+if (runMigrations)
 {
     using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    await dbContext.Database.MigrateAsync();
+    try
+    {
+        await dbContext.Database.MigrateAsync();
+        Log.Information("Database migrations applied successfully");
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "Error applying database migrations");
+        throw;
+    }
 }
 
 app.Urls.Add("http://0.0.0.0:5003");

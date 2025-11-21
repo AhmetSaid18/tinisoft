@@ -275,6 +275,7 @@ services:
       - "5001:5001"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
+      RunMigrations: "true"
       ConnectionStrings__DefaultConnection: "Host=products-db;Port=5432;Database=products_db;Username=postgres;Password=postgres;Maximum Pool Size=100;Command Timeout=30;Timeout=30;Connection Lifetime=0;Pooling=true;"
       RabbitMQ__HostName: "rabbitmq"
       RabbitMQ__Port: "5672"
@@ -301,6 +302,7 @@ services:
       - "5002:5002"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
+      RunMigrations: "true"
       ConnectionStrings__DefaultConnection: "Host=inventory-db;Port=5432;Database=inventory_db;Username=postgres;Password=postgres;Maximum Pool Size=100;Command Timeout=30;Timeout=30;Connection Lifetime=0;Pooling=true;"
       RabbitMQ__HostName: "rabbitmq"
       RabbitMQ__Port: "5672"
@@ -322,6 +324,7 @@ services:
       - "5003:5003"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
+      RunMigrations: "true"
       ConnectionStrings__DefaultConnection: "Host=payments-db;Port=5432;Database=payments_db;Username=postgres;Password=postgres;Maximum Pool Size=100;Command Timeout=30;Timeout=30;Connection Lifetime=0;Pooling=true;"
       RabbitMQ__HostName: "rabbitmq"
       RabbitMQ__Port: "5672"
@@ -346,6 +349,7 @@ services:
       - "5004:5004"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
+      RunMigrations: "true"
       ConnectionStrings__DefaultConnection: "Host=orders-db;Port=5432;Database=orders_db;Username=postgres;Password=postgres;Maximum Pool Size=100;Command Timeout=30;Timeout=30;Connection Lifetime=0;Pooling=true;"
       RabbitMQ__HostName: "rabbitmq"
       RabbitMQ__Port: "5672"
@@ -367,6 +371,7 @@ services:
       - "5005:5005"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
+      RunMigrations: "true"
       ConnectionStrings__DefaultConnection: "Host=marketplace-db;Port=5432;Database=marketplace_db;Username=postgres;Password=postgres;Maximum Pool Size=100;Command Timeout=30;Timeout=30;Connection Lifetime=0;Pooling=true;"
       RabbitMQ__HostName: "rabbitmq"
       RabbitMQ__Port: "5672"
@@ -388,6 +393,7 @@ services:
       - "5006:5006"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
+      RunMigrations: "true"
       ConnectionStrings__DefaultConnection: "Host=customers-db;Port=5432;Database=customers_db;Username=postgres;Password=postgres;Maximum Pool Size=100;Command Timeout=30;Timeout=30;Connection Lifetime=0;Pooling=true;"
       RabbitMQ__HostName: "rabbitmq"
       RabbitMQ__Port: "5672"
@@ -409,6 +415,7 @@ services:
       - "5007:5007"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
+      RunMigrations: "true"
       ConnectionStrings__DefaultConnection: "Host=shipping-db;Port=5432;Database=shipping_db;Username=postgres;Password=postgres;Maximum Pool Size=100;Command Timeout=30;Timeout=30;Connection Lifetime=0;Pooling=true;"
       RabbitMQ__HostName: "rabbitmq"
       RabbitMQ__Port: "5672"
@@ -434,6 +441,7 @@ services:
       - "5008:5008"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
+      RunMigrations: "true"
       ConnectionStrings__DefaultConnection: "Host=notifications-db;Port=5432;Database=notifications_db;Username=postgres;Password=postgres;Maximum Pool Size=100;Command Timeout=30;Timeout=30;Connection Lifetime=0;Pooling=true;"
       RabbitMQ__HostName: "rabbitmq"
       RabbitMQ__Port: "5672"
@@ -459,6 +467,7 @@ services:
       - "5009:5009"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
+      RunMigrations: "true"
       ConnectionStrings__DefaultConnection: "Host=invoices-db;Port=5432;Database=invoices_db;Username=postgres;Password=postgres;Maximum Pool Size=100;Command Timeout=30;Timeout=30;Connection Lifetime=0;Pooling=true;"
       Redis__ConnectionString: "redis:6379"
       RabbitMQ__HostName: "rabbitmq"
@@ -487,6 +496,7 @@ services:
       - "5010:5010"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
+      RunMigrations: "true"
       ConnectionStrings__DefaultConnection: "Host=api-db;Port=5432;Database=tinisoft;Username=postgres;Password=postgres;Maximum Pool Size=100;Command Timeout=30;Timeout=30;Connection Lifetime=0;Pooling=true;"
       Redis__ConnectionString: "redis:6379"
       RabbitMQ__HostName: "rabbitmq"
