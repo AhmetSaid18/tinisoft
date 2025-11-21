@@ -20,9 +20,19 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
+        policy.WithOrigins(
+                "http://localhost:3000",
+                "http://localhost:3001",
+                "http://localhost:3002",
+                "http://localhost:3003",
+                "https://tinisoft.com.tr",
+                "https://www.tinisoft.com.tr",
+                "https://app.tinisoft.com.tr",
+                "https://admin.tinisoft.com.tr"
+            )
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials(); // JWT token için gerekli
     });
 });
 
