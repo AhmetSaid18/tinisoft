@@ -49,7 +49,7 @@
       "UpstreamHttpMethod": [ "GET" ]
     },
     {
-      "DownstreamPathTemplate": "/api/payments",
+      "DownstreamPathTemplate": "/api/payments/process",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
@@ -57,7 +57,19 @@
           "Port": 5003
         }
       ],
-      "UpstreamPathTemplate": "/api/payments",
+      "UpstreamPathTemplate": "/api/payments/process",
+      "UpstreamHttpMethod": [ "POST" ]
+    },
+    {
+      "DownstreamPathTemplate": "/api/payments/verify",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "payments-api",
+          "Port": 5003
+        }
+      ],
+      "UpstreamPathTemplate": "/api/payments/verify",
       "UpstreamHttpMethod": [ "POST" ]
     },
     {
@@ -71,6 +83,54 @@
       ],
       "UpstreamPathTemplate": "/api/payments/callback/paytr",
       "UpstreamHttpMethod": [ "POST" ]
+    },
+    {
+      "DownstreamPathTemplate": "/api/payments/callback/kuveytturk",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "payments-api",
+          "Port": 5003
+        }
+      ],
+      "UpstreamPathTemplate": "/api/payments/callback/kuveytturk",
+      "UpstreamHttpMethod": [ "POST" ]
+    },
+    {
+      "DownstreamPathTemplate": "/api/payments/callback/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "payments-api",
+          "Port": 5003
+        }
+      ],
+      "UpstreamPathTemplate": "/api/payments/callback/{everything}",
+      "UpstreamHttpMethod": [ "POST" ]
+    },
+    {
+      "DownstreamPathTemplate": "/api/payments/providers",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "payments-api",
+          "Port": 5003
+        }
+      ],
+      "UpstreamPathTemplate": "/api/payments/providers",
+      "UpstreamHttpMethod": [ "GET", "POST" ]
+    },
+    {
+      "DownstreamPathTemplate": "/api/payments/providers/{id}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "payments-api",
+          "Port": 5003
+        }
+      ],
+      "UpstreamPathTemplate": "/api/payments/providers/{id}",
+      "UpstreamHttpMethod": [ "PUT" ]
     },
     {
       "DownstreamPathTemplate": "/api/orders",

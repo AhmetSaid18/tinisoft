@@ -1,0 +1,58 @@
+# Traefik Dynamic Routing Configuration
+# Bu dosya subdomain ve custom domain routing'i yönetir
+
+http:
+  routers:
+    # ============================================
+    # SUBDOMAIN ROUTING
+    # *.domains.tinisoft.com → API Gateway
+    # Örnek: ornek-magaza.domains.tinisoft.com
+    # ============================================
+    subdomain-routing:
+      rule: "HostRegexp(`{subdomain:[a-z0-9-]+}.domains.tinisoft.com`)"
+      entryPoints:
+        - web
+      service: api-gateway
+      priority: 10
+
+    # ============================================
+    # API GATEWAY (doğrudan erişim)
+    # api.tinisoft.com → API Gateway
+    # ============================================
+    api-gateway-direct:
+      rule: "Host(`api.tinisoft.com`)"
+      entryPoints:
+        - web
+      service: api-gateway
+      priority: 20
+
+  services:
+    # API Gateway service
+    api-gateway:
+      loadBalancer:
+        servers:
+          - url: "http://gateway:5000"
+        healthCheck:
+          path: /health
+          interval: "10s"
+          timeout: "3s"
+
+  # Middlewares
+  middlewares:
+    # Rate limiting
+    rate-limit:
+      rateLimit:
+        average: 100
+        burst: 50
+        period: 1m
+
+    # Headers
+    secure-headers:
+      headers:
+        frameDeny: true
+        browserXssFilter: true
+        contentTypeNosniff: true
+        forceSTSHeader: true
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+

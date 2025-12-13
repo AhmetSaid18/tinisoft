@@ -5,6 +5,7 @@ using Tinisoft.Shared.Contracts;
 using Finbuckle.MultiTenant;
 using Tinisoft.Application.Shipping.Services;
 using Tinisoft.Application.Common.Exceptions;
+using System.Text.Json;
 
 namespace Tinisoft.Application.Shipping.Commands.CalculateShippingCost;
 
@@ -31,12 +32,11 @@ public class CalculateShippingCostCommandHandler : IRequestHandler<CalculateShip
     {
         var tenantId = Guid.Parse(_tenantAccessor.MultiTenantContext!.TenantInfo!.Id!);
 
-        string providerCode;
-        string providerName;
+        Domain.Entities.ShippingProvider? provider = null;
 
         if (request.ShippingProviderId.HasValue)
         {
-            var provider = await _dbContext.ShippingProviders
+            provider = await _dbContext.ShippingProviders
                 .AsNoTracking()
                 .FirstOrDefaultAsync(sp => 
                     sp.Id == request.ShippingProviderId.Value && 
@@ -56,15 +56,12 @@ public class CalculateShippingCostCommandHandler : IRequestHandler<CalculateShip
                     ErrorMessage = "Kargo firması için API key tanımlanmamış"
                 };
             }
-
-            providerCode = provider.ProviderCode;
-            providerName = provider.ProviderName;
         }
         else if (!string.IsNullOrEmpty(request.ProviderCode))
         {
-            providerCode = request.ProviderCode.ToUpper();
+            var providerCode = request.ProviderCode.ToUpper();
             
-            var provider = await _dbContext.ShippingProviders
+            provider = await _dbContext.ShippingProviders
                 .AsNoTracking()
                 .FirstOrDefaultAsync(sp => 
                     sp.ProviderCode == providerCode && 
@@ -79,20 +76,18 @@ public class CalculateShippingCostCommandHandler : IRequestHandler<CalculateShip
                     ErrorMessage = $"Kargo firması bulunamadı: {providerCode}"
                 };
             }
-
-            providerName = provider.ProviderName;
         }
         else
         {
             // Varsayılan provider'ı kullan
-            var defaultProvider = await _dbContext.ShippingProviders
+            provider = await _dbContext.ShippingProviders
                 .AsNoTracking()
                 .FirstOrDefaultAsync(sp => 
                     sp.TenantId == tenantId && 
                     sp.IsActive && 
                     sp.IsDefault, cancellationToken);
 
-            if (defaultProvider == null)
+            if (provider == null)
             {
                 return new CalculateShippingCostResponse
                 {
@@ -100,25 +95,43 @@ public class CalculateShippingCostCommandHandler : IRequestHandler<CalculateShip
                     ErrorMessage = "Varsayılan kargo firması bulunamadı"
                 };
             }
-
-            providerCode = defaultProvider.ProviderCode;
-            providerName = defaultProvider.ProviderName;
         }
 
-        if (!_shippingServiceFactory.IsProviderSupported(providerCode))
+        if (string.IsNullOrEmpty(provider.ApiKey))
         {
             return new CalculateShippingCostResponse
             {
                 Success = false,
-                ErrorMessage = $"Kargo firması desteklenmiyor: {providerCode}"
+                ErrorMessage = "Kargo firması için API key tanımlanmamış"
             };
         }
 
+        if (!_shippingServiceFactory.IsProviderSupported(provider.ProviderCode))
+        {
+            return new CalculateShippingCostResponse
+            {
+                Success = false,
+                ErrorMessage = $"Kargo firması desteklenmiyor: {provider.ProviderCode}"
+            };
+        }
+
+        // Tenant'ın provider bilgilerini credentials olarak hazırla
+        var credentials = new ShippingProviderCredentials
+        {
+            ApiKey = provider.ApiKey,
+            ApiSecret = provider.ApiSecret,
+            ApiUrl = provider.UseTestMode ? provider.TestApiUrl : provider.ApiUrl,
+            TestApiUrl = provider.TestApiUrl,
+            UseTestMode = provider.UseTestMode,
+            SettingsJson = provider.SettingsJson
+        };
+
         try
         {
-            var shippingService = _shippingServiceFactory.GetService(providerCode);
+            var shippingService = _shippingServiceFactory.GetService(provider.ProviderCode);
             var cost = await shippingService.CalculateShippingCostAsync(
-                providerCode,
+                provider.ProviderCode,
+                credentials, // Tenant'ın API key'leri
                 request.FromCity,
                 request.ToCity,
                 request.Weight,
@@ -131,14 +144,14 @@ public class CalculateShippingCostCommandHandler : IRequestHandler<CalculateShip
             {
                 ShippingCost = cost,
                 Currency = "TRY",
-                ProviderCode = providerCode,
-                ProviderName = providerName,
+                ProviderCode = provider.ProviderCode,
+                ProviderName = provider.ProviderName,
                 Success = true
             };
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error calculating shipping cost for provider {ProviderCode}", providerCode);
+            _logger.LogError(ex, "Error calculating shipping cost for provider {ProviderCode}", provider.ProviderCode);
             return new CalculateShippingCostResponse
             {
                 Success = false,

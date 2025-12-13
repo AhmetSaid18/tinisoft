@@ -1,30 +1,32 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Tinisoft.Application.Common.Interfaces;
+using Tinisoft.Application.Payments.Services;
 using Tinisoft.Shared.Contracts;
 using Tinisoft.Shared.Events;
 using Tinisoft.Shared.Contracts;
 using Finbuckle.MultiTenant;
+using Tinisoft.Domain.Entities;
 
 namespace Tinisoft.Application.Payments.Commands.ProcessPayment;
 
 public class ProcessPaymentCommandHandler : IRequestHandler<ProcessPaymentCommand, ProcessPaymentResponse>
 {
     private readonly IApplicationDbContext _dbContext;
-    private readonly IPayTRService _payTRService;
+    private readonly IPaymentServiceFactory _paymentServiceFactory;
     private readonly IEventBus _eventBus;
     private readonly IMultiTenantContextAccessor _tenantAccessor;
     private readonly ILogger<ProcessPaymentCommandHandler> _logger;
 
     public ProcessPaymentCommandHandler(
         IApplicationDbContext dbContext,
-        IPayTRService payTRService,
+        IPaymentServiceFactory paymentServiceFactory,
         IEventBus eventBus,
         IMultiTenantContextAccessor tenantAccessor,
         ILogger<ProcessPaymentCommandHandler> logger)
     {
         _dbContext = dbContext;
-        _payTRService = payTRService;
+        _paymentServiceFactory = paymentServiceFactory;
         _eventBus = eventBus;
         _tenantAccessor = tenantAccessor;
         _logger = logger;
@@ -53,54 +55,87 @@ public class ProcessPaymentCommandHandler : IRequestHandler<ProcessPaymentComman
             };
         }
 
-        // Payment provider'a göre işlem
-        if (request.PaymentProvider == "PayTR")
+        // Tenant'ın ödeme sağlayıcı bilgilerini database'den al
+        var providerCode = request.PaymentProvider.ToUpper();
+        var provider = await _dbContext.Set<PaymentProvider>()
+            .FirstOrDefaultAsync(p => 
+                p.TenantId == tenantId && 
+                p.ProviderCode == providerCode && 
+                p.IsActive, cancellationToken);
+
+        if (provider == null)
         {
-            var customerEmail = order.CustomerEmail;
-            if (request.ProviderSpecificData?.ContainsKey("email") == true)
+            return new ProcessPaymentResponse
             {
-                customerEmail = request.ProviderSpecificData["email"];
-            }
-
-            var payTRRequest = new PayTRTokenRequest
-            {
-                Email = customerEmail,
-                Amount = request.Amount,
-                OrderId = order.OrderNumber,
-                Currency = request.Currency
+                Success = false,
+                ErrorMessage = $"Ödeme sağlayıcı bulunamadı veya aktif değil: {request.PaymentProvider}"
             };
-
-            var payTRResponse = await _payTRService.GetTokenAsync(payTRRequest, cancellationToken);
-
-            if (payTRResponse.Success && !string.IsNullOrEmpty(payTRResponse.Token))
-            {
-                // Order'ı güncelle
-                order.PaymentProvider = "PayTR";
-                order.PaymentStatus = "Pending";
-                await _dbContext.SaveChangesAsync(cancellationToken);
-
-                return new ProcessPaymentResponse
-                {
-                    Success = true,
-                    PaymentToken = payTRResponse.Token,
-                    RedirectUrl = $"https://www.paytr.com/odeme/guvenli/{payTRResponse.Token}"
-                };
-            }
-            else
-            {
-                return new ProcessPaymentResponse
-                {
-                    Success = false,
-                    ErrorMessage = payTRResponse.ErrorMessage ?? "Ödeme token'ı alınamadı"
-                };
-            }
         }
 
-        return new ProcessPaymentResponse
+        // Provider'ın credentials'ını oluştur
+        var credentials = new PaymentProviderCredentials(
+            provider.ApiKey,
+            provider.ApiSecret,
+            provider.UseTestMode ? provider.TestApiUrl : provider.ApiUrl,
+            provider.TestApiUrl,
+            provider.UseTestMode,
+            provider.SettingsJson
+        );
+
+        // Payment service'i al
+        if (!_paymentServiceFactory.IsProviderSupported(providerCode))
         {
-            Success = false,
-            ErrorMessage = $"Desteklenmeyen ödeme sağlayıcı: {request.PaymentProvider}"
+            return new ProcessPaymentResponse
+            {
+                Success = false,
+                ErrorMessage = $"Desteklenmeyen ödeme sağlayıcı: {request.PaymentProvider}"
+            };
+        }
+
+        var paymentService = _paymentServiceFactory.GetService(providerCode);
+
+        // Customer email
+        var customerEmail = order.CustomerEmail;
+        if (request.ProviderSpecificData?.ContainsKey("email") == true)
+        {
+            customerEmail = request.ProviderSpecificData["email"];
+        }
+
+        // Payment token request
+        var paymentRequest = new PaymentTokenRequest
+        {
+            Email = customerEmail,
+            Amount = request.Amount,
+            OrderId = order.OrderNumber,
+            Currency = request.Currency,
+            Installment = request.ProviderSpecificData?.GetValueOrDefault("installment"),
+            AdditionalData = request.ProviderSpecificData
         };
+
+        var paymentResponse = await paymentService.GetPaymentTokenAsync(credentials, paymentRequest, cancellationToken);
+
+        if (paymentResponse.Success && !string.IsNullOrEmpty(paymentResponse.Token))
+        {
+            // Order'ı güncelle
+            order.PaymentProvider = providerCode;
+            order.PaymentStatus = "Pending";
+            await _dbContext.SaveChangesAsync(cancellationToken);
+
+            return new ProcessPaymentResponse
+            {
+                Success = true,
+                PaymentToken = paymentResponse.Token,
+                RedirectUrl = paymentResponse.RedirectUrl
+            };
+        }
+        else
+        {
+            return new ProcessPaymentResponse
+            {
+                Success = false,
+                ErrorMessage = paymentResponse.ErrorMessage ?? "Ödeme token'ı alınamadı"
+            };
+        }
     }
 }
 

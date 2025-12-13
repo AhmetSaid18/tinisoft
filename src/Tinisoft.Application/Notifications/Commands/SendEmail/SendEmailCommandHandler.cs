@@ -94,13 +94,21 @@ public class SendEmailCommandHandler : IRequestHandler<SendEmailCommand, SendEma
         // Email gönder
         try
         {
-            var result = await _emailService.SendEmailAsync(emailProvider, emailNotification, cancellationToken);
+            var emailRequest = new Tinisoft.Application.Notifications.Models.EmailRequest
+            {
+                To = emailNotification.ToEmail,
+                ToName = emailNotification.ToName,
+                Subject = emailNotification.Subject,
+                HtmlBody = emailNotification.BodyHtml,
+                TextBody = emailNotification.BodyText
+            };
+            var result = await _emailService.SendEmailAsync(emailRequest, cancellationToken);
 
             if (result.Success)
             {
                 emailNotification.Status = "Sent";
                 emailNotification.SentAt = DateTime.UtcNow;
-                emailNotification.ProviderResponseJson = result.ProviderResponseJson;
+                emailNotification.ProviderResponseJson = result.MessageId; // Store message ID as JSON
             }
             else
             {

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Mail;
 using Tinisoft.Application.Notifications.Services;
+using Tinisoft.Application.Notifications.Models;
 using Microsoft.Extensions.Logging;
 
 namespace Tinisoft.Infrastructure.Services;
@@ -14,64 +15,39 @@ public class EmailService : IEmailService
         _logger = logger;
     }
 
-    public async Task<SendEmailResult> SendEmailAsync(
-        Domain.Entities.EmailProvider provider,
-        Domain.Entities.EmailNotification notification,
-        CancellationToken cancellationToken = default)
+    public async Task<NotificationResult> SendEmailAsync(EmailRequest request, CancellationToken cancellationToken = default)
     {
-        try
+        // EmailService artık kullanılmıyor, SendGridEmailService kullanılıyor
+        // Bu implementasyon sadece backward compatibility için
+        _logger.LogWarning("EmailService.SendEmailAsync called - This service is deprecated. Use SendGridEmailService instead.");
+        
+        return new NotificationResult
         {
-            using var smtpClient = new SmtpClient(provider.SmtpHost, provider.SmtpPort)
-            {
-                EnableSsl = provider.EnableSsl,
-                Credentials = new NetworkCredential(provider.SmtpUsername, provider.SmtpPassword),
-                DeliveryMethod = SmtpDeliveryMethod.Network
-            };
+            Success = false,
+            ErrorMessage = "EmailService is deprecated. Use SendGridEmailService instead.",
+            SentAt = DateTime.UtcNow
+        };
+    }
 
-            using var mailMessage = new MailMessage
-            {
-                From = new MailAddress(provider.FromEmail, provider.FromName),
-                Subject = notification.Subject,
-                Body = notification.BodyHtml,
-                IsBodyHtml = true
-            };
-
-            mailMessage.To.Add(new MailAddress(notification.ToEmail, notification.ToName));
-
-            if (!string.IsNullOrEmpty(notification.CcEmail))
-            {
-                mailMessage.CC.Add(new MailAddress(notification.CcEmail));
-            }
-
-            if (!string.IsNullOrEmpty(notification.BccEmail))
-            {
-                mailMessage.Bcc.Add(new MailAddress(notification.BccEmail));
-            }
-
-            if (!string.IsNullOrEmpty(provider.ReplyToEmail))
-            {
-                mailMessage.ReplyToList.Add(provider.ReplyToEmail);
-            }
-
-            await smtpClient.SendMailAsync(mailMessage);
-
-            _logger.LogInformation("Email sent successfully to {ToEmail}", notification.ToEmail);
-
-            return new SendEmailResult
-            {
-                Success = true,
-                ProviderResponseJson = "{\"status\":\"sent\",\"method\":\"smtp\"}"
-            };
-        }
-        catch (Exception ex)
+    public async Task<NotificationResult> SendBulkEmailAsync(List<EmailRequest> requests, CancellationToken cancellationToken = default)
+    {
+        var results = new List<NotificationResult>();
+        
+        foreach (var request in requests)
         {
-            _logger.LogError(ex, "Error sending email to {ToEmail}", notification.ToEmail);
-            return new SendEmailResult
-            {
-                Success = false,
-                ErrorMessage = ex.Message
-            };
+            var result = await SendEmailAsync(request, cancellationToken);
+            results.Add(result);
         }
+
+        var successCount = results.Count(r => r.Success);
+        var failureCount = results.Count - successCount;
+
+        return new NotificationResult
+        {
+            Success = failureCount == 0,
+            ErrorMessage = failureCount > 0 ? $"{failureCount} email(s) failed to send" : null,
+            SentAt = DateTime.UtcNow
+        };
     }
 }
 

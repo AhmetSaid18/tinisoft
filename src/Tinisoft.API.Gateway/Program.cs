@@ -15,24 +15,28 @@ builder.Services.AddSwaggerGen();
 // Ocelot
 builder.Services.AddOcelot(builder.Configuration);
 
-// CORS
+// CORS - Frontend origin'leri: tinisoft.com.tr ve localhost:3000
 builder.Services.AddCors(options =>
 {
+    // Frontend için CORS (process, verify endpoint'leri)
     options.AddDefaultPolicy(policy =>
     {
         policy.WithOrigins(
                 "http://localhost:3000",
-                "http://localhost:3001",
-                "http://localhost:3002",
-                "http://localhost:3003",
                 "https://tinisoft.com.tr",
-                "https://www.tinisoft.com.tr",
-                "https://app.tinisoft.com.tr",
-                "https://admin.tinisoft.com.tr"
+                "https://www.tinisoft.com.tr"
             )
             .AllowAnyMethod()
             .AllowAnyHeader()
             .AllowCredentials(); // JWT token için gerekli
+    });
+
+    // Payment callback'ler için (ödeme sağlayıcılarından gelecek - CORS gerekmez ama güvenlik için)
+    options.AddPolicy("PaymentCallback", policy =>
+    {
+        policy.AllowAnyOrigin() // Ödeme sağlayıcıları farklı origin'lerden gelebilir
+            .AllowAnyMethod()
+            .AllowAnyHeader();
     });
 });
 

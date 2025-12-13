@@ -10,6 +10,7 @@ public interface IShippingService
     /// </summary>
     Task<decimal?> CalculateShippingCostAsync(
         string providerCode,
+        ShippingProviderCredentials? credentials, // Tenant'ın API key'leri
         string fromCity,
         string toCity,
         decimal weight,
@@ -23,6 +24,7 @@ public interface IShippingService
     /// </summary>
     Task<CreateShipmentResponse> CreateShipmentAsync(
         string providerCode,
+        ShippingProviderCredentials? credentials, // Tenant'ın API key'leri
         CreateShipmentRequest request,
         CancellationToken cancellationToken = default);
 
@@ -31,8 +33,22 @@ public interface IShippingService
     /// </summary>
     Task<TrackingResponse> TrackShipmentAsync(
         string providerCode,
+        ShippingProviderCredentials? credentials, // Tenant'ın API key'leri
         string trackingNumber,
         CancellationToken cancellationToken = default);
+}
+
+/// <summary>
+/// Tenant'ın kargo firması API bilgileri
+/// </summary>
+public class ShippingProviderCredentials
+{
+    public string? ApiKey { get; set; }
+    public string? ApiSecret { get; set; }
+    public string? ApiUrl { get; set; }
+    public string? TestApiUrl { get; set; }
+    public bool UseTestMode { get; set; }
+    public string? SettingsJson { get; set; } // Username, Password, CustomerNumber vb. (JSON formatında)
 }
 
 public class CreateShipmentRequest

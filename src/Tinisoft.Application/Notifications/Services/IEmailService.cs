@@ -1,19 +1,9 @@
+using Tinisoft.Application.Notifications.Models;
+
 namespace Tinisoft.Application.Notifications.Services;
 
 public interface IEmailService
 {
-    Task<SendEmailResult> SendEmailAsync(
-        Domain.Entities.EmailProvider provider,
-        Domain.Entities.EmailNotification notification,
-        CancellationToken cancellationToken = default);
+    Task<NotificationResult> SendEmailAsync(EmailRequest request, CancellationToken cancellationToken = default);
+    Task<NotificationResult> SendBulkEmailAsync(List<EmailRequest> requests, CancellationToken cancellationToken = default);
 }
-
-public class SendEmailResult
-{
-    public bool Success { get; set; }
-    public string? ErrorMessage { get; set; }
-    public string? ProviderResponseJson { get; set; }
-}
-
-
-

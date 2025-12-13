@@ -63,8 +63,26 @@ public static class DependencyInjection
         // Image Processing
         services.AddScoped<Tinisoft.Application.Common.Interfaces.IImageProcessingService, ImageProcessingService>();
 
-        // PayTR
+        // PayTR (eski interface - backward compatibility için)
         services.AddHttpClient<Tinisoft.Application.Common.Interfaces.IPayTRService, PayTRService>();
+
+        // Payment Services - HttpClient registration
+        services.AddHttpClient<PayTRPaymentService>();
+        services.AddHttpClient<KuveytTurkPaymentService>();
+
+        // Marketplace Services - HttpClient registration
+        services.AddHttpClient<Tinisoft.Application.Marketplace.Services.TrendyolMarketplaceService>();
+        services.AddHttpClient<Tinisoft.Application.Marketplace.Services.HepsiburadaMarketplaceService>();
+        services.AddHttpClient<Tinisoft.Application.Marketplace.Services.N11MarketplaceService>();
+
+        // Shipping Services - HttpClient registration
+        services.AddHttpClient<ArasShippingService>();
+        services.AddHttpClient<MngShippingService>();
+        services.AddHttpClient<YurticiShippingService>();
+
+        // Hangfire Jobs
+        services.AddScoped<Tinisoft.Infrastructure.Jobs.SyncMarketplaceProductsJob>();
+        services.AddScoped<Tinisoft.Infrastructure.Jobs.SyncMarketplaceOrdersJob>();
 
         // Application services
         services.AddScoped<IAuditLogService, AuditLogService>();
@@ -91,8 +109,25 @@ public static class DependencyInjection
         services.AddScoped<YurticiShippingService>();
         services.AddScoped<Tinisoft.Application.Shipping.Services.IShippingServiceFactory, ShippingServiceFactory>();
         
-        // Email Service
-        services.AddScoped<Tinisoft.Application.Notifications.Services.IEmailService, EmailService>();
+        // Payment Services
+        services.AddScoped<PayTRPaymentService>();
+        services.AddScoped<KuveytTurkPaymentService>();
+        services.AddScoped<Tinisoft.Application.Payments.Services.IPaymentServiceFactory, PaymentServiceFactory>();
+        
+        // Email Service (SendGrid - production ready)
+        services.AddScoped<Tinisoft.Application.Notifications.Services.IEmailService, SendGridEmailService>();
+        
+        // SMS Service (Netgsm - Türkiye için)
+        services.AddHttpClient<Tinisoft.Application.Notifications.Services.ISmsService, NetgsmSmsService>();
+        
+        // Notification Service (Email + SMS orchestration)
+        services.AddScoped<Tinisoft.Application.Notifications.Services.INotificationService, NotificationService>();
+        
+        // Marketplace Service Factory
+        services.AddScoped<Tinisoft.Application.Marketplace.Services.IMarketplaceServiceFactory, Tinisoft.Application.Marketplace.Services.MarketplaceServiceFactory>();
+        services.AddScoped<Tinisoft.Application.Marketplace.Services.TrendyolMarketplaceService>();
+        services.AddScoped<Tinisoft.Application.Marketplace.Services.HepsiburadaMarketplaceService>();
+        services.AddScoped<Tinisoft.Application.Marketplace.Services.N11MarketplaceService>();
         
         // Invoice Services
         services.AddScoped<Tinisoft.Application.Invoices.Services.IInvoiceNumberGenerator, InvoiceNumberGenerator>();
@@ -103,6 +138,11 @@ public static class DependencyInjection
         // Jobs
         services.AddScoped<Jobs.SyncExchangeRatesJob>();
         services.AddScoped<Jobs.SyncInvoiceStatusFromGIBJob>();
+        services.AddScoped<Jobs.DomainVerificationJob>();
+        
+        // Domain Management Services
+        services.AddScoped<Tinisoft.Application.Common.Interfaces.IDnsVerificationService, DnsVerificationService>();
+        services.AddScoped<Tinisoft.Application.Common.Interfaces.ITraefikDomainService, TraefikDomainService>();
         
         // Circuit Breaker - Database koruması için
         services.AddSingleton<Tinisoft.Shared.Contracts.ICircuitBreakerService, CircuitBreakerService>();
@@ -110,6 +150,9 @@ public static class DependencyInjection
         // Authentication services
         services.AddScoped<Tinisoft.Application.Common.Interfaces.IJwtTokenService, JwtTokenService>();
         services.AddScoped<Tinisoft.Application.Common.Interfaces.IPasswordHasher, PasswordHasher>();
+        
+        // Tenant Store Service
+        services.AddScoped<Tinisoft.Application.Common.Interfaces.ITenantStoreService, TenantStoreService>();
 
         // Event Bus - Hybrid (Kafka + RabbitMQ) veya sadece RabbitMQ
         var useKafka = !string.IsNullOrEmpty(configuration["Kafka:BootstrapServers"]);

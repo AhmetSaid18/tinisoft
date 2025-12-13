@@ -6,6 +6,8 @@ using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Tinisoft.Marketplace.API.Middleware;
 using Tinisoft.Application.Marketplace.Services;
+using Hangfire;
+using Tinisoft.Infrastructure.Jobs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,13 +25,18 @@ builder.Services.AddSwaggerGen(c =>
     c.SwaggerDoc("v1", new() { Title = "Marketplace API", Version = "v1" });
 });
 
+// CORS - Sadece Gateway'den erişim (Docker network içinde)
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
+        policy.WithOrigins(
+                "http://gateway:5000",
+                "http://localhost:5000"
+            )
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials();
     });
 });
 
@@ -60,6 +67,13 @@ if (!string.IsNullOrEmpty(redisConnectionString))
 {
     app.UseMiddleware<RateLimitingMiddleware>();
 }
+
+// Hangfire Dashboard
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = new[] { new HangfireDashboardAuthFilter() }
+});
+
 app.UseHttpsRedirection();
 app.UseCors();
 app.UseAuthorization();
@@ -84,6 +98,19 @@ if (runMigrations)
         throw;
     }
 }
+
+// Schedule recurring Hangfire jobs
+RecurringJob.AddOrUpdate<SyncMarketplaceProductsJob>(
+    "sync-marketplace-products",
+    job => job.ExecuteAsync(CancellationToken.None),
+    Cron.Hourly); // Her saat başı ürün senkronizasyonu
+
+RecurringJob.AddOrUpdate<SyncMarketplaceOrdersJob>(
+    "sync-marketplace-orders",
+    job => job.ExecuteAsync(CancellationToken.None),
+    "*/15 * * * *"); // Her 15 dakikada bir sipariş senkronizasyonu
+
+Log.Information("Hangfire recurring jobs scheduled successfully");
 
 app.Urls.Add("http://0.0.0.0:5005");
 app.Run();

@@ -23,6 +23,8 @@ public class ApplicationDbContext : MultiTenantDbContext, IApplicationDbContext
     public DbSet<Plan> Plans => Set<Plan>();
     public DbSet<Tinisoft.Domain.Entities.Domain> Domains => Set<Tinisoft.Domain.Entities.Domain>();
     public DbSet<Template> Templates => Set<Template>();
+    public DbSet<Page> Pages => Set<Page>();
+    public DbSet<NavigationMenu> NavigationMenus => Set<NavigationMenu>();
     public DbSet<User> Users => Set<User>();
     public DbSet<UserTenantRole> UserTenantRoles => Set<UserTenantRole>();
     public DbSet<Product> Products => Set<Product>();
@@ -57,15 +59,17 @@ public class ApplicationDbContext : MultiTenantDbContext, IApplicationDbContext
     public DbSet<CouponUsage> CouponUsages => Set<CouponUsage>();
     public DbSet<Reseller> Resellers => Set<Reseller>();
     public DbSet<ResellerPrice> ResellerPrices => Set<ResellerPrice>();
-    public DbSet<ShippingProvider> ShippingProviders => Set<ShippingProvider>();
-    public DbSet<Shipment> Shipments => Set<Shipment>();
-    public DbSet<EmailProvider> EmailProviders => Set<EmailProvider>();
+        public DbSet<ShippingProvider> ShippingProviders => Set<ShippingProvider>();
+        public DbSet<Shipment> Shipments => Set<Shipment>();
+        public DbSet<PaymentProvider> PaymentProviders => Set<PaymentProvider>();
+        public DbSet<EmailProvider> EmailProviders => Set<EmailProvider>();
     public DbSet<EmailTemplate> EmailTemplates => Set<EmailTemplate>();
     public DbSet<EmailNotification> EmailNotifications => Set<EmailNotification>();
     public DbSet<ReviewVote> ReviewVotes => Set<ReviewVote>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<InvoiceItem> InvoiceItems => Set<InvoiceItem>();
     public DbSet<TenantInvoiceSettings> TenantInvoiceSettings => Set<TenantInvoiceSettings>();
+    public DbSet<NotificationLog> NotificationLogs => Set<NotificationLog>();
     // ExchangeRate artık GlobalDbContext'te (tenant'a bağlı değil)
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -502,6 +506,23 @@ public class ApplicationDbContext : MultiTenantDbContext, IApplicationDbContext
             .HasIndex(sp => new { sp.TenantId, sp.IsActive, sp.IsDefault })
             .HasDatabaseName("IX_ShippingProvider_TenantId_IsActive_IsDefault");
 
+        // PaymentProvider relationships
+        modelBuilder.Entity<PaymentProvider>()
+            .HasOne(pp => pp.Tenant)
+            .WithMany()
+            .HasForeignKey(pp => pp.TenantId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // PaymentProvider indexes
+        modelBuilder.Entity<PaymentProvider>()
+            .HasIndex(pp => new { pp.TenantId, pp.ProviderCode })
+            .IsUnique()
+            .HasDatabaseName("IX_PaymentProvider_TenantId_ProviderCode");
+
+        modelBuilder.Entity<PaymentProvider>()
+            .HasIndex(pp => new { pp.TenantId, pp.IsActive, pp.IsDefault })
+            .HasDatabaseName("IX_PaymentProvider_TenantId_IsActive_IsDefault");
+
         // Shipment relationships
         modelBuilder.Entity<Shipment>()
             .HasOne(s => s.Order)
@@ -710,6 +731,100 @@ public class ApplicationDbContext : MultiTenantDbContext, IApplicationDbContext
             .HasIndex(tis => new { tis.TenantId })
             .IsUnique()
             .HasDatabaseName("IX_TenantInvoiceSettings_TenantId");
+
+        // Page relationships
+        modelBuilder.Entity<Page>()
+            .HasOne(p => p.Tenant)
+            .WithMany()
+            .HasForeignKey(p => p.TenantId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // Page indexes
+        modelBuilder.Entity<Page>()
+            .HasIndex(p => new { p.TenantId, p.Slug })
+            .IsUnique()
+            .HasDatabaseName("IX_Page_TenantId_Slug");
+
+        modelBuilder.Entity<Page>()
+            .HasIndex(p => new { p.TenantId, p.IsPublished, p.SortOrder })
+            .HasDatabaseName("IX_Page_TenantId_IsPublished_SortOrder");
+
+        modelBuilder.Entity<Page>()
+            .HasIndex(p => new { p.TenantId, p.SystemPageType })
+            .HasFilter("\"SystemPageType\" IS NOT NULL")
+            .HasDatabaseName("IX_Page_TenantId_SystemPageType");
+
+        // NavigationMenu relationships
+        modelBuilder.Entity<NavigationMenu>()
+            .HasOne(nm => nm.Tenant)
+            .WithMany()
+            .HasForeignKey(nm => nm.TenantId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<NavigationMenu>()
+            .HasOne(nm => nm.Parent)
+            .WithMany(nm => nm.Children)
+            .HasForeignKey(nm => nm.ParentId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<NavigationMenu>()
+            .HasOne(nm => nm.Page)
+            .WithMany()
+            .HasForeignKey(nm => nm.PageId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<NavigationMenu>()
+            .HasOne(nm => nm.Category)
+            .WithMany()
+            .HasForeignKey(nm => nm.CategoryId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<NavigationMenu>()
+            .HasOne(nm => nm.Product)
+            .WithMany()
+            .HasForeignKey(nm => nm.ProductId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // NavigationMenu indexes
+        modelBuilder.Entity<NavigationMenu>()
+            .HasIndex(nm => new { nm.TenantId, nm.Location, nm.SortOrder })
+            .HasDatabaseName("IX_NavigationMenu_TenantId_Location_SortOrder");
+
+        modelBuilder.Entity<NavigationMenu>()
+            .HasIndex(nm => new { nm.TenantId, nm.ParentId, nm.SortOrder })
+            .HasDatabaseName("IX_NavigationMenu_TenantId_ParentId_SortOrder");
+
+        // NotificationLog relationships
+        modelBuilder.Entity<NotificationLog>()
+            .HasOne(nl => nl.Tenant)
+            .WithMany()
+            .HasForeignKey(nl => nl.TenantId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<NotificationLog>()
+            .HasOne(nl => nl.Customer)
+            .WithMany()
+            .HasForeignKey(nl => nl.CustomerId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<NotificationLog>()
+            .HasOne(nl => nl.Order)
+            .WithMany()
+            .HasForeignKey(nl => nl.OrderId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // NotificationLog indexes
+        modelBuilder.Entity<NotificationLog>()
+            .HasIndex(nl => new { nl.TenantId, nl.Type, nl.CreatedAt })
+            .HasDatabaseName("IX_NotificationLog_TenantId_Type_CreatedAt");
+
+        modelBuilder.Entity<NotificationLog>()
+            .HasIndex(nl => new { nl.TenantId, nl.Recipient, nl.CreatedAt })
+            .HasDatabaseName("IX_NotificationLog_TenantId_Recipient_CreatedAt");
+
+        modelBuilder.Entity<NotificationLog>()
+            .HasIndex(nl => new { nl.TenantId, nl.IsSent, nl.IsFailed })
+            .HasDatabaseName("IX_NotificationLog_TenantId_IsSent_IsFailed");
     }
 }
 

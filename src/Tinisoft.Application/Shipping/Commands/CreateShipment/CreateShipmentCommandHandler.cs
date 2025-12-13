@@ -71,6 +71,17 @@ public class CreateShipmentCommandHandler : IRequestHandler<CreateShipmentComman
             };
         }
 
+        // Tenant'ın provider bilgilerini credentials olarak hazırla
+        var credentials = new ShippingProviderCredentials
+        {
+            ApiKey = provider.ApiKey,
+            ApiSecret = provider.ApiSecret,
+            ApiUrl = provider.UseTestMode ? provider.TestApiUrl : provider.ApiUrl,
+            TestApiUrl = provider.TestApiUrl,
+            UseTestMode = provider.UseTestMode,
+            SettingsJson = provider.SettingsJson
+        };
+
         try
         {
             var shippingService = _shippingServiceFactory.GetService(provider.ProviderCode);
@@ -95,6 +106,7 @@ public class CreateShipmentCommandHandler : IRequestHandler<CreateShipmentComman
 
             var shipmentResult = await shippingService.CreateShipmentAsync(
                 provider.ProviderCode,
+                credentials, // Tenant'ın API key'leri
                 shipmentRequest,
                 cancellationToken);
 

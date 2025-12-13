@@ -11,17 +11,20 @@ namespace Tinisoft.Application.Auth.Commands.Register;
 public class RegisterCommandHandler : IRequestHandler<RegisterCommand, RegisterResponse>
 {
     private readonly IApplicationDbContext _dbContext;
+    private readonly ITenantStoreService _tenantStoreService;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IJwtTokenService _jwtTokenService;
     private readonly ILogger<RegisterCommandHandler> _logger;
 
     public RegisterCommandHandler(
         IApplicationDbContext dbContext,
+        ITenantStoreService tenantStoreService,
         IPasswordHasher passwordHasher,
         IJwtTokenService jwtTokenService,
         ILogger<RegisterCommandHandler> logger)
     {
         _dbContext = dbContext;
+        _tenantStoreService = tenantStoreService;
         _passwordHasher = passwordHasher;
         _jwtTokenService = jwtTokenService;
         _logger = logger;
@@ -97,6 +100,13 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, RegisterR
             await _dbContext.SaveChangesAsync(cancellationToken); // Tenant ID için
 
             tenantId = tenant.Id;
+
+            // TenantStoreService'e de yaz (Finbuckle.MultiTenant için gerekli)
+            await _tenantStoreService.AddTenantAsync(
+                tenant.Id.ToString(),
+                tenant.Slug, // Host strategy için slug kullanılacak
+                tenant.Name,
+                cancellationToken);
 
             // Domain ekle (eğer verilmişse)
             if (!string.IsNullOrWhiteSpace(request.Domain))

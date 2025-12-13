@@ -29,42 +29,27 @@ public static class DependencyInjection
         services.AddDbContext<GlobalDbContext>(options =>
             options.UseNpgsql(connectionString));
 
-        // Application DbContext
-        services.AddDbContext<ApplicationDbContext>(options =>
+        // ApplicationDbContextFactory register et
+        services.AddScoped<ApplicationDbContextFactory>(sp =>
         {
-            options.UseNpgsql(connectionString, npgsqlOptions =>
-            {
-                // PostgreSQL UUID extension'ını kullan
-                npgsqlOptions.MigrationsAssembly("Tinisoft.Infrastructure");
-                
-                // Connection Pooling - CRITICAL: Cold start için yeterli pool size
-                // 1000 tenant aynı anda istek atarsa yeterli connection olmalı
-                // PostgreSQL default: min=0, max=100
-                // Connection string'de: MinPoolSize=50;MaxPoolSize=200;Connection Lifetime=0;
-                // (appsettings.json'da connection string'e eklenecek)
-                
-                npgsqlOptions.MaxBatchSize(100); // Batch size
-                npgsqlOptions.CommandTimeout(30); // 30 saniye timeout
-                
-                // Enable retry on failure (transient errors için)
-                npgsqlOptions.EnableRetryOnFailure(
-                    maxRetryCount: 3,
-                    maxRetryDelay: TimeSpan.FromSeconds(5),
-                    errorCodesToAdd: null);
-            });
-            
-            // Query Tracking - Read-only query'ler için NoTracking (performans)
-            options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
-            
-            // Query Splitting - N+1 problem'ini önlemek için (EF Core 8.0'da default SplitQuery)
-            
-            // Enable sensitive data logging sadece development'ta
-            // Not: Environment kontrolü için IWebHostEnvironment kullanılabilir
+            var config = sp.GetRequiredService<IConfiguration>();
+            var tenantAccessor = sp.GetService<IMultiTenantContextAccessor>();
+            return new ApplicationDbContextFactory(config, tenantAccessor);
         });
 
-        // IApplicationDbContext interface'ini register et
-        services.AddScoped<Tinisoft.Application.Common.Interfaces.IApplicationDbContext>(sp => 
-            sp.GetRequiredService<ApplicationDbContext>());
+        // ApplicationDbContext'i register et - Factory kullan
+        services.AddScoped<ApplicationDbContext>(sp =>
+        {
+            var contextFactory = sp.GetRequiredService<ApplicationDbContextFactory>();
+            return contextFactory.CreateDbContext();
+        });
+
+        // IApplicationDbContext interface'ini register et - Factory kullan
+        services.AddScoped<Tinisoft.Application.Common.Interfaces.IApplicationDbContext>(sp =>
+        {
+            var contextFactory = sp.GetRequiredService<ApplicationDbContextFactory>();
+            return contextFactory.CreateDbContext();
+        });
 
         return services;
     }

@@ -54,7 +54,7 @@ Eğer sadece test ediyorsan ve Git'e commit etmeyeceksen:
 
 ```bash
 # Migration oluştur ve çalıştır (container içinde kalır)
-docker exec -it tinisoft-api-1 bash -c "
+docker exec -it tinisoft-api-1 bash -c "aa
     cd /src/src/Tinisoft.API && \
     dotnet ef migrations add InitialCreate \
         --project ../Tinisoft.Infrastructure \

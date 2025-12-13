@@ -51,6 +51,9 @@ public interface IApplicationDbContext
     DbSet<Entities.Invoice> Invoices { get; }
     DbSet<Entities.InvoiceItem> InvoiceItems { get; }
     DbSet<Entities.TenantInvoiceSettings> TenantInvoiceSettings { get; }
+    DbSet<Entities.Page> Pages { get; }
+    DbSet<Entities.NavigationMenu> NavigationMenus { get; }
+    DbSet<Entities.NotificationLog> NotificationLogs { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     DbSet<TEntity> Set<TEntity>() where TEntity : class;
