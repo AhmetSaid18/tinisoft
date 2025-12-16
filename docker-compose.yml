@@ -22,7 +22,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
-      - "127.0.0.1:5432:5432"  # Only accessible from localhost
+      - "127.0.0.1:5433:5432"  # Only accessible from localhost (5432 already in use)
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init-schemas.sql:/docker-entrypoint-initdb.d/init-schemas.sql:ro
