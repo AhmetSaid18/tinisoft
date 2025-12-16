@@ -54,6 +54,7 @@ services:
       - .:/app
       - static_volume:/app/staticfiles
       - media_volume:/app/media
+      - logs_volume:/app/logs
     ports:
       - "127.0.0.1:5000:8000"  # Backend API (8000, 8008, 8010 kullanılıyor, 5000 boş)
     depends_on:
@@ -63,8 +64,11 @@ services:
         condition: service_healthy
     command: >
       sh -c "
+        echo 'Waiting for database...' &&
+        sleep 5 &&
         python manage.py migrate &&
         python manage.py collectstatic --noinput &&
+        echo 'Starting Gunicorn...' &&
         gunicorn --bind 0.0.0.0:8000 --workers 4 --timeout 120 tinisoft.wsgi:application
       "
 
@@ -124,4 +128,5 @@ volumes:
   postgres_data:
   static_volume:
   media_volume:
+  logs_volume:
 

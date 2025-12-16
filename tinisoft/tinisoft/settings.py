@@ -176,6 +176,10 @@ DOCKER_REGISTRY = env('DOCKER_REGISTRY', default='')
 TRAEFIK_API_URL = env('TRAEFIK_API_URL', default='http://traefik:8080')
 
 # Logging
+# Log klasörünü oluştur (yoksa)
+LOG_DIR = os.path.join(BASE_DIR, 'logs')
+os.makedirs(LOG_DIR, exist_ok=True)
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -189,7 +193,7 @@ LOGGING = {
         'file': {
             'level': 'INFO',
             'class': 'logging.FileHandler',
-            'filename': env('LOG_FILE', default='/app/logs/tinisoft.log'),
+            'filename': env('LOG_FILE', default=os.path.join(LOG_DIR, 'tinisoft.log')),
             'formatter': 'verbose',
         },
         'console': {
