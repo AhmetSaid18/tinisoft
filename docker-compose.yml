@@ -4,180 +4,28 @@ version: '3.8'
 # .env dosyası oluşturun: cp ENV_TEMPLATE.txt .env
 # Sonra .env dosyasındaki değerleri doldurun
 
+# 🚀 OPTIMIZED VERSION - 27 → 13 Container
+# - Tek PostgreSQL database (schema bazlı)
+# - Kafka + Zookeeper kaldırıldı
+# - Meilisearch kaldırıldı
+# - customers-api ve invoices-api kaldırıldı (api'ye birleştirildi)
+# - marketplace-api devre dışı (ilk aşamada gereksiz)
+# - Traefik: Custom domain routing için gerekli (multi-tenant)
+
 services:
-  # Databases - Her servis kendi database'ine sahip
-  products-db:
+  # Tek PostgreSQL Database - Tüm servisler aynı DB'de farklı schema'larda
+  postgres:
     image: postgres:15-alpine
-    environment:
-      POSTGRES_DB: products_db
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}  # .env dosyasından al, yoksa varsayılan kullan
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}  # .env dosyasından al, yoksa varsayılan kullan
-    ports:
-      - "127.0.0.1:6000:5432"  # Only accessible from localhost
-    volumes:
-      - products_db_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - tinisoft-network
-
-  inventory-db:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_DB: inventory_db
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}  # .env dosyasından al, yoksa varsayılan kullan
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}  # .env dosyasından al, yoksa varsayılan kullan
-    ports:
-      - "127.0.0.1:6001:5432"  # Only accessible from localhost
-    volumes:
-      - inventory_db_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - tinisoft-network
-
-  payments-db:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_DB: payments_db
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}  # .env dosyasından al, yoksa varsayılan kullan
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}  # .env dosyasından al, yoksa varsayılan kullan
-    ports:
-      - "127.0.0.1:6002:5432"  # Only accessible from localhost
-    volumes:
-      - payments_db_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - tinisoft-network
-
-  orders-db:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_DB: orders_db
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}  # .env dosyasından al, yoksa varsayılan kullan
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}  # .env dosyasından al, yoksa varsayılan kullan
-    ports:
-      - "127.0.0.1:6003:5432"  # Only accessible from localhost
-    volumes:
-      - orders_db_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - tinisoft-network
-
-  marketplace-db:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_DB: marketplace_db
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}  # .env dosyasından al, yoksa varsayılan kullan
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}  # .env dosyasından al, yoksa varsayılan kullan
-    ports:
-      - "127.0.0.1:6004:5432"  # Only accessible from localhost
-    volumes:
-      - marketplace_db_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - tinisoft-network
-
-  customers-db:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_DB: customers_db
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}  # .env dosyasından al, yoksa varsayılan kullan
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}  # .env dosyasından al, yoksa varsayılan kullan
-    ports:
-      - "127.0.0.1:6005:5432"  # Only accessible from localhost
-    volumes:
-      - customers_db_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - tinisoft-network
-
-  shipping-db:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_DB: shipping_db
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}  # .env dosyasından al, yoksa varsayılan kullan
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}  # .env dosyasından al, yoksa varsayılan kullan
-    ports:
-      - "127.0.0.1:6006:5432"  # Only accessible from localhost
-    volumes:
-      - shipping_db_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - tinisoft-network
-
-  notifications-db:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_DB: notifications_db
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}  # .env dosyasından al, yoksa varsayılan kullan
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}  # .env dosyasından al, yoksa varsayılan kullan
-    ports:
-      - "127.0.0.1:6007:5432"  # Only accessible from localhost
-    volumes:
-      - notifications_db_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - tinisoft-network
-
-  invoices-db:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_DB: invoices_db
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}  # .env dosyasından al, yoksa varsayılan kullan
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}  # .env dosyasından al, yoksa varsayılan kullan
-    ports:
-      - "127.0.0.1:6008:5432"  # Only accessible from localhost
-    volumes:
-      - invoices_db_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - tinisoft-network
-
-  api-db:
-    image: postgres:15-alpine
+    container_name: tinisoft-postgres
     environment:
       POSTGRES_DB: tinisoft
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}  # .env dosyasından al, yoksa varsayılan kullan
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}  # .env dosyasından al, yoksa varsayılan kullan
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
-      - "127.0.0.1:6009:5432"  # Only accessible from localhost
+      - "127.0.0.1:5432:5432"  # Only accessible from localhost
     volumes:
-      - api_db_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-schemas.sql:/docker-entrypoint-initdb.d/init-schemas.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -186,7 +34,7 @@ services:
     networks:
       - tinisoft-network
 
-  # Redis
+  # Redis - Cache
   redis:
     image: redis:7-alpine
     ports:
@@ -201,34 +49,15 @@ services:
     networks:
       - tinisoft-network
 
-  # Meilisearch - Full-text search engine
-  meilisearch:
-    image: getmeili/meilisearch:v1.6
-    ports:
-      - "127.0.0.1:7700:7700"  # Only accessible from localhost
-    environment:
-      MEILI_MASTER_KEY: "${MEILISEARCH_MASTER_KEY:-tinisoft-meilisearch-master-key-change-in-production}"  # .env dosyasından al
-      MEILI_ENV: "development"
-      MEILI_NO_ANALYTICS: "true"
-    volumes:
-      - meilisearch_data:/meili_data
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:7700/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - tinisoft-network
-
-  # RabbitMQ - Event Bus (Basit event'ler için)
+  # RabbitMQ - Event Bus
   rabbitmq:
     image: rabbitmq:3-management-alpine
     ports:
       - "127.0.0.1:5672:5672"  # Only accessible from localhost
       - "127.0.0.1:15672:15672"  # Only accessible from localhost
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}  # .env dosyasından al
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}  # .env dosyasından al
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
@@ -239,92 +68,28 @@ services:
     networks:
       - tinisoft-network
 
-  # Zookeeper - Kafka için gerekli
-  zookeeper:
-    image: confluentinc/cp-zookeeper:7.5.0
-    ports:
-      - "127.0.0.1:2181:2181"  # Only accessible from localhost
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-    volumes:
-      - zookeeper_data:/var/lib/zookeeper/data
-    healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "2181"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - tinisoft-network
-
-  # Kafka - High-volume event streaming için
-  kafka:
-    image: confluentinc/cp-kafka:7.5.0
-    ports:
-      - "127.0.0.1:9092:9092"  # Only accessible from localhost
-      - "127.0.0.1:9093:9093"  # Only accessible from localhost
-    environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:9093
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-      KAFKA_NUM_PARTITIONS: 3
-      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
-      KAFKA_LOG_RETENTION_HOURS: 168
-      KAFKA_LOG_SEGMENT_BYTES: 1073741824
-      KAFKA_COMPRESSION_TYPE: snappy
-    volumes:
-      - kafka_data:/var/lib/kafka/data
-    command: >
-      sh -c "
-        echo '🔍 Kafka Pre-Start: Checking meta.properties...' &&
-        if [ -f /var/lib/kafka/data/meta.properties ]; then
-          echo '⚠️  meta.properties found. Removing to prevent Cluster ID mismatch...' &&
-          rm -f /var/lib/kafka/data/meta.properties &&
-          echo '✅ meta.properties removed. Kafka will create new one with matching Cluster ID.'
-        else
-          echo '✅ No meta.properties found. Kafka will create new one.'
-        fi &&
-        /etc/confluent/docker/run
-      "
-    depends_on:
-      zookeeper:
-        condition: service_healthy
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
-    networks:
-      - tinisoft-network
-
   # Microservices
   products-api:
     build:
       context: .
       dockerfile: src/Tinisoft.Products.API/Dockerfile
     ports:
-      - "127.0.0.1:5001:5001"  # Only accessible from localhost (via gateway)
+      - "127.0.0.1:5001:5001"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       RunMigrations: "true"
-      ConnectionStrings__DefaultConnection: "Host=products-db;Port=5432;Database=products_db;Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres};Maximum Pool Size=100;Command Timeout=30;Timeout=30;Connection Lifetime=0;Pooling=true;"
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=tinisoft;Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres};SearchPath=products;Maximum Pool Size=50;Command Timeout=30;Timeout=30;Connection Lifetime=0;Pooling=true;"
       RabbitMQ__HostName: "rabbitmq"
       RabbitMQ__Port: "5672"
-      RabbitMQ__UserName: ${RABBITMQ_USER:-guest}  # .env dosyasından al
-      RabbitMQ__Password: ${RABBITMQ_PASSWORD:-guest}  # .env dosyasından al
+      RabbitMQ__UserName: ${RABBITMQ_USER:-guest}
+      RabbitMQ__Password: ${RABBITMQ_PASSWORD:-guest}
       Redis__ConnectionString: "redis:6379"
-      Jwt__SecretKey: ${JWT_SECRET_KEY:-TinisoftSuperSecretJWTKey2024Minimum32CharactersLongForSecurity!}  # .env dosyasından al
+      Jwt__SecretKey: ${JWT_SECRET_KEY:-TinisoftSuperSecretJWTKey2024Minimum32CharactersLongForSecurity!}
       Jwt__Issuer: tinisoft
       Jwt__Audience: tinisoft
       Jwt__ExpirationMinutes: 1440
     depends_on:
-      products-db:
+      postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
@@ -336,17 +101,17 @@ services:
       context: .
       dockerfile: src/Tinisoft.Inventory.API/Dockerfile
     ports:
-      - "127.0.0.1:5002:5002"  # Only accessible from localhost (via gateway)
+      - "127.0.0.1:5002:5002"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       RunMigrations: "true"
-      ConnectionStrings__DefaultConnection: "Host=inventory-db;Port=5432;Database=inventory_db;Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres};Maximum Pool Size=100;Command Timeout=30;Timeout=30;Connection Lifetime=0;Pooling=true;"
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=tinisoft;Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres};SearchPath=inventory;Maximum Pool Size=50;Command Timeout=30;Timeout=30;Connection Lifetime=0;Pooling=true;"
       RabbitMQ__HostName: "rabbitmq"
       RabbitMQ__Port: "5672"
-      RabbitMQ__UserName: ${RABBITMQ_USER:-guest}  # .env dosyasından al
-      RabbitMQ__Password: ${RABBITMQ_PASSWORD:-guest}  # .env dosyasından al
+      RabbitMQ__UserName: ${RABBITMQ_USER:-guest}
+      RabbitMQ__Password: ${RABBITMQ_PASSWORD:-guest}
     depends_on:
-      inventory-db:
+      postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
@@ -358,20 +123,20 @@ services:
       context: .
       dockerfile: src/Tinisoft.Payments.API/Dockerfile
     ports:
-      - "127.0.0.1:5003:5003"  # Only accessible from localhost (via gateway)
+      - "127.0.0.1:5003:5003"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       RunMigrations: "true"
-      ConnectionStrings__DefaultConnection: "Host=payments-db;Port=5432;Database=payments_db;Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres};Maximum Pool Size=100;Command Timeout=30;Timeout=30;Connection Lifetime=0;Pooling=true;"
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=tinisoft;Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres};SearchPath=payments;Maximum Pool Size=50;Command Timeout=30;Timeout=30;Connection Lifetime=0;Pooling=true;"
       RabbitMQ__HostName: "rabbitmq"
       RabbitMQ__Port: "5672"
-      RabbitMQ__UserName: ${RABBITMQ_USER:-guest}  # .env dosyasından al
-      RabbitMQ__Password: ${RABBITMQ_PASSWORD:-guest}  # .env dosyasından al
+      RabbitMQ__UserName: ${RABBITMQ_USER:-guest}
+      RabbitMQ__Password: ${RABBITMQ_PASSWORD:-guest}
       PayTR__MerchantId: 
       PayTR__MerchantKey: 
       PayTR__MerchantSalt: 
     depends_on:
-      payments-db:
+      postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
@@ -383,87 +148,66 @@ services:
       context: .
       dockerfile: src/Tinisoft.Orders.API/Dockerfile
     ports:
-      - "127.0.0.1:5004:5004"  # Only accessible from localhost (via gateway)
+      - "127.0.0.1:5004:5004"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       RunMigrations: "true"
-      ConnectionStrings__DefaultConnection: "Host=orders-db;Port=5432;Database=orders_db;Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres};Maximum Pool Size=100;Command Timeout=30;Timeout=30;Connection Lifetime=0;Pooling=true;"
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=tinisoft;Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres};SearchPath=orders;Maximum Pool Size=50;Command Timeout=30;Timeout=30;Connection Lifetime=0;Pooling=true;"
       RabbitMQ__HostName: "rabbitmq"
       RabbitMQ__Port: "5672"
-      RabbitMQ__UserName: ${RABBITMQ_USER:-guest}  # .env dosyasından al
-      RabbitMQ__Password: ${RABBITMQ_PASSWORD:-guest}  # .env dosyasından al
+      RabbitMQ__UserName: ${RABBITMQ_USER:-guest}
+      RabbitMQ__Password: ${RABBITMQ_PASSWORD:-guest}
     depends_on:
-      orders-db:
+      postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
     networks:
       - tinisoft-network
 
-  marketplace-api:
-    build:
-      context: .
-      dockerfile: src/Tinisoft.Marketplace.API/Dockerfile
-    ports:
-      - "127.0.0.1:5005:5005"  # Only accessible from localhost (via gateway)
-    environment:
-      ASPNETCORE_ENVIRONMENT: Production
-      RunMigrations: "true"
-      ConnectionStrings__DefaultConnection: "Host=marketplace-db;Port=5432;Database=marketplace_db;Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres};Maximum Pool Size=100;Command Timeout=30;Timeout=30;Connection Lifetime=0;Pooling=true;"
-      RabbitMQ__HostName: "rabbitmq"
-      RabbitMQ__Port: "5672"
-      RabbitMQ__UserName: ${RABBITMQ_USER:-guest}  # .env dosyasından al
-      RabbitMQ__Password: ${RABBITMQ_PASSWORD:-guest}  # .env dosyasından al
-    depends_on:
-      marketplace-db:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - tinisoft-network
-
-  customers-api:
-    build:
-      context: .
-      dockerfile: src/Tinisoft.Customers.API/Dockerfile
-    ports:
-      - "127.0.0.1:5006:5006"  # Only accessible from localhost (via gateway)
-    environment:
-      ASPNETCORE_ENVIRONMENT: Production
-      RunMigrations: "true"
-      ConnectionStrings__DefaultConnection: "Host=customers-db;Port=5432;Database=customers_db;Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres};Maximum Pool Size=100;Command Timeout=30;Timeout=30;Connection Lifetime=0;Pooling=true;"
-      RabbitMQ__HostName: "rabbitmq"
-      RabbitMQ__Port: "5672"
-      RabbitMQ__UserName: ${RABBITMQ_USER:-guest}  # .env dosyasından al
-      RabbitMQ__Password: ${RABBITMQ_PASSWORD:-guest}  # .env dosyasından al
-    depends_on:
-      customers-db:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - tinisoft-network
+  # marketplace-api: İlk aşamada devre dışı (gereksiz)
+  # marketplace-api:
+  #   build:
+  #     context: .
+  #     dockerfile: src/Tinisoft.Marketplace.API/Dockerfile
+  #   ports:
+  #     - "127.0.0.1:5005:5005"
+  #   environment:
+  #     ASPNETCORE_ENVIRONMENT: Production
+  #     RunMigrations: "true"
+  #     ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=tinisoft;Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres};SearchPath=marketplace;Maximum Pool Size=50;Command Timeout=30;Timeout=30;Connection Lifetime=0;Pooling=true;"
+  #     RabbitMQ__HostName: "rabbitmq"
+  #     RabbitMQ__Port: "5672"
+  #     RabbitMQ__UserName: ${RABBITMQ_USER:-guest}
+  #     RabbitMQ__Password: ${RABBITMQ_PASSWORD:-guest}
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     rabbitmq:
+  #       condition: service_healthy
+  #   networks:
+  #     - tinisoft-network
 
   shipping-api:
     build:
       context: .
       dockerfile: src/Tinisoft.Shipping.API/Dockerfile
     ports:
-      - "127.0.0.1:5007:5007"  # Only accessible from localhost (via gateway)
+      - "127.0.0.1:5007:5007"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       RunMigrations: "true"
-      ConnectionStrings__DefaultConnection: "Host=shipping-db;Port=5432;Database=shipping_db;Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres};Maximum Pool Size=100;Command Timeout=30;Timeout=30;Connection Lifetime=0;Pooling=true;"
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=tinisoft;Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres};SearchPath=shipping;Maximum Pool Size=50;Command Timeout=30;Timeout=30;Connection Lifetime=0;Pooling=true;"
       RabbitMQ__HostName: "rabbitmq"
       RabbitMQ__Port: "5672"
-      RabbitMQ__UserName: ${RABBITMQ_USER:-guest}  # .env dosyasından al
-      RabbitMQ__Password: ${RABBITMQ_PASSWORD:-guest}  # .env dosyasından al
-      Jwt__SecretKey: ${JWT_SECRET_KEY:-TinisoftSuperSecretJWTKey2024Minimum32CharactersLongForSecurity!}  # .env dosyasından al
+      RabbitMQ__UserName: ${RABBITMQ_USER:-guest}
+      RabbitMQ__Password: ${RABBITMQ_PASSWORD:-guest}
+      Jwt__SecretKey: ${JWT_SECRET_KEY:-TinisoftSuperSecretJWTKey2024Minimum32CharactersLongForSecurity!}
       Jwt__Issuer: tinisoft
       Jwt__Audience: tinisoft
       Jwt__ExpirationMinutes: 1440
     depends_on:
-      shipping-db:
+      postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
@@ -475,91 +219,56 @@ services:
       context: .
       dockerfile: src/Tinisoft.Notifications.API/Dockerfile
     ports:
-      - "127.0.0.1:5008:5008"  # Only accessible from localhost (via gateway)
+      - "127.0.0.1:5008:5008"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       RunMigrations: "true"
-      ConnectionStrings__DefaultConnection: "Host=notifications-db;Port=5432;Database=notifications_db;Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres};Maximum Pool Size=100;Command Timeout=30;Timeout=30;Connection Lifetime=0;Pooling=true;"
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=tinisoft;Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres};SearchPath=notifications;Maximum Pool Size=50;Command Timeout=30;Timeout=30;Connection Lifetime=0;Pooling=true;"
       RabbitMQ__HostName: "rabbitmq"
       RabbitMQ__Port: "5672"
-      RabbitMQ__UserName: ${RABBITMQ_USER:-guest}  # .env dosyasından al
-      RabbitMQ__Password: ${RABBITMQ_PASSWORD:-guest}  # .env dosyasından al
-      Jwt__SecretKey: ${JWT_SECRET_KEY:-TinisoftSuperSecretJWTKey2024Minimum32CharactersLongForSecurity!}  # .env dosyasından al
+      RabbitMQ__UserName: ${RABBITMQ_USER:-guest}
+      RabbitMQ__Password: ${RABBITMQ_PASSWORD:-guest}
+      Jwt__SecretKey: ${JWT_SECRET_KEY:-TinisoftSuperSecretJWTKey2024Minimum32CharactersLongForSecurity!}
       Jwt__Issuer: tinisoft
       Jwt__Audience: tinisoft
       Jwt__ExpirationMinutes: 1440
     depends_on:
-      notifications-db:
+      postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
     networks:
       - tinisoft-network
 
-  invoices-api:
-    build:
-      context: .
-      dockerfile: src/Tinisoft.Invoices.API/Dockerfile
-    ports:
-      - "127.0.0.1:5009:5009"  # Only accessible from localhost (via gateway)
-    environment:
-      ASPNETCORE_ENVIRONMENT: Production
-      RunMigrations: "true"
-      ConnectionStrings__DefaultConnection: "Host=invoices-db;Port=5432;Database=invoices_db;Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres};Maximum Pool Size=100;Command Timeout=30;Timeout=30;Connection Lifetime=0;Pooling=true;"
-      Redis__ConnectionString: "redis:6379"
-      RabbitMQ__HostName: "rabbitmq"
-      RabbitMQ__Port: "5672"
-      RabbitMQ__UserName: ${RABBITMQ_USER:-guest}  # .env dosyasından al
-      RabbitMQ__Password: ${RABBITMQ_PASSWORD:-guest}  # .env dosyasından al
-      Jwt__SecretKey: ${JWT_SECRET_KEY:-TinisoftSuperSecretJWTKey2024Minimum32CharactersLongForSecurity!}  # .env dosyasından al
-      Jwt__Issuer: tinisoft
-      Jwt__Audience: tinisoft
-      Jwt__ExpirationMinutes: 1440
-    depends_on:
-      invoices-db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - tinisoft-network
-
+  # Main API - customers ve invoices buraya birleştirildi
   api:
     build:
       context: .
       dockerfile: src/Tinisoft.API/Dockerfile
     ports:
-      - "127.0.0.1:5010:5010"  # Only accessible from localhost (via gateway)
+      - "127.0.0.1:5010:5010"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
+      PORT: "5010"
+      ASPNETCORE_HTTP_PORTS: "5010"
       RunMigrations: "true"
       SEED_DATABASE: "true"
-      ConnectionStrings__DefaultConnection: "Host=api-db;Port=5432;Database=tinisoft;Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres};Maximum Pool Size=100;Command Timeout=30;Timeout=30;Connection Lifetime=0;Pooling=true;"
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=tinisoft;Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres};SearchPath=public;Maximum Pool Size=100;Command Timeout=30;Timeout=30;Connection Lifetime=0;Pooling=true;"
       Redis__ConnectionString: "redis:6379"
       RabbitMQ__HostName: "rabbitmq"
       RabbitMQ__Port: "5672"
-      RabbitMQ__UserName: ${RABBITMQ_USER:-guest}  # .env dosyasından al
-      RabbitMQ__Password: ${RABBITMQ_PASSWORD:-guest}  # .env dosyasından al
-      Kafka__BootstrapServers: "kafka:9093"
-      Kafka__TopicPrefix: "tinisoft"
-      Kafka__ConsumerGroup: "tinisoft-consumers"
-      Meilisearch__Host: "http://meilisearch:7700"
-      Meilisearch__ApiKey: "${MEILISEARCH_MASTER_KEY:-tinisoft-meilisearch-master-key-change-in-production}"  # .env dosyasından al
-      Jwt__SecretKey: ${JWT_SECRET_KEY:-TinisoftSuperSecretJWTKey2024Minimum32CharactersLongForSecurity!}  # .env dosyasından al
+      RabbitMQ__UserName: ${RABBITMQ_USER:-guest}
+      RabbitMQ__Password: ${RABBITMQ_PASSWORD:-guest}
+      Jwt__SecretKey: ${JWT_SECRET_KEY:-TinisoftSuperSecretJWTKey2024Minimum32CharactersLongForSecurity!}
       Jwt__Issuer: tinisoft
       Jwt__Audience: tinisoft
       Jwt__ExpirationMinutes: 1440
     depends_on:
-      api-db:
+      postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
       rabbitmq:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-      meilisearch:
         condition: service_healthy
     networks:
       - tinisoft-network
@@ -570,28 +279,32 @@ services:
       context: .
       dockerfile: src/Tinisoft.API.Gateway/Dockerfile
     ports:
-      - "127.0.0.1:5000:5000"  # Only accessible from localhost (via Traefik/Nginx)
+      - "127.0.0.1:5000:5000"
     depends_on:
       - api
       - products-api
       - inventory-api
       - payments-api
       - orders-api
-      - marketplace-api
-      - customers-api
       - shipping-api
       - notifications-api
-      - invoices-api
     networks:
       - tinisoft-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.gateway.rule=Host(`localhost`) || Host(`api.tinisoft.com`) || HostRegexp(`{subdomain:[a-z0-9-]+}.domains.tinisoft.com`)"
+      - "traefik.http.routers.gateway.entrypoints=web"
+      - "traefik.http.services.gateway.loadbalancer.server.port=5000"
 
-  # Traefik - Dynamic Domain Routing
+  # Traefik - Dynamic Domain Routing (Multi-tenant custom domain'ler için)
+  # Nginx ile çakışmaması için internal port'ta çalışıyor (3031)
+  # Nginx → Traefik:3031 → Gateway
   traefik:
     image: traefik:v2.10
     container_name: tinisoft-traefik
     ports:
-      - "127.0.0.1:3031:80"     # HTTP routing (Nginx'ten proxy edilecek) - Only localhost
-      - "127.0.0.1:3032:8080"   # Dashboard - Only accessible from localhost
+      - "127.0.0.1:3031:80"    # Internal - Sadece localhost (Nginx'ten erişilecek)
+      - "127.0.0.1:3032:8080"  # Dashboard - Sadece localhost
     command:
       - "--api.dashboard=true"
       - "--api.insecure=true"
@@ -605,31 +318,17 @@ services:
       - "--accesslog=true"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
-      - "./traefik/dynamic:/etc/traefik/dynamic"
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.dashboard.rule=Host(`traefik.localhost`)"
-      - "traefik.http.routers.dashboard.service=api@internal"
+      - "./traefik/dynamic:/etc/traefik/dynamic:ro"
     networks:
       - tinisoft-network
     restart: unless-stopped
+    depends_on:
+      - gateway
 
 volumes:
-  products_db_data:
-  inventory_db_data:
-  payments_db_data:
-  orders_db_data:
-  marketplace_db_data:
-  customers_db_data:
-  shipping_db_data:
-  notifications_db_data:
-  invoices_db_data:
-  api_db_data:
+  postgres_data:
   redis_data:
   rabbitmq_data:
-  zookeeper_data:
-  kafka_data:
-  meilisearch_data:
 
 networks:
   tinisoft-network:

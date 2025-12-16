@@ -73,13 +73,86 @@ if (runMigrations)
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     try
     {
-        await dbContext.Database.MigrateAsync();
-        Log.Information("Database migrations applied successfully");
+        // Veritabanı bağlantısını kontrol et ve retry mekanizması
+        var maxRetries = 5;
+        var delay = TimeSpan.FromSeconds(5);
+        for (int i = 0; i < maxRetries; i++)
+        {
+            try
+            {
+                if (await dbContext.Database.CanConnectAsync())
+                {
+                    Log.Information("Database connection successful");
+                    break;
+                }
+            }
+            catch (Exception)
+            {
+                if (i == maxRetries - 1)
+                {
+                    Log.Error("Failed to connect to database after {MaxRetries} attempts", maxRetries);
+                    throw;
+                }
+                Log.Warning("Database connection failed, retrying in {Delay} seconds... (Attempt {Attempt}/{MaxRetries})", 
+                    delay.TotalSeconds, i + 1, maxRetries);
+                await Task.Delay(delay);
+            }
+        }
+
+        // Migration yoksa EnsureCreated kullan (migration dosyaları olmadığı için)
+        // Migration history tablosunu manuel oluştur
+        try
+        {
+            var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+            var searchPath = connectionString?.Split(';')
+                .FirstOrDefault(p => p.Trim().StartsWith("SearchPath", StringComparison.OrdinalIgnoreCase))
+                ?.Split('=')[1]?.Trim();
+            
+            var schema = !string.IsNullOrEmpty(searchPath) ? searchPath : "public";
+            
+            // Migration history tablosunu manuel oluştur
+            var createTableSql = $@"
+                CREATE TABLE IF NOT EXISTS {(schema != "public" ? $@"""{schema}""." : "")}__EFMigrationsHistory (
+                    ""MigrationId"" VARCHAR(150) NOT NULL PRIMARY KEY,
+                    ""ProductVersion"" VARCHAR(32) NOT NULL
+                );";
+            
+            await dbContext.Database.ExecuteSqlRawAsync(createTableSql);
+            
+            // EnsureCreated kullanarak tabloları oluştur (migration olmadığı için)
+            var created = await dbContext.Database.EnsureCreatedAsync();
+            if (created)
+            {
+                // Initial migration kaydını ekle
+                await dbContext.Database.ExecuteSqlRawAsync(
+                    $@"INSERT INTO {(schema != "public" ? $@"""{schema}""." : "")}__EFMigrationsHistory (""MigrationId"", ""ProductVersion"") 
+                       VALUES ('InitialCreate', '8.0.4') 
+                       ON CONFLICT (""MigrationId"") DO NOTHING");
+                Log.Information("Database created successfully using EnsureCreated in schema: {Schema}", schema);
+            }
+            else
+            {
+                Log.Information("Database already exists in schema: {Schema}", schema);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error creating database");
+            // Development'ta throw etme, sadece log'la
+            if (!app.Environment.IsDevelopment())
+            {
+                throw;
+            }
+        }
     }
     catch (Exception ex)
     {
         Log.Error(ex, "Error applying database migrations");
-        throw;
+        // Development'ta throw etme, sadece log'la
+        if (!app.Environment.IsDevelopment())
+        {
+            throw;
+        }
     }
 }
 

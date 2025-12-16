@@ -6,6 +6,7 @@ using Tinisoft.Application.Payments.Commands.VerifyPayment;
 using Tinisoft.Application.Common.Interfaces;
 using Finbuckle.MultiTenant;
 using Tinisoft.Infrastructure.MultiTenant;
+using TenantInfo = Tinisoft.Infrastructure.MultiTenant.TenantInfo;
 
 namespace Tinisoft.Payments.API.Controllers;
 
@@ -136,12 +137,12 @@ public class PaymentsController : ControllerBase
             }
 
             // Tenant context'i set et
-            var tenantInfo = new MultiTenant.TenantInfo
+            var tenantInfo = new TenantInfo
             {
                 Id = order.TenantId.ToString(),
                 Identifier = order.TenantId.ToString()
             };
-            _tenantAccessor.MultiTenantContext = new MultiTenantContext<MultiTenant.TenantInfo>
+            _tenantAccessor.MultiTenantContext = new MultiTenantContext<TenantInfo>
             {
                 TenantInfo = tenantInfo
             };

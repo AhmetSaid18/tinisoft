@@ -251,7 +251,14 @@ using (var scope = app.Services.CreateScope())
         new RecurringJobOptions { TimeZone = turkeyTimeZone });
 }
 
-app.Urls.Add("http://0.0.0.0:5010");
+// Port ayarı launchSettings.json'dan gelir, development'ta 5000, production'da environment variable'dan
+// .NET 8'de ASPNETCORE_HTTP_PORTS öncelikli, yoksa PORT, yoksa 5010
+var port = Environment.GetEnvironmentVariable("ASPNETCORE_HTTP_PORTS") 
+           ?? Environment.GetEnvironmentVariable("PORT") 
+           ?? (app.Environment.IsDevelopment() ? "5000" : "5010");
+app.Urls.Clear();
+app.Urls.Add($"http://0.0.0.0:{port}");
+Log.Information("API listening on port: {Port}", port);
 
 app.Run();
 

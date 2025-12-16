@@ -9,6 +9,8 @@ namespace Tinisoft.Infrastructure.Persistence;
 
 public class ApplicationDbContext : MultiTenantDbContext, IApplicationDbContext
 {
+    private readonly string? _connectionString;
+
     public ApplicationDbContext(ITenantInfo tenantInfo) : base(tenantInfo)
     {
     }
@@ -16,6 +18,17 @@ public class ApplicationDbContext : MultiTenantDbContext, IApplicationDbContext
     public ApplicationDbContext(ITenantInfo tenantInfo, DbContextOptions<ApplicationDbContext> options)
         : base(tenantInfo, options)
     {
+        // Connection string'i options'tan al (OnModelCreating'de kullanmak için)
+        try
+        {
+            _connectionString = options.Extensions
+                .OfType<Microsoft.EntityFrameworkCore.Infrastructure.RelationalOptionsExtension>()
+                .FirstOrDefault()?.ConnectionString;
+        }
+        catch
+        {
+            _connectionString = null;
+        }
     }
 
     // DbSets
@@ -75,6 +88,17 @@ public class ApplicationDbContext : MultiTenantDbContext, IApplicationDbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        // Connection string'den schema'yı al (SearchPath parametresi)
+        var schema = GetSchemaFromConnectionString();
+        if (!string.IsNullOrEmpty(schema))
+        {
+            modelBuilder.HasDefaultSchema(schema);
+        }
+
+        // Cross-schema foreign key'leri ignore et (PostgreSQL'de cross-schema FK constraint sorunlu)
+        // Navigation property'ler ve ID'ler çalışır ama FK constraint olmaz
+        IgnoreCrossSchemaForeignKeys(modelBuilder, schema);
 
         // Tüm Guid property'ler için PostgreSQL UUID type'ını kullan
         // Bu, güvenlik için önemli - sequential ID'ler yerine UUID kullanıyoruz
@@ -682,11 +706,13 @@ public class ApplicationDbContext : MultiTenantDbContext, IApplicationDbContext
             .HasForeignKey(ii => ii.InvoiceId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        modelBuilder.Entity<InvoiceItem>()
-            .HasOne(ii => ii.Product)
-            .WithMany()
-            .HasForeignKey(ii => ii.ProductId)
-            .OnDelete(DeleteBehavior.Restrict);
+        // InvoiceItem → Product: Cross-schema ilişki (public → products)
+        // FK constraint yok, sadece navigation property ve ID
+        // modelBuilder.Entity<InvoiceItem>()
+        //     .HasOne(ii => ii.Product)
+        //     .WithMany()
+        //     .HasForeignKey(ii => ii.ProductId)
+        //     .OnDelete(DeleteBehavior.Restrict);
 
         modelBuilder.Entity<InvoiceItem>()
             .HasOne(ii => ii.ProductVariant)
@@ -825,6 +851,63 @@ public class ApplicationDbContext : MultiTenantDbContext, IApplicationDbContext
         modelBuilder.Entity<NotificationLog>()
             .HasIndex(nl => new { nl.TenantId, nl.IsSent, nl.IsFailed })
             .HasDatabaseName("IX_NotificationLog_TenantId_IsSent_IsFailed");
+    }
+
+    /// <summary>
+    /// Connection string'den SearchPath parametresini parse eder ve schema olarak döner
+    /// </summary>
+    private string? GetSchemaFromConnectionString()
+    {
+        try
+        {
+            var connectionString = _connectionString;
+            if (string.IsNullOrEmpty(connectionString))
+            {
+                // Fallback: Database connection'dan al (eğer açıksa)
+                try
+                {
+                    var connection = Database.GetDbConnection();
+                    connectionString = connection.ConnectionString;
+                }
+                catch
+                {
+                    return null;
+                }
+            }
+
+            if (string.IsNullOrEmpty(connectionString))
+                return null;
+
+            // SearchPath=products; formatında parse et
+            var parts = connectionString.Split(';', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var part in parts)
+            {
+                var keyValue = part.Split('=', 2, StringSplitOptions.RemoveEmptyEntries);
+                if (keyValue.Length == 2 && 
+                    keyValue[0].Trim().Equals("SearchPath", StringComparison.OrdinalIgnoreCase))
+                {
+                    return keyValue[1].Trim();
+                }
+            }
+        }
+        catch
+        {
+            // Hata durumunda null dön
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Cross-schema foreign key constraint'lerini kaldırır
+    /// Navigation property'ler ve ID'ler çalışır ama FK constraint oluşturulmaz
+    /// Not: OrderItem → Product ve InvoiceItem → Product ilişkileri zaten yukarıda comment out edildi
+    /// </summary>
+    private void IgnoreCrossSchemaForeignKeys(ModelBuilder modelBuilder, string? currentSchema)
+    {
+        // Cross-schema foreign key'ler zaten tanımlanmadı
+        // Navigation property'ler ve ID'ler çalışır, sadece FK constraint yok
+        // Bu normal - microservice pattern'de cross-service referanslar API üzerinden yapılır
     }
 }
 

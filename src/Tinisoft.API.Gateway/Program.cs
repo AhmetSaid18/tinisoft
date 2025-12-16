@@ -15,7 +15,7 @@ builder.Services.AddSwaggerGen();
 // Ocelot
 builder.Services.AddOcelot(builder.Configuration);
 
-// CORS - Frontend origin'leri: tinisoft.com.tr ve localhost:3000
+// CORS - Frontend origin'leri: tinisoft.com.tr, localhost:3000 ve localhost:3001
 builder.Services.AddCors(options =>
 {
     // Frontend için CORS (process, verify endpoint'leri)
@@ -23,6 +23,7 @@ builder.Services.AddCors(options =>
     {
         policy.WithOrigins(
                 "http://localhost:3000",
+                "http://localhost:3001",
                 "https://tinisoft.com.tr",
                 "https://www.tinisoft.com.tr"
             )
