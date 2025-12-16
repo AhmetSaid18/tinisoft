@@ -14,7 +14,8 @@ class User(AbstractUser):
     Roller: Owner, TenantUser, TenantBayii, SystemAdmin
     """
     class UserRole(models.TextChoices):
-        OWNER = 'owner', 'Owner'  # Tenant sahibi (mağaza sahibi)
+        OWNER = 'owner', 'Owner'  # Tinisoft (program sahibi, biz)
+        TENANT_OWNER = 'tenant_owner', 'Tenant Owner'  # Mağaza sahibi (tenant sahibi)
         TENANT_USER = 'tenant_user', 'Tenant User'  # Tenant'ın sitesinde kayıt olan müşteriler
         TENANT_BAYII = 'tenant_bayii', 'Tenant Bayii'  # Tenant'ın bayileri
         SYSTEM_ADMIN = 'system_admin', 'System Admin'  # Sistem yöneticisi
@@ -23,14 +24,14 @@ class User(AbstractUser):
     email = models.EmailField(unique=True, db_index=True)
     phone = models.CharField(max_length=20, blank=True, null=True)
     
-    # Tenant ilişkisi (Owner, TenantUser, TenantBayii için)
+    # Tenant ilişkisi (TenantOwner, TenantUser, TenantBayii için)
     tenant = models.ForeignKey(
         'Tenant',
         on_delete=models.CASCADE,
         null=True,
         blank=True,
         related_name='users',
-        help_text="User'ın bağlı olduğu tenant (Owner, TenantUser, TenantBayii için)"
+        help_text="User'ın bağlı olduğu tenant (TenantOwner, TenantUser, TenantBayii için)"
     )
     
     # User rolü
@@ -76,8 +77,13 @@ class User(AbstractUser):
     
     @property
     def is_owner(self):
-        """Owner mı?"""
+        """Owner mı? (Tinisoft - program sahibi)"""
         return self.role == self.UserRole.OWNER
+    
+    @property
+    def is_tenant_owner(self):
+        """TenantOwner mı? (Mağaza sahibi)"""
+        return self.role == self.UserRole.TENANT_OWNER
     
     @property
     def is_tenant_user(self):
@@ -106,8 +112,8 @@ class Tenant(BaseModel):
         User,
         on_delete=models.CASCADE,
         related_name='owned_tenants',
-        limit_choices_to={'role': 'owner'},
-        help_text="Tenant sahibi (Owner rolünde user)"
+        limit_choices_to={'role': 'tenant_owner'},
+        help_text="Tenant sahibi (TenantOwner rolünde user - mağaza sahibi)"
     )
     
     # Domain bilgileri

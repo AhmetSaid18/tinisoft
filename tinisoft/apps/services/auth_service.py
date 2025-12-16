@@ -4,14 +4,13 @@ Register, login ve tenant yönetimi işlemleri.
 """
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from apps.models import Tenant, Domain
+from apps.models import Tenant, Domain, User  # User modelini direkt import et
 from apps.services.tenant_service import TenantService
 from apps.services.domain_service import DomainService
 from apps.tasks.build_task import trigger_frontend_build
 import logging
 
 logger = logging.getLogger(__name__)
-User = get_user_model()
 
 
 class AuthService:
@@ -40,7 +39,7 @@ class AuthService:
         4. Domain kayıtları oluştur (subdomain + custom domain)
         5. Frontend build tetikle (async)
         """
-        # 1. User oluştur (Owner rolü ile)
+        # 1. User oluştur (TenantOwner rolü ile - mağaza sahibi)
         user = User.objects.create_user(
             username=email,
             email=email,
@@ -48,9 +47,9 @@ class AuthService:
             first_name=first_name,
             last_name=last_name,
             phone=phone,
-            role=User.UserRole.OWNER,  # Owner rolü
+            role=User.UserRole.TENANT_OWNER,  # TenantOwner rolü (mağaza sahibi)
         )
-        logger.info(f"User created (Owner): {user.email}")
+        logger.info(f"User created (TenantOwner): {user.email}")
         
         # 2. Tenant oluştur
         # Template: Custom domain varsa kullanıcının seçtiği, yoksa 'default' (bizim template)
