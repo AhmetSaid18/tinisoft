@@ -4,7 +4,7 @@ Domain doğrulama ve yönetim işlemleri.
 """
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from apps.models import Domain, Tenant
 from apps.services.domain_service import DomainService
@@ -96,6 +96,60 @@ def domain_status(request, domain_id):
             'template': domain.tenant.template,  # Frontend build için template
             'frontend_url': f"https://{domain.domain_name}" if domain.verification_status == 'verified' else None,
             'ready': domain.verification_status == 'verified' and domain.tenant.status == 'active',
+        }
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def verify_domain_by_code(request):
+    """
+    Domain DNS doğrulamasını verification_code ile başlat (public endpoint).
+    
+    URL: /api/domains/verify-by-code/
+    
+    Request body:
+    {
+        "domain_name": "influencermarket.com.tr",
+        "verification_code": "dL74afpW2Y2afvAIZaujW2R0MNGsB82N"
+    }
+    """
+    domain_name = request.data.get('domain_name')
+    verification_code = request.data.get('verification_code')
+    
+    if not domain_name or not verification_code:
+        return Response({
+            'success': False,
+            'message': 'domain_name ve verification_code gereklidir.',
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        domain = Domain.objects.get(
+            domain_name=domain_name,
+            verification_code=verification_code,
+            verification_status='pending'
+        )
+    except Domain.DoesNotExist:
+        return Response({
+            'success': False,
+            'message': 'Domain bulunamadı veya verification code hatalı.',
+        }, status=status.HTTP_404_NOT_FOUND)
+    
+    # DNS doğrulamasını başlat (async task)
+    verify_domain_dns_task.delay(str(domain.id))
+    
+    return Response({
+        'success': True,
+        'message': 'Domain doğrulaması başlatıldı. Birkaç dakika içinde kontrol edilecek.',
+        'domain': {
+            'id': str(domain.id),
+            'domain_name': domain.domain_name,
+            'verification_status': domain.verification_status,
+        },
+        'tenant': {
+            'id': str(domain.tenant.id),
+            'name': domain.tenant.name,
+            'template': domain.tenant.template,
         }
     }, status=status.HTTP_200_OK)
 

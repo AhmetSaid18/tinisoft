@@ -48,6 +48,7 @@ def register(request):
                 'tenant': TenantSerializer(result['tenant']).data,
                 'subdomain_url': result['subdomain_url'],
                 'custom_domain': result['custom_domain'],
+                'custom_domain_id': result.get('custom_domain_id'),  # Domain ID (verify için)
                 'verification_code': result.get('verification_code'),
                 'template': result.get('template', 'default'),  # Frontend template adı (custom domain varsa seçilen, yoksa 'default')
                 'template_note': (

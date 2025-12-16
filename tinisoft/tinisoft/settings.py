@@ -24,6 +24,9 @@ DEBUG = True  # ⚠️ GEÇİCİ - Hata ayıklama için açıldı, production'da
 
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1', 'api.tinisoft.com.tr'])
 
+# Custom User Model
+AUTH_USER_MODEL = 'apps.User'
+
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',

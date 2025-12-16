@@ -122,6 +122,7 @@ class AuthService:
             'tenant': tenant,
             'subdomain_url': tenant.get_subdomain_url(),
             'custom_domain': custom_domain if custom_domain else None,
+            'custom_domain_id': str(custom_domain_obj.id) if custom_domain else None,  # Domain ID
             'verification_code': custom_domain_obj.verification_code if custom_domain else None,
             'template': tenant.template,  # Frontend template adı
         }
