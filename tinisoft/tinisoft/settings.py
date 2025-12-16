@@ -22,7 +22,7 @@ SECRET_KEY = env('SECRET_KEY', default='django-insecure-temporary-key-change-in-
 # DEBUG = env('DEBUG')  # Geçici olarak kapalı
 DEBUG = True  # ⚠️ GEÇİCİ - Hata ayıklama için açıldı, production'da kapat!
 
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1', 'api.tinisoft.com.tr'])
 
 # Application definition
 INSTALLED_APPS = [
@@ -146,6 +146,7 @@ REST_FRAMEWORK = {
 CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[
     'http://localhost:3000',
     'http://localhost:3001',
+    'http://localhost:3456',
 ])
 
 CORS_ALLOW_CREDENTIALS = True
