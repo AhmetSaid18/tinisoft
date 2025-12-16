@@ -95,10 +95,14 @@ def deploy_domain_task(domain_id: str):
         except Exception as e:
             logger.error(f"Failed to obtain SSL certificate: {str(e)}")
     
-    # 4. Frontend deploy et
+    # 4. Frontend deploy et (template ile)
     try:
-        trigger_frontend_build.delay(str(tenant.id), domain.domain_name)
-        logger.info(f"Frontend build triggered for: {domain.domain_name}")
+        trigger_frontend_build.delay(
+            str(tenant.id),
+            domain.domain_name,
+            tenant.template  # Tenant'ın template'ini kullan
+        )
+        logger.info(f"Frontend build triggered for: {domain.domain_name} with template: {tenant.template}")
     except Exception as e:
         logger.error(f"Failed to trigger frontend build: {str(e)}")
     

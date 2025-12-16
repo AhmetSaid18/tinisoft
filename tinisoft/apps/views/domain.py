@@ -49,6 +49,11 @@ def verify_domain(request, domain_id):
             'verification_status': domain.verification_status,
             'verification_code': domain.verification_code,
             'verification_instructions': DomainService.get_verification_instructions(domain),
+        },
+        'tenant': {
+            'id': str(domain.tenant.id),
+            'name': domain.tenant.name,
+            'template': domain.tenant.template,  # Frontend template adı
         }
     }, status=status.HTTP_200_OK)
 
@@ -85,6 +90,12 @@ def domain_status(request, domain_id):
             'id': str(domain.tenant.id),
             'name': domain.tenant.name,
             'status': domain.tenant.status,
+            'template': domain.tenant.template,  # Frontend template adı
+        },
+        'deployment': {
+            'template': domain.tenant.template,  # Frontend build için template
+            'frontend_url': f"https://{domain.domain_name}" if domain.verification_status == 'verified' else None,
+            'ready': domain.verification_status == 'verified' and domain.tenant.status == 'active',
         }
     }, status=status.HTTP_200_OK)
 

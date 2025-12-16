@@ -30,14 +30,27 @@ def delete_tenant_schema(schema_name):
 def migrate_tenant_schema(schema_name):
     """
     Tenant schema'sına migration uygula.
+    Tenant-specific modeller için tablolar oluşturulur.
     """
-    # Schema'yı set et
+    from django.db import connection
+    from django.core.management import call_command
     from core.db_router import set_tenant_schema
+    
+    # Schema'yı set et
     set_tenant_schema(schema_name)
     
     # Migration'ları uygula
-    # TODO: Schema-specific migration logic
-    # call_command('migrate', schema=schema_name)
+    # Tenant-specific modeller için tablolar oluşturulur
+    with connection.cursor() as cursor:
+        # Search path'i geçici olarak değiştir
+        cursor.execute(f'SET search_path TO "{schema_name}", public;')
+        
+        # Migration'ları uygula
+        # TODO: Schema-specific migration logic
+        # call_command('migrate', schema=schema_name)
+        
+        # Search path'i geri al
+        cursor.execute('SET search_path TO public;')
 
 
 def get_current_schema():

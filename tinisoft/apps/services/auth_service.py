@@ -25,6 +25,7 @@ class AuthService:
         store_name: str,
         store_slug: str,
         custom_domain: str = '',
+        template: str = 'default',
         first_name: str = '',
         last_name: str = '',
         phone: str = None,
@@ -52,6 +53,9 @@ class AuthService:
         logger.info(f"User created (Owner): {user.email}")
         
         # 2. Tenant oluştur
+        # Template: Custom domain varsa kullanıcının seçtiği, yoksa 'default' (bizim template)
+        tenant_template = template if custom_domain else 'default'
+        
         tenant = Tenant.objects.create(
             name=store_name,
             slug=store_slug,
@@ -59,6 +63,7 @@ class AuthService:
             subdomain=store_slug,  # Subdomain = slug
             custom_domain=custom_domain if custom_domain else None,
             status='pending',
+            template=tenant_template,  # Custom domain varsa seçilen, yoksa 'default'
         )
         logger.info(f"Tenant created: {tenant.name} ({tenant.slug})")
         
@@ -98,8 +103,20 @@ class AuthService:
             logger.info(f"Custom domain created: {custom_domain} (verification: {verification_code})")
         
         # 6. Frontend build tetikle (async)
-        trigger_frontend_build.delay(str(tenant.id), subdomain_domain.domain_name)
-        logger.info(f"Frontend build triggered for tenant: {tenant.id}")
+        # Subdomain için: Bizim template ('default') kullanılır
+        # Custom domain için: Kullanıcının seçtiği template kullanılır
+        subdomain_template = 'default'  # Subdomain her zaman bizim template ile
+        
+        trigger_frontend_build.delay(
+            str(tenant.id),
+            subdomain_domain.domain_name,
+            subdomain_template  # Subdomain için bizim template
+        )
+        logger.info(f"Frontend build triggered for tenant: {tenant.id} (subdomain) with template: {subdomain_template}")
+        
+        # Custom domain varsa, domain doğrulandığında kendi template'i ile build yapılacak
+        if custom_domain:
+            logger.info(f"Custom domain will use template: {tenant.template} after verification")
         
         return {
             'user': user,
@@ -107,6 +124,7 @@ class AuthService:
             'subdomain_url': tenant.get_subdomain_url(),
             'custom_domain': custom_domain if custom_domain else None,
             'verification_code': custom_domain_obj.verification_code if custom_domain else None,
+            'template': tenant.template,  # Frontend template adı
         }
     
     @staticmethod

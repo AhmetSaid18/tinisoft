@@ -30,6 +30,15 @@ class RegisterSerializer(serializers.Serializer):
         help_text="Custom domain (örn: example.com). Boş bırakılırsa sadece subdomain kullanılır."
     )
     
+    # Template seçimi (sadece custom domain varsa)
+    template = serializers.CharField(
+        max_length=100,
+        required=False,
+        allow_blank=True,
+        default='default',
+        help_text="Frontend template adı (default, modern, classic, vb.). Sadece custom domain girildiğinde seçilebilir."
+    )
+    
     def validate_email(self, value):
         """Email kontrolü."""
         if User.objects.filter(email=value).exists():
@@ -55,6 +64,23 @@ class RegisterSerializer(serializers.Serializer):
                 raise serializers.ValidationError("Bu domain zaten kullanılıyor.")
         return value
     
+    def validate(self, attrs):
+        """Template ve custom domain ilişkisi kontrolü."""
+        custom_domain = attrs.get('custom_domain', '').strip()
+        template = attrs.get('template', '').strip()
+        
+        # Custom domain yoksa template seçilemez
+        if not custom_domain and template and template != 'default':
+            raise serializers.ValidationError({
+                'template': 'Template seçimi sadece custom domain girildiğinde yapılabilir. Subdomain için bizim template kullanılacak.'
+            })
+        
+        # Custom domain varsa template zorunlu
+        if custom_domain and not template:
+            attrs['template'] = 'default'  # Varsayılan template
+        
+        return attrs
+    
     def create(self, validated_data):
         """Kullanıcı ve tenant oluştur."""
         from apps.services.auth_service import AuthService
@@ -67,6 +93,7 @@ class RegisterSerializer(serializers.Serializer):
             store_name=validated_data['store_name'],
             store_slug=validated_data['store_slug'],
             custom_domain=validated_data.get('custom_domain', ''),
+            template=validated_data.get('template', 'default'),
         )
 
 
@@ -152,6 +179,7 @@ class TenantSerializer(serializers.ModelSerializer):
             'custom_domain_url',
             'status',
             'plan',
+            'template',  # Frontend template adı
             'activated_at',
             'created_at',
         ]

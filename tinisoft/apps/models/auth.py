@@ -121,6 +121,13 @@ class Tenant(BaseModel):
         default='free'
     )
     
+    # Frontend Template
+    template = models.CharField(
+        max_length=100,
+        default='default',
+        help_text="Frontend template adı (default, modern, classic, vb.)"
+    )
+    
     # Metadata
     activated_at = models.DateTimeField(null=True, blank=True)
     suspended_at = models.DateTimeField(null=True, blank=True)

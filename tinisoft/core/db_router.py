@@ -28,19 +28,54 @@ class TenantDatabaseRouter:
     """
     Multi-tenant database router.
     Tenant-specific modeller için schema routing yapar.
+    
+    Tenant-specific modeller: Product, ShippingMethod, ShippingAddress, Order, vb.
+    Sistem modelleri: User, Tenant, Domain (public schema'da)
     """
+    
+    # Tenant-specific modeller (tenant schema'sında olacak)
+    TENANT_MODELS = [
+        'Product',
+        'ShippingMethod',
+        'ShippingAddress',
+        'Order',
+        'OrderItem',
+        'Category',
+        'Inventory',
+        'Payment',
+        'Invoice',
+        'Customer',
+    ]
+    
+    # Sistem modelleri (public schema'da)
+    SYSTEM_MODELS = [
+        'User',
+        'Tenant',
+        'Domain',
+    ]
+    
+    def _is_tenant_model(self, model):
+        """Model tenant-specific mi?"""
+        model_name = model.__name__
+        # Tenant ForeignKey varsa tenant-specific
+        if hasattr(model, 'tenant'):
+            return True
+        # Sistem modelleri değilse tenant-specific
+        if model_name not in self.SYSTEM_MODELS:
+            return model_name in self.TENANT_MODELS
+        return False
     
     def db_for_read(self, model, **hints):
         """Read işlemleri için schema belirle."""
-        if hasattr(model, '_tenant_schema'):
-            return 'default'
-        return None
+        if self._is_tenant_model(model):
+            return 'default'  # Tenant schema'sına yönlendirilecek
+        return None  # Public schema (default)
     
     def db_for_write(self, model, **hints):
         """Write işlemleri için schema belirle."""
-        if hasattr(model, '_tenant_schema'):
-            return 'default'
-        return None
+        if self._is_tenant_model(model):
+            return 'default'  # Tenant schema'sına yönlendirilecek
+        return None  # Public schema (default)
     
     def allow_relation(self, obj1, obj2, **hints):
         """İlişkilere izin ver (aynı DB'de oldukları için)."""

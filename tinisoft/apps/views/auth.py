@@ -32,7 +32,8 @@ def register(request):
         "phone": "+905551234567",
         "store_name": "My Store",
         "store_slug": "my-store",
-        "custom_domain": "example.com"  # Opsiyonel
+        "custom_domain": "example.com",  # Opsiyonel
+        "template": "modern"  # Sadece custom_domain varsa seçilebilir
     }
     """
     serializer = RegisterSerializer(data=request.data)
@@ -48,6 +49,12 @@ def register(request):
                 'subdomain_url': result['subdomain_url'],
                 'custom_domain': result['custom_domain'],
                 'verification_code': result.get('verification_code'),
+                'template': result.get('template', 'default'),  # Frontend template adı (custom domain varsa seçilen, yoksa 'default')
+                'template_note': (
+                    'Custom domain ile seçilen template kullanılacak.'
+                    if result.get('custom_domain') else
+                    'Subdomain bizim template (default) ile yayınlanacak.'
+                ),
                 'verification_instructions': (
                     f"Custom domain için DNS kaydı ekleyin:\n"
                     f"TXT: tinisoft-verify={result.get('verification_code', '')}\n"
