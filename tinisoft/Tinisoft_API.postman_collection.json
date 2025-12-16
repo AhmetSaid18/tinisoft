@@ -1,0 +1,361 @@
+{
+	"info": {
+		"_postman_id": "tinisoft-api-collection",
+		"name": "Tinisoft API",
+		"description": "Tinisoft Multi-Tenant E-Commerce Platform API Collection",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Auth - Owner",
+			"item": [
+				{
+					"name": "Register (Owner)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set(\"owner_token\", jsonData.token || \"\");",
+									"    pm.environment.set(\"tenant_id\", jsonData.tenant?.id || \"\");",
+									"    pm.environment.set(\"domain_id\", jsonData.domain_id || \"\");",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"owner@example.com\",\n    \"password\": \"password123\",\n    \"first_name\": \"John\",\n    \"last_name\": \"Doe\",\n    \"phone\": \"+905551234567\",\n    \"store_name\": \"My Store\",\n    \"store_slug\": \"my-store\",\n    \"custom_domain\": \"example.com\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/register/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"register",
+								""
+							]
+						},
+						"description": "Mağaza sahibi (Owner) kaydı. Tenant ve domain oluşturur."
+					},
+					"response": []
+				},
+				{
+					"name": "Login (Owner)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set(\"owner_token\", jsonData.token || \"\");",
+									"    pm.environment.set(\"tenant_id\", jsonData.tenant?.id || \"\");",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"owner@example.com\",\n    \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/login/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login",
+								""
+							]
+						},
+						"description": "Mağaza sahibi (Owner) girişi."
+					},
+					"response": []
+				}
+			],
+			"description": "Owner (mağaza sahibi) authentication endpoints"
+		},
+		{
+			"name": "Auth - TenantUser",
+			"item": [
+				{
+					"name": "Register (TenantUser)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set(\"tenant_user_token\", jsonData.token || \"\");",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"customer@example.com\",\n    \"password\": \"password123\",\n    \"first_name\": \"Jane\",\n    \"last_name\": \"Smith\",\n    \"phone\": \"+905559876543\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/tenant/{{tenant_slug}}/users/register/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"tenant",
+								"{{tenant_slug}}",
+								"users",
+								"register",
+								""
+							]
+						},
+						"description": "Tenant'ın sitesinde müşteri kaydı."
+					},
+					"response": []
+				},
+				{
+					"name": "Login (TenantUser)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set(\"tenant_user_token\", jsonData.token || \"\");",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"customer@example.com\",\n    \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/tenant/{{tenant_slug}}/users/login/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"tenant",
+								"{{tenant_slug}}",
+								"users",
+								"login",
+								""
+							]
+						},
+						"description": "Tenant'ın sitesinde müşteri girişi."
+					},
+					"response": []
+				}
+			],
+			"description": "TenantUser (müşteri) authentication endpoints"
+		},
+		{
+			"name": "Domain Management",
+			"item": [
+				{
+					"name": "List Domains",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{owner_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/domains/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"domains",
+								""
+							]
+						},
+						"description": "Kullanıcının tenant'larına ait domain'leri listele."
+					},
+					"response": []
+				},
+				{
+					"name": "Verify Domain",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    console.log(\"Verification instructions:\", jsonData.domain?.verification_instructions);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{owner_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/domains/{{domain_id}}/verify/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"domains",
+								"{{domain_id}}",
+								"verify",
+								""
+							]
+						},
+						"description": "Domain DNS doğrulamasını başlat. DNS kaydını ekledikten sonra çağır."
+					},
+					"response": []
+				},
+				{
+					"name": "Domain Status",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{owner_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/domains/{{domain_id}}/status/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"domains",
+								"{{domain_id}}",
+								"status",
+								""
+							]
+						},
+						"description": "Domain durumunu kontrol et."
+					},
+					"response": []
+				}
+			],
+			"description": "Domain yönetim endpoints"
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "https://api.tinisoft.com.tr",
+			"type": "string"
+		},
+		{
+			"key": "tenant_slug",
+			"value": "my-store",
+			"type": "string"
+		},
+		{
+			"key": "domain_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "owner_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "tenant_user_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "tenant_id",
+			"value": "",
+			"type": "string"
+		}
+	]
+}
+

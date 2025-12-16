@@ -1,0 +1,85 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Docker
+docker-compose.yml
+docker-compose.*.yml
+Dockerfile*
+.dockerignore
+
+# Documentation
+*.md
+docs/
+MIGRATION_GUIDE.md
+SUNUCU_MIGRATION_REHBERI.md
+SUNUCU_MIGRATION_KOMUTLARI.md
+QUICK_MIGRATION_FIX.md
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Build outputs
+**/bin/
+**/obj/
+**/out/
+**/publish/
+**/build/
+
+# Test results
+**/TestResults/
+**/coverage/
+*.trx
+*.coverage
+
+# NuGet
+**/packages/
+*.nupkg
+*.snupkg
+**/project.lock.json
+**/project.fragment.lock.json
+**/artifacts/
+
+# Node modules (if any)
+**/node_modules/
+**/npm-debug.log
+**/yarn-error.log
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+**/logs/
+*.log
+
+# Temporary files
+**/tmp/
+**/temp/
+*.tmp
+*.bak
+*.cache
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Other
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
