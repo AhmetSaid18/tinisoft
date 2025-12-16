@@ -65,8 +65,10 @@ class TenantUserService:
         """
         TenantUser girişi.
         Tenant ID verilirse, sadece o tenant'a ait user'lar giriş yapabilir.
+        JWT token döndürür.
         """
         from django.contrib.auth import authenticate
+        from apps.utils.jwt_utils import generate_jwt_token
         
         # User'ı bul
         try:
@@ -91,8 +93,12 @@ class TenantUserService:
         if not authenticated_user.is_active:
             raise ValueError("Hesabınız aktif değil.")
         
+        # JWT token oluştur
+        token = generate_jwt_token(authenticated_user)
+        
         return {
             'user': authenticated_user,
             'tenant': authenticated_user.tenant,
+            'token': token,
         }
 

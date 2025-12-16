@@ -99,9 +99,9 @@ def login(request):
             return Response({
                 'success': True,
                 'message': 'Giriş başarılı!',
+                'token': result.get('token'),
                 'user': UserSerializer(result['user']).data,
                 'tenant': TenantSerializer(result['tenant']).data if result['tenant'] else None,
-                # 'token': result.get('token'),
             }, status=status.HTTP_200_OK)
         except ValueError as e:
             return Response({

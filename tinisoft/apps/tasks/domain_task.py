@@ -30,26 +30,41 @@ def verify_domain_dns_task(domain_id: str):
         return
     
     # DNS doğrulaması
+    from django.utils import timezone
     domain.verification_status = 'verifying'
+    domain.last_checked_at = timezone.now()
     domain.save()
     
-    is_verified = DomainService.verify_domain_dns(
-        domain.domain_name,
-        domain.verification_code
-    )
+    try:
+        is_verified = DomainService.verify_domain_dns(
+            domain.domain_name,
+            domain.verification_code
+        )
+    except Exception as e:
+        logger.error(f"DNS verification error for {domain.domain_name}: {str(e)}")
+        domain.verification_status = 'failed'
+        domain.last_checked_at = timezone.now()
+        domain.save()
+        return {
+            'domain_id': domain_id,
+            'domain_name': domain.domain_name,
+            'verified': False,
+            'error': str(e),
+        }
     
     if is_verified:
         # Domain doğrulandı
         domain.verify()
         logger.info(f"Domain verified: {domain.domain_name}")
         
-        # Deployment işlemlerini başlat
-        deploy_domain_task.delay(str(domain.id))
+        # Deployment işlemlerini otomatik başlat (opsiyonel - manuel de yapılabilir)
+        # deploy_domain_task.delay(str(domain.id))
     else:
         # Doğrulama başarısız
         domain.verification_status = 'failed'
+        domain.last_checked_at = timezone.now()
         domain.save()
-        logger.warning(f"Domain verification failed: {domain.domain_name}")
+        logger.warning(f"Domain verification failed: {domain.domain_name}. DNS kayıtları kontrol edilmeli.")
     
     return {
         'domain_id': domain_id,
@@ -96,13 +111,18 @@ def deploy_domain_task(domain_id: str):
             logger.error(f"Failed to obtain SSL certificate: {str(e)}")
     
     # 4. Frontend deploy et (template ile)
+    # Şimdilik welcome page gösterilecek, frontend build gelecekte eklenecek
     try:
+        # Frontend build tetikle (async)
         trigger_frontend_build.delay(
             str(tenant.id),
             domain.domain_name,
             tenant.template  # Tenant'ın template'ini kullan
         )
         logger.info(f"Frontend build triggered for: {domain.domain_name} with template: {tenant.template}")
+        
+        # Welcome page hazır - domain yayınlandı!
+        logger.info(f"Domain deployed successfully: {domain.domain_name} - Welcome page available at https://{domain.domain_name}")
     except Exception as e:
         logger.error(f"Failed to trigger frontend build: {str(e)}")
     
@@ -111,5 +131,7 @@ def deploy_domain_task(domain_id: str):
         'domain_name': domain.domain_name,
         'tenant_id': str(tenant.id),
         'deployed': True,
+        'welcome_url': f"https://{domain.domain_name}",
+        'message': 'Domain başarıyla yayınlandı! Welcome page hazır.',
     }
 

@@ -33,37 +33,59 @@ class DomainService:
     def verify_domain_dns(domain_name: str, verification_code: str) -> bool:
         """
         DNS kayıtlarını kontrol et ve domain'i doğrula.
-        TODO: DNS lookup implementasyonu
         """
         try:
             import dns.resolver
             
             # TXT record kontrolü
             txt_record = DomainService.get_verification_txt_record(domain_name, verification_code)
+            logger.info(f"Checking TXT record for {domain_name}: looking for {txt_record}")
             
             try:
                 answers = dns.resolver.resolve(domain_name, 'TXT')
                 for answer in answers:
-                    if txt_record in str(answer):
+                    answer_str = str(answer).strip('"')
+                    logger.debug(f"Found TXT record: {answer_str}")
+                    if txt_record in answer_str:
+                        logger.info(f"TXT record verification successful for {domain_name}")
                         return True
             except dns.resolver.NXDOMAIN:
-                pass
+                logger.debug(f"No TXT records found for {domain_name}")
+            except dns.resolver.NoAnswer:
+                logger.debug(f"No TXT answer for {domain_name}")
+            except Exception as e:
+                logger.warning(f"TXT record check error for {domain_name}: {str(e)}")
             
             # CNAME kontrolü
             from django.conf import settings
             cname_target = getattr(settings, 'DOMAIN_VERIFICATION_CNAME_TARGET', 'verify.tinisoft.com.tr')
+            cname_subdomain = f"tinisoft-verify.{domain_name}"
+            logger.info(f"Checking CNAME record for {cname_subdomain}: looking for {cname_target}")
+            
             try:
-                answers = dns.resolver.resolve(f"tinisoft-verify.{domain_name}", 'CNAME')
+                answers = dns.resolver.resolve(cname_subdomain, 'CNAME')
                 for answer in answers:
-                    if cname_target in str(answer):
+                    answer_str = str(answer).strip('.').lower()
+                    target_lower = cname_target.lower()
+                    logger.debug(f"Found CNAME record: {answer_str}")
+                    if target_lower in answer_str:
+                        logger.info(f"CNAME record verification successful for {domain_name}")
                         return True
             except dns.resolver.NXDOMAIN:
-                pass
+                logger.debug(f"No CNAME record found for {cname_subdomain}")
+            except dns.resolver.NoAnswer:
+                logger.debug(f"No CNAME answer for {cname_subdomain}")
+            except Exception as e:
+                logger.warning(f"CNAME record check error for {cname_subdomain}: {str(e)}")
             
+            logger.warning(f"DNS verification failed for {domain_name}: No matching TXT or CNAME records found")
             return False
+        except ImportError:
+            logger.error("dnspython library not installed. Install it with: pip install dnspython")
+            raise Exception("DNS verification library not available. Please install dnspython.")
         except Exception as e:
             logger.error(f"DNS verification failed for {domain_name}: {str(e)}")
-            return False
+            raise
     
     @staticmethod
     def get_verification_instructions(domain):

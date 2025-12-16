@@ -12,6 +12,7 @@ from apps.serializers.tenant_user import (
 )
 from apps.serializers.auth import UserSerializer, TenantSerializer
 from apps.models import Tenant
+from apps.services.tenant_user_service import TenantUserService
 import logging
 
 logger = logging.getLogger(__name__)
@@ -118,11 +119,20 @@ def login_tenant_user(request, tenant_slug=None):
     
     if serializer.is_valid():
         try:
+            from apps.utils.jwt_utils import generate_jwt_token
+            
+            user = serializer.validated_data['user']
+            tenant = serializer.validated_data['tenant']
+            
+            # JWT token oluştur
+            token = generate_jwt_token(user)
+            
             return Response({
                 'success': True,
                 'message': 'Giriş başarılı!',
-                'user': UserSerializer(serializer.validated_data['user']).data,
-                'tenant': TenantSerializer(serializer.validated_data['tenant']).data,
+                'token': token,
+                'user': UserSerializer(user).data,
+                'tenant': TenantSerializer(tenant).data,
             }, status=status.HTTP_200_OK)
         except Exception as e:
             logger.error(f"TenantUser login failed: {str(e)}")

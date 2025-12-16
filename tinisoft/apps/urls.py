@@ -4,7 +4,7 @@ URL configuration for Tinisoft apps.
 from django.urls import path
 from apps.views.auth import register, login
 from apps.views.tenant_user import register_tenant_user, login_tenant_user
-from apps.views.domain import verify_domain, verify_domain_by_code, domain_status, list_domains
+from apps.views.domain import verify_domain, verify_domain_by_code, domain_status, list_domains, deploy_domain, retry_verification, create_domain
 
 app_name = 'apps'
 
@@ -18,9 +18,11 @@ urlpatterns = [
     path('tenant/<str:tenant_slug>/users/login/', login_tenant_user, name='login_tenant_user'),
     
     # Domain yönetimi
-    path('domains/', list_domains, name='list_domains'),
+    path('domains/', list_domains, name='list_domains'),  # GET: List, POST: Create
     path('domains/verify-by-code/', verify_domain_by_code, name='verify_domain_by_code'),  # Public endpoint (verification_code ile)
     path('domains/<uuid:domain_id>/verify/', verify_domain, name='verify_domain'),  # Authenticated endpoint
+    path('domains/<uuid:domain_id>/retry-verification/', retry_verification, name='retry_verification'),  # Retry verification
+    path('domains/<uuid:domain_id>/deploy/', deploy_domain, name='deploy_domain'),  # Manual deployment
     path('domains/<uuid:domain_id>/status/', domain_status, name='domain_status'),
 ]
 

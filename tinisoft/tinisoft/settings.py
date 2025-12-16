@@ -136,14 +136,19 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # REST Framework
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.SessionAuthentication',
+        'apps.utils.jwt_authentication.JWTAuthentication',  # JWT authentication (öncelikli)
+        'rest_framework.authentication.SessionAuthentication',  # Session authentication (fallback)
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
+    'EXCEPTION_HANDLER': 'core.exceptions.custom_exception_handler',  # Custom exception handler
 }
+
+# JWT Settings
+JWT_EXPIRATION_HOURS = env.int('JWT_EXPIRATION_HOURS', default=24)  # Token geçerlilik süresi (saat)
 
 # CORS
 CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[

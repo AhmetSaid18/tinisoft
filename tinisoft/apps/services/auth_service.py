@@ -131,9 +131,10 @@ class AuthService:
     def login(email: str, password: str):
         """
         Kullanıcı girişi yapar.
-        JWT token döndürür (gelecekte eklenecek).
+        JWT token döndürür.
         """
         from django.contrib.auth import authenticate
+        from apps.utils.jwt_utils import generate_jwt_token
         
         user = authenticate(username=email, password=password)
         if not user:
@@ -142,12 +143,12 @@ class AuthService:
         if not user.is_active:
             raise ValueError("Hesabınız aktif değil.")
         
-        # TODO: JWT token oluştur
-        # token = generate_jwt_token(user)
+        # JWT token oluştur
+        token = generate_jwt_token(user)
         
         return {
             'user': user,
             'tenant': user.tenant,
-            # 'token': token,
+            'token': token,
         }
 
