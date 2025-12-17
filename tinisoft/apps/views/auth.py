@@ -88,6 +88,18 @@ def login(request):
         "password": "password123"
     }
     """
+    # Request body kontrolü
+    if not request.data:
+        return Response({
+            'success': False,
+            'message': 'Email ve şifre gereklidir.',
+            'error_code': 'VALIDATION_ERROR',
+            'errors': {
+                'email': ['Bu alan gereklidir.'],
+                'password': ['Bu alan gereklidir.'],
+            }
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
     serializer = LoginSerializer(data=request.data)
     if serializer.is_valid():
         try:
@@ -107,17 +119,22 @@ def login(request):
             return Response({
                 'success': False,
                 'message': str(e),
+                'error_code': 'AUTHENTICATION_FAILED',
             }, status=status.HTTP_401_UNAUTHORIZED)
         except Exception as e:
             logger.error(f"Login failed: {str(e)}")
             return Response({
                 'success': False,
                 'message': 'Giriş sırasında bir hata oluştu.',
+                'error_code': 'INTERNAL_ERROR',
                 'error': str(e),
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
+    # Serializer validation errors
     return Response({
         'success': False,
+        'message': 'Geçersiz giriş bilgileri.',
+        'error_code': 'VALIDATION_ERROR',
         'errors': serializer.errors,
     }, status=status.HTTP_400_BAD_REQUEST)
 

@@ -29,14 +29,15 @@ class TenantMiddleware(MiddlewareMixin):
     def get_tenant_from_request(self, request):
         """
         Request'ten tenant bilgisini çıkar.
-        - Subdomain: tenant1.domains.tinisoft.com.tr -> tenant1
+        - Subdomain: tenant1.tinisoft.com.tr -> tenant1
         - Custom domain: example.com -> domain'den tenant bul
         - Header: X-Tenant-ID header'ından
         """
         host = request.get_host()
         
-        # Subdomain kontrolü
-        if '.domains.tinisoft.com.tr' in host:
+        # Subdomain kontrolü (tinisoft ana domain'i için)
+        # Örnek: ates.tinisoft.com.tr -> ates
+        if '.tinisoft.com.tr' in host:
             subdomain = host.split('.')[0]
             return f"tenant_{subdomain}"
         
@@ -52,4 +53,48 @@ class TenantMiddleware(MiddlewareMixin):
             return f"tenant_{tenant_id}"
         
         return None
+
+
+def get_tenant_from_request(request):
+    """
+    Request'ten tenant instance'ını döndür.
+    View'larda kullanılmak için utility fonksiyonu.
+    """
+    from apps.models import Tenant, Domain
+    
+    host = request.get_host()
+    
+    # Subdomain kontrolü (tinisoft ana domain'i için)
+    # Örnek: ates.tinisoft.com.tr -> ates
+    if '.tinisoft.com.tr' in host:
+        subdomain = host.split('.')[0]
+        try:
+            tenant = Tenant.objects.get(subdomain=subdomain, is_deleted=False)
+            return tenant
+        except Tenant.DoesNotExist:
+            pass
+    
+    # Custom domain kontrolü
+    try:
+        domain = Domain.objects.filter(domain_name=host, is_deleted=False).first()
+        if domain:
+            return domain.tenant
+    except:
+        pass
+    
+    # Header'dan tenant ID
+    tenant_id = request.headers.get('X-Tenant-ID')
+    if tenant_id:
+        try:
+            tenant = Tenant.objects.get(id=tenant_id, is_deleted=False)
+            return tenant
+        except Tenant.DoesNotExist:
+            pass
+    
+    # User'dan tenant (authenticated ise)
+    if hasattr(request, 'user') and request.user.is_authenticated:
+        if hasattr(request.user, 'tenant') and request.user.tenant:
+            return request.user.tenant
+    
+    return None
 

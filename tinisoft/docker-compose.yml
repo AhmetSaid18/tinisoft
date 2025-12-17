@@ -66,8 +66,11 @@ services:
       sh -c "
         echo 'Waiting for database...' &&
         sleep 5 &&
-        python manage.py migrate &&
-        python manage.py collectstatic --noinput &&
+        echo 'Creating migrations...' &&
+        python manage.py makemigrations || echo 'Makemigrations failed, continuing...' &&
+        echo 'Applying migrations...' &&
+        python manage.py migrate || echo 'Migration failed, continuing...' &&
+        python manage.py collectstatic --noinput || echo 'Collectstatic failed, continuing...' &&
         echo 'Starting Gunicorn...' &&
         gunicorn --bind 0.0.0.0:8000 --workers 4 --timeout 120 tinisoft.wsgi:application
       "

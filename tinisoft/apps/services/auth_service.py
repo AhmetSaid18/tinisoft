@@ -79,7 +79,8 @@ class AuthService:
         # Subdomain (otomatik aktif)
         subdomain_domain = Domain.objects.create(
             tenant=tenant,
-            domain_name=f"{store_slug}.domains.tinisoft.com.tr",
+            # Örn: ates.tinisoft.com.tr
+            domain_name=f"{store_slug}.tinisoft.com.tr",
             is_primary=True,
             is_custom=False,
             verification_status='verified',  # Subdomain otomatik doğrulu

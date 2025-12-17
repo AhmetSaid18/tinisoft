@@ -5,6 +5,62 @@ from django.urls import path
 from apps.views.auth import register, login
 from apps.views.tenant_user import register_tenant_user, login_tenant_user
 from apps.views.domain import verify_domain, verify_domain_by_code, domain_status, list_domains, deploy_domain, retry_verification, create_domain
+from apps.views.product import (
+    product_list_create, product_detail,
+    product_list_public, product_detail_public,
+    category_list_create
+)
+from apps.views.order import order_list_create, order_detail
+from apps.views.cart import (
+    cart_detail, add_to_cart, cart_item_detail,
+    update_shipping_method
+)
+from apps.views.payment import payment_list_create, payment_detail
+from apps.views.customer import customer_list, customer_detail, update_customer_statistics
+from apps.views.inventory import inventory_movement_list_create, inventory_movement_detail
+from apps.views.search import search_products, search_suggestions, filter_options
+from apps.views.bulk import (
+    bulk_update_products, bulk_delete_products,
+    bulk_update_order_status, bulk_export_products
+)
+from apps.views.loyalty import loyalty_program, my_loyalty_points, loyalty_transactions
+from apps.views.review import review_list_create, review_detail, review_helpful
+from apps.views.wishlist import wishlist_list_create, wishlist_detail, wishlist_item_add_remove, wishlist_clear
+from apps.views.discount import (
+    coupon_list_create, coupon_detail, coupon_validate,
+    promotion_list_create, promotion_detail
+)
+from apps.views.gift_card import (
+    gift_card_list_create, gift_card_detail, gift_card_validate,
+    gift_card_balance, gift_card_transactions
+)
+from apps.views.shipping import (
+    shipping_method_list_create, shipping_method_detail,
+    shipping_address_list_create, shipping_address_detail,
+    shipping_zone_list_create, shipping_zone_detail,
+    shipping_zone_rate_list_create, shipping_zone_rate_detail,
+    shipping_calculate
+)
+from apps.views.bundle import (
+    bundle_list_create, bundle_detail,
+    bundle_item_add, bundle_item_detail
+)
+from apps.views.analytics import (
+    analytics_event_create, analytics_events_list,
+    analytics_dashboard, sales_reports_list, product_analytics_list
+)
+from apps.views.abandoned_cart import (
+    abandoned_cart_list, abandoned_cart_detail,
+    abandoned_cart_recover, abandoned_cart_send_reminder
+)
+from apps.views.webhook import (
+    webhook_list_create, webhook_detail,
+    webhook_test, webhook_events_list
+)
+from apps.views.inventory_alert import (
+    inventory_alert_list_create, inventory_alert_detail,
+    inventory_alert_check
+)
 
 app_name = 'apps'
 
@@ -24,5 +80,119 @@ urlpatterns = [
     path('domains/<uuid:domain_id>/retry-verification/', retry_verification, name='retry_verification'),  # Retry verification
     path('domains/<uuid:domain_id>/deploy/', deploy_domain, name='deploy_domain'),  # Manual deployment
     path('domains/<uuid:domain_id>/status/', domain_status, name='domain_status'),
+    
+    # Ürün yönetimi
+    path('products/', product_list_create, name='product_list_create'),  # GET: List, POST: Create
+    path('products/<uuid:product_id>/', product_detail, name='product_detail'),  # GET, PUT, PATCH, DELETE
+    path('public/products/', product_list_public, name='product_list_public'),  # Public product list
+    path('public/products/<str:product_slug>/', product_detail_public, name='product_detail_public'),  # Public product detail
+    path('categories/', category_list_create, name='category_list_create'),  # GET: List, POST: Create
+    
+    # Sipariş yönetimi
+    path('orders/', order_list_create, name='order_list_create'),  # GET: List, POST: Create
+    path('orders/<uuid:order_id>/', order_detail, name='order_detail'),  # GET, PATCH
+    
+    # Sepet yönetimi
+    path('cart/', cart_detail, name='cart_detail'),  # GET: Get cart, POST: Create cart
+    path('cart/add/', add_to_cart, name='add_to_cart'),  # POST: Add to cart
+    path('cart/items/<uuid:item_id>/', cart_item_detail, name='cart_item_detail'),  # PATCH: Update, DELETE: Remove
+    path('cart/shipping/', update_shipping_method, name='update_shipping_method'),  # PATCH: Update shipping method
+    
+    # Ödeme yönetimi
+    path('payments/', payment_list_create, name='payment_list_create'),  # GET: List, POST: Create
+    path('payments/<uuid:payment_id>/', payment_detail, name='payment_detail'),  # GET, PATCH
+    
+    # Müşteri yönetimi
+    path('customers/', customer_list, name='customer_list'),  # GET: List
+    path('customers/<uuid:customer_id>/', customer_detail, name='customer_detail'),  # GET, PATCH
+    path('customers/<uuid:customer_id>/update-statistics/', update_customer_statistics, name='update_customer_statistics'),  # POST
+    
+    # Stok yönetimi
+    path('inventory/movements/', inventory_movement_list_create, name='inventory_movement_list_create'),  # GET: List, POST: Create
+    path('inventory/movements/<uuid:movement_id>/', inventory_movement_detail, name='inventory_movement_detail'),  # GET
+    
+    # Arama ve filtreleme
+    path('search/products/', search_products, name='search_products'),  # GET: Search products
+    path('search/suggestions/', search_suggestions, name='search_suggestions'),  # GET: Search suggestions
+    path('search/filter-options/', filter_options, name='filter_options'),  # GET: Filter options
+    
+    # Toplu işlemler
+    path('bulk/products/update/', bulk_update_products, name='bulk_update_products'),  # POST: Bulk update products
+    path('bulk/products/delete/', bulk_delete_products, name='bulk_delete_products'),  # POST: Bulk delete products
+    path('bulk/products/export/', bulk_export_products, name='bulk_export_products'),  # POST: Bulk export products
+    path('bulk/orders/update-status/', bulk_update_order_status, name='bulk_update_order_status'),  # POST: Bulk update order status
+    
+    # Sadakat puanları
+    path('loyalty/program/', loyalty_program, name='loyalty_program'),  # GET: Get, POST: Create, PATCH: Update (aktif/deaktif)
+    path('loyalty/my-points/', my_loyalty_points, name='my_loyalty_points'),  # GET: Müşteri kendi puanlarını görüntüle
+    path('loyalty/transactions/', loyalty_transactions, name='loyalty_transactions'),  # GET: İşlem geçmişi
+    
+    # Ürün yorumları
+    path('products/<uuid:product_id>/reviews/', review_list_create, name='review_list_create'),  # GET: List, POST: Create
+    path('reviews/<uuid:review_id>/', review_detail, name='review_detail'),  # GET, PATCH, DELETE
+    path('reviews/<uuid:review_id>/helpful/', review_helpful, name='review_helpful'),  # POST: Like/Dislike
+    
+    # İstek listesi (Wishlist)
+    path('wishlists/', wishlist_list_create, name='wishlist_list_create'),  # GET: List, POST: Create
+    path('wishlists/<uuid:wishlist_id>/', wishlist_detail, name='wishlist_detail'),  # GET, PATCH, DELETE
+    path('wishlists/<uuid:wishlist_id>/items/', wishlist_item_add_remove, name='wishlist_item_add_remove'),  # POST: Add, DELETE: Remove
+    path('wishlists/<uuid:wishlist_id>/clear/', wishlist_clear, name='wishlist_clear'),  # DELETE: Clear all items
+    
+    # İndirim ve Kuponlar
+    path('coupons/', coupon_list_create, name='coupon_list_create'),  # GET: List, POST: Create
+    path('coupons/<uuid:coupon_id>/', coupon_detail, name='coupon_detail'),  # GET, PATCH, DELETE
+    path('coupons/validate/', coupon_validate, name='coupon_validate'),  # POST: Validate coupon
+    
+    # Promosyonlar
+    path('promotions/', promotion_list_create, name='promotion_list_create'),  # GET: List, POST: Create
+    path('promotions/<uuid:promotion_id>/', promotion_detail, name='promotion_detail'),  # GET, PATCH, DELETE
+    
+    # Hediye Kartları
+    path('gift-cards/', gift_card_list_create, name='gift_card_list_create'),  # GET: List, POST: Create
+    path('gift-cards/<uuid:gift_card_id>/', gift_card_detail, name='gift_card_detail'),  # GET, PATCH, DELETE
+    path('gift-cards/validate/', gift_card_validate, name='gift_card_validate'),  # POST: Validate gift card
+    path('gift-cards/<uuid:gift_card_id>/balance/', gift_card_balance, name='gift_card_balance'),  # GET: Check balance
+    path('gift-cards/<uuid:gift_card_id>/transactions/', gift_card_transactions, name='gift_card_transactions'),  # GET: Transaction history
+    
+    # Kargo Yönetimi
+    path('shipping/methods/', shipping_method_list_create, name='shipping_method_list_create'),  # GET: List, POST: Create
+    path('shipping/methods/<uuid:method_id>/', shipping_method_detail, name='shipping_method_detail'),  # GET, PATCH, DELETE
+    path('shipping/addresses/', shipping_address_list_create, name='shipping_address_list_create'),  # GET: List, POST: Create
+    path('shipping/addresses/<uuid:address_id>/', shipping_address_detail, name='shipping_address_detail'),  # GET, PATCH, DELETE
+    path('shipping/zones/', shipping_zone_list_create, name='shipping_zone_list_create'),  # GET: List, POST: Create
+    path('shipping/zones/<uuid:zone_id>/', shipping_zone_detail, name='shipping_zone_detail'),  # GET, PATCH, DELETE
+    path('shipping/zones/<uuid:zone_id>/rates/', shipping_zone_rate_list_create, name='shipping_zone_rate_list_create'),  # GET: List, POST: Create
+    path('shipping/zones/<uuid:zone_id>/rates/<uuid:rate_id>/', shipping_zone_rate_detail, name='shipping_zone_rate_detail'),  # GET, PATCH, DELETE
+    path('shipping/calculate/', shipping_calculate, name='shipping_calculate'),  # POST: Calculate shipping cost
+    
+    # Bundle (Ürün Paketleri)
+    path('bundles/', bundle_list_create, name='bundle_list_create'),  # GET: List, POST: Create
+    path('bundles/<uuid:bundle_id>/', bundle_detail, name='bundle_detail'),  # GET, PATCH, DELETE
+    path('bundles/<uuid:bundle_id>/items/', bundle_item_add, name='bundle_item_add'),  # POST: Add item
+    path('bundles/<uuid:bundle_id>/items/<uuid:item_id>/', bundle_item_detail, name='bundle_item_detail'),  # PATCH, DELETE
+    
+    # Analytics
+    path('analytics/events/', analytics_event_create, name='analytics_event_create'),  # POST: Create event (public)
+    path('analytics/events/list/', analytics_events_list, name='analytics_events_list'),  # GET: List events
+    path('analytics/dashboard/', analytics_dashboard, name='analytics_dashboard'),  # GET: Dashboard data
+    path('analytics/reports/', sales_reports_list, name='sales_reports_list'),  # GET: Sales reports
+    path('analytics/products/', product_analytics_list, name='product_analytics_list'),  # GET: Product analytics
+    
+    # Abandoned Cart
+    path('abandoned-carts/', abandoned_cart_list, name='abandoned_cart_list'),  # GET: List
+    path('abandoned-carts/<uuid:abandoned_cart_id>/', abandoned_cart_detail, name='abandoned_cart_detail'),  # GET, PATCH
+    path('abandoned-carts/<uuid:abandoned_cart_id>/recover/', abandoned_cart_recover, name='abandoned_cart_recover'),  # POST: Recover
+    path('abandoned-carts/<uuid:abandoned_cart_id>/send-reminder/', abandoned_cart_send_reminder, name='abandoned_cart_send_reminder'),  # POST: Send reminder
+    
+    # Webhook
+    path('webhooks/', webhook_list_create, name='webhook_list_create'),  # GET: List, POST: Create
+    path('webhooks/<uuid:webhook_id>/', webhook_detail, name='webhook_detail'),  # GET, PATCH, DELETE
+    path('webhooks/<uuid:webhook_id>/test/', webhook_test, name='webhook_test'),  # POST: Test webhook
+    path('webhooks/<uuid:webhook_id>/events/', webhook_events_list, name='webhook_events_list'),  # GET: Event history
+    
+    # Inventory Alert
+    path('inventory/alerts/', inventory_alert_list_create, name='inventory_alert_list_create'),  # GET: List, POST: Create
+    path('inventory/alerts/<uuid:alert_id>/', inventory_alert_detail, name='inventory_alert_detail'),  # GET, PATCH, DELETE
+    path('inventory/alerts/<uuid:alert_id>/check/', inventory_alert_check, name='inventory_alert_check'),  # POST: Check and notify
 ]
 

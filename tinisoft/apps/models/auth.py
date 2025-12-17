@@ -170,7 +170,8 @@ class Tenant(BaseModel):
     
     def get_subdomain_url(self):
         """Subdomain URL'ini döndür."""
-        return f"https://{self.subdomain}.domains.tinisoft.com.tr"
+        # Örn: ates.tinisoft.com.tr
+        return f"https://{self.subdomain}.tinisoft.com.tr"
     
     def get_custom_domain_url(self):
         """Custom domain URL'ini döndür."""

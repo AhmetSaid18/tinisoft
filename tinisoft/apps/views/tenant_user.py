@@ -38,7 +38,9 @@ def register_tenant_user(request, tenant_slug=None):
     # Tenant'ı slug'dan bul
     if tenant_slug:
         try:
-            tenant = Tenant.objects.get(slug=tenant_slug, status='active')
+            # Yeni kayıt olan mağazalar genelde 'pending' durumunda olacağından
+            # burada status'e göre filtreleme yapmıyoruz.
+            tenant = Tenant.objects.get(slug=tenant_slug)
         except Tenant.DoesNotExist:
             return Response({
                 'success': False,
@@ -104,7 +106,8 @@ def login_tenant_user(request, tenant_slug=None):
     tenant_id = None
     if tenant_slug:
         try:
-            tenant = Tenant.objects.get(slug=tenant_slug, status='active')
+            # Müşteri girişi için de status'e göre filtreleme yapmıyoruz.
+            tenant = Tenant.objects.get(slug=tenant_slug)
             tenant_id = str(tenant.id)
         except Tenant.DoesNotExist:
             return Response({

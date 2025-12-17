@@ -5,11 +5,11 @@ http:
   routers:
     # ============================================
     # SUBDOMAIN ROUTING
-    # *.domains.tinisoft.com → API Gateway
-    # Örnek: ornek-magaza.domains.tinisoft.com
+    # *.tinisoft.com.tr → API Gateway
+    # Örnek: ornek-magaza.tinisoft.com.tr
     # ============================================
     subdomain-routing:
-      rule: "HostRegexp(`{subdomain:[a-z0-9-]+}.domains.tinisoft.com`)"
+      rule: "HostRegexp(`{subdomain:[a-z0-9-]+}.tinisoft.com.tr`)"
       entryPoints:
         - web
       service: api-gateway
@@ -17,10 +17,10 @@ http:
 
     # ============================================
     # API GATEWAY (doğrudan erişim)
-    # api.tinisoft.com → API Gateway
+    # api.tinisoft.com.tr → API Gateway
     # ============================================
     api-gateway-direct:
-      rule: "Host(`api.tinisoft.com`)"
+      rule: "Host(`api.tinisoft.com.tr`)"
       entryPoints:
         - web
       service: api-gateway

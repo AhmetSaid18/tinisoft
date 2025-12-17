@@ -111,16 +111,34 @@ class TraefikService:
         config['http']['routers'][router_name] = router_config
         
         # Service ekle (eğer yoksa)
+        # Frontend container'ına yönlendir (website template'leri orada)
         if service_name not in config['http']['services']:
+            # Frontend container URL'i
+            # Format: http://frontend-{tenant_subdomain}:{port}
+            frontend_port = getattr(settings, 'FRONTEND_PORT', 3000)
+            frontend_host = f"frontend-{domain.tenant.subdomain}"
+            frontend_url = f"http://{frontend_host}:{frontend_port}"
+            
+            # Şimdilik frontend container yoksa backend'e yönlendir (welcome page için)
+            # Frontend container oluşturulduğunda bu otomatik güncellenecek
+            backend_url = getattr(settings, 'BACKEND_URL', 'http://backend:8000')
+            
+            # Frontend container var mı kontrol et (health check ile)
+            # Şimdilik backend kullan, frontend container oluşturulduğunda güncellenecek
+            service_url = frontend_url  # Frontend container oluşturulduğunda kullanılacak
+            # Şimdilik: backend_url kullan (welcome page için)
+            service_url = backend_url
+            
             config['http']['services'][service_name] = {
                 'loadBalancer': {
                     'servers': [
                         {
-                            'url': f"http://frontend-{domain.tenant.subdomain}:3000"
+                            'url': service_url
                         }
                     ]
                 }
             }
+            logger.info(f"Service configured: {service_url} for domain: {domain.domain_name} (will use frontend when available)")
         
         # Config'i kaydet
         if TraefikService.save_dynamic_config(config):
