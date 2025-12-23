@@ -124,8 +124,28 @@ def product_list_create(request):
         })
     
     elif request.method == 'POST':
+        # Frontend'den gelen ham veriyi logla
+        logger.info(
+            f"[PRODUCTS] POST /api/products/ - REQUEST DATA | "
+            f"Tenant: {tenant.name} ({tenant.id}) | "
+            f"User: {request.user.email} | "
+            f"Raw Data: {request.data} | "
+            f"Data Keys: {list(request.data.keys())}"
+        )
+        
         serializer = ProductDetailSerializer(data=request.data)
         if serializer.is_valid():
+            # Validated data'yı logla
+            logger.info(
+                f"[PRODUCTS] POST /api/products/ - VALIDATED DATA | "
+                f"Tenant: {tenant.name} ({tenant.id}) | "
+                f"User: {request.user.email} | "
+                f"Validated Data: {serializer.validated_data} | "
+                f"Inventory Quantity: {serializer.validated_data.get('inventory_quantity', 'NOT SET')} | "
+                f"Status: {serializer.validated_data.get('status', 'NOT SET')} | "
+                f"Is Active: {serializer.validated_data.get('is_visible', 'NOT SET')}"
+            )
+            
             product = serializer.save(tenant=tenant)
             logger.info(
                 f"[PRODUCTS] POST /api/products/ - SUCCESS | "
@@ -135,6 +155,9 @@ def product_list_create(request):
                 f"ProductName: {product.name} | "
                 f"SKU: {product.sku} | "
                 f"Price: {product.price} | "
+                f"Inventory Quantity: {product.inventory_quantity} | "
+                f"Status: {product.status} | "
+                f"Is Visible: {product.is_visible} | "
                 f"Status: {status.HTTP_201_CREATED}"
             )
             return Response({
@@ -146,6 +169,7 @@ def product_list_create(request):
             f"[PRODUCTS] POST /api/products/ - VALIDATION ERROR | "
             f"Tenant: {tenant.name} ({tenant.id}) | "
             f"User: {request.user.email} | "
+            f"Raw Data: {request.data} | "
             f"Errors: {serializer.errors} | "
             f"Status: {status.HTTP_400_BAD_REQUEST}"
         )
