@@ -138,6 +138,9 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         required=False,
     )
     
+    # Frontend uyumluluğu için: isActive -> status mapping
+    isActive = serializers.BooleanField(write_only=True, required=False)
+    
     class Meta:
         model = Product
         fields = [
@@ -146,7 +149,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             'sku', 'barcode',
             'track_inventory', 'inventory_quantity',
             'is_variant_product',
-            'status', 'is_visible',
+            'status', 'is_visible', 'isActive',
             'meta_title', 'meta_description', 'meta_keywords',
             'tags', 'collections',
             'weight', 'length', 'width', 'height',
@@ -160,6 +163,26 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'view_count', 'sale_count']
+    
+    def validate(self, attrs):
+        """Frontend'den gelen isActive'e göre status'u ayarla."""
+        # isActive varsa status'u ayarla
+        is_active = attrs.pop('isActive', None)
+        if is_active is not None:
+            # isActive=True ise status='active', False ise 'draft'
+            if is_active:
+                attrs['status'] = 'active'
+                attrs['is_visible'] = True
+            else:
+                attrs['status'] = 'draft'
+                attrs['is_visible'] = False
+        
+        # Eğer status gönderilmemişse ve isActive de yoksa, default 'active' yap
+        if 'status' not in attrs:
+            attrs['status'] = 'active'
+            attrs['is_visible'] = True
+        
+        return attrs
     
     def create(self, validated_data):
         """Ürün oluştur."""
