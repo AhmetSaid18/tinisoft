@@ -35,22 +35,23 @@ def migrate_tenant_schema(schema_name):
     from django.db import connection
     from django.core.management import call_command
     from core.db_router import set_tenant_schema
+    import os
     
     # Schema'yı set et
     set_tenant_schema(schema_name)
     
-    # Migration'ları uygula
-    # Tenant-specific modeller için tablolar oluşturulur
+    # Search path'i tenant schema'sına ayarla
     with connection.cursor() as cursor:
         # Search path'i geçici olarak değiştir
         cursor.execute(f'SET search_path TO "{schema_name}", public;')
         
-        # Migration'ları uygula
-        # TODO: Schema-specific migration logic
-        # call_command('migrate', schema=schema_name)
-        
-        # Search path'i geri al
-        cursor.execute('SET search_path TO public;')
+        try:
+            # Migration'ları uygula
+            # Tenant-specific modeller için tablolar oluşturulur
+            call_command('migrate', verbosity=1, interactive=False)
+        finally:
+            # Search path'i geri al
+            cursor.execute('SET search_path TO public;')
 
 
 def get_current_schema():
