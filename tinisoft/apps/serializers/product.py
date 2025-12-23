@@ -138,16 +138,18 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         required=False,
     )
     
-    # Frontend uyumluluğu için: isActive -> status mapping
+    # Frontend uyumluluğu için: field mapping
     isActive = serializers.BooleanField(write_only=True, required=False)
+    inventoryQuantity = serializers.IntegerField(source='inventory_quantity', write_only=True, required=False)
+    compareAtPrice = serializers.DecimalField(source='compare_at_price', max_digits=10, decimal_places=2, write_only=True, required=False, allow_null=True)
     
     class Meta:
         model = Product
         fields = [
             'id', 'name', 'slug', 'description',
-            'price', 'compare_at_price',
+            'price', 'compare_at_price', 'compareAtPrice',
             'sku', 'barcode',
-            'track_inventory', 'inventory_quantity',
+            'track_inventory', 'inventory_quantity', 'inventoryQuantity',
             'is_variant_product',
             'status', 'is_visible', 'isActive',
             'meta_title', 'meta_description', 'meta_keywords',
@@ -165,8 +167,8 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at', 'view_count', 'sale_count']
     
     def validate(self, attrs):
-        """Frontend'den gelen isActive'e göre status'u ayarla."""
-        # isActive varsa status'u ayarla
+        """Frontend'den gelen field'ları backend field'larına map et."""
+        # isActive -> status mapping
         is_active = attrs.pop('isActive', None)
         if is_active is not None:
             # isActive=True ise status='active', False ise 'draft'
@@ -181,6 +183,14 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         if 'status' not in attrs:
             attrs['status'] = 'active'
             attrs['is_visible'] = True
+        
+        # inventoryQuantity -> inventory_quantity mapping (zaten source ile yapılıyor ama emin olalım)
+        if 'inventory_quantity' not in attrs and 'inventoryQuantity' in attrs:
+            attrs['inventory_quantity'] = attrs.pop('inventoryQuantity')
+        
+        # compareAtPrice -> compare_at_price mapping
+        if 'compare_at_price' not in attrs and 'compareAtPrice' in attrs:
+            attrs['compare_at_price'] = attrs.pop('compareAtPrice')
         
         return attrs
     
