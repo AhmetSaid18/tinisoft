@@ -14,7 +14,6 @@ class TenantMiddleware(MiddlewareMixin):
     def process_request(self, request):
         """Request geldiğinde tenant schema'sını ayarla."""
         from django.db import connection
-        from core.db_router import get_tenant_from_request
         
         # Tenant instance'ını al
         tenant = get_tenant_from_request(request)
