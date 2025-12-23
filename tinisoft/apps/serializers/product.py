@@ -85,14 +85,19 @@ class ProductListSerializer(serializers.ModelSerializer):
     min_price = serializers.SerializerMethodField()
     max_price = serializers.SerializerMethodField()
     has_variants = serializers.BooleanField(source='is_variant_product', read_only=True)
+    # Frontend uyumluluğu için camelCase field'lar
+    inventoryQuantity = serializers.IntegerField(source='inventory_quantity', read_only=True)
+    compareAtPrice = serializers.DecimalField(source='compare_at_price', max_digits=10, decimal_places=2, read_only=True, allow_null=True)
+    isActive = serializers.BooleanField(source='is_visible', read_only=True)
     
     class Meta:
         model = Product
         fields = [
-            'id', 'name', 'slug', 'price', 'compare_at_price',
+            'id', 'name', 'slug', 'price', 'compare_at_price', 'compareAtPrice',
+            'sku', 'inventory_quantity', 'inventoryQuantity', 'track_inventory',
             'primary_image', 'category_names', 'min_price', 'max_price',
             'has_variants', 'is_featured', 'is_new', 'is_bestseller',
-            'status', 'is_visible', 'view_count', 'sale_count',
+            'status', 'is_visible', 'isActive', 'view_count', 'sale_count',
             'created_at',
         ]
         read_only_fields = ['id', 'created_at']
