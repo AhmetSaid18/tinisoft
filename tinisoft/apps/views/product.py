@@ -36,6 +36,12 @@ def product_list_create(request):
     """
     tenant = get_tenant_from_request(request)
     if not tenant:
+        logger.warning(
+            f"[PRODUCTS] {request.method} /api/products/ - ERROR | "
+            f"Tenant not found | "
+            f"User: {request.user.email if request.user.is_authenticated else 'Anonymous'} | "
+            f"Status: {status.HTTP_400_BAD_REQUEST}"
+        )
         return Response({
             'success': False,
             'message': 'Tenant bulunamadı.',
@@ -43,6 +49,12 @@ def product_list_create(request):
     
     # Permission kontrolü
     if not (request.user.is_owner or (request.user.is_tenant_owner and request.user.tenant == tenant)):
+        logger.warning(
+            f"[PRODUCTS] {request.method} /api/products/ - FORBIDDEN | "
+            f"Tenant: {tenant.name} ({tenant.id}) | "
+            f"User: {request.user.email} | "
+            f"Status: {status.HTTP_403_FORBIDDEN}"
+        )
         return Response({
             'success': False,
             'message': 'Bu işlem için yetkiniz yok.',
@@ -86,9 +98,26 @@ def product_list_create(request):
         
         if page is not None:
             serializer = ProductListSerializer(page, many=True)
-            return paginator.get_paginated_response(serializer.data)
+            response = paginator.get_paginated_response(serializer.data)
+            logger.info(
+                f"[PRODUCTS] GET /api/products/ - SUCCESS | "
+                f"Tenant: {tenant.name} ({tenant.id}) | "
+                f"User: {request.user.email} | "
+                f"Page: {request.query_params.get('page', 1)} | "
+                f"PageSize: {request.query_params.get('page_size', 20)} | "
+                f"Total: {paginator.page.paginator.count} | "
+                f"Status: {status.HTTP_200_OK}"
+            )
+            return response
         
         serializer = ProductListSerializer(queryset, many=True)
+        logger.info(
+            f"[PRODUCTS] GET /api/products/ - SUCCESS | "
+            f"Tenant: {tenant.name} ({tenant.id}) | "
+            f"User: {request.user.email} | "
+            f"Count: {queryset.count()} | "
+            f"Status: {status.HTTP_200_OK}"
+        )
         return Response({
             'success': True,
             'products': serializer.data,
@@ -98,11 +127,28 @@ def product_list_create(request):
         serializer = ProductDetailSerializer(data=request.data)
         if serializer.is_valid():
             product = serializer.save(tenant=tenant)
+            logger.info(
+                f"[PRODUCTS] POST /api/products/ - SUCCESS | "
+                f"Tenant: {tenant.name} ({tenant.id}) | "
+                f"User: {request.user.email} | "
+                f"ProductID: {product.id} | "
+                f"ProductName: {product.name} | "
+                f"SKU: {product.sku} | "
+                f"Price: {product.price} | "
+                f"Status: {status.HTTP_201_CREATED}"
+            )
             return Response({
                 'success': True,
                 'message': 'Ürün oluşturuldu.',
                 'product': ProductDetailSerializer(product).data,
             }, status=status.HTTP_201_CREATED)
+        logger.warning(
+            f"[PRODUCTS] POST /api/products/ - VALIDATION ERROR | "
+            f"Tenant: {tenant.name} ({tenant.id}) | "
+            f"User: {request.user.email} | "
+            f"Errors: {serializer.errors} | "
+            f"Status: {status.HTTP_400_BAD_REQUEST}"
+        )
         return Response({
             'success': False,
             'message': 'Ürün oluşturulamadı.',
@@ -130,6 +176,13 @@ def product_detail(request, product_id):
     try:
         product = Product.objects.get(id=product_id, tenant=tenant, is_deleted=False)
     except Product.DoesNotExist:
+        logger.warning(
+            f"[PRODUCTS] {request.method} /api/products/{product_id}/ - NOT FOUND | "
+            f"Tenant: {tenant.name} ({tenant.id}) | "
+            f"User: {request.user.email} | "
+            f"ProductID: {product_id} | "
+            f"Status: {status.HTTP_404_NOT_FOUND}"
+        )
         return Response({
             'success': False,
             'message': 'Ürün bulunamadı.',
@@ -137,6 +190,13 @@ def product_detail(request, product_id):
     
     # Permission kontrolü
     if not (request.user.is_owner or (request.user.is_tenant_owner and request.user.tenant == tenant)):
+        logger.warning(
+            f"[PRODUCTS] {request.method} /api/products/{product_id}/ - FORBIDDEN | "
+            f"Tenant: {tenant.name} ({tenant.id}) | "
+            f"User: {request.user.email} | "
+            f"ProductID: {product_id} | "
+            f"Status: {status.HTTP_403_FORBIDDEN}"
+        )
         return Response({
             'success': False,
             'message': 'Bu işlem için yetkiniz yok.',
@@ -144,6 +204,14 @@ def product_detail(request, product_id):
     
     if request.method == 'GET':
         serializer = ProductDetailSerializer(product)
+        logger.info(
+            f"[PRODUCTS] GET /api/products/{product_id}/ - SUCCESS | "
+            f"Tenant: {tenant.name} ({tenant.id}) | "
+            f"User: {request.user.email} | "
+            f"ProductID: {product.id} | "
+            f"ProductName: {product.name} | "
+            f"Status: {status.HTTP_200_OK}"
+        )
         return Response({
             'success': True,
             'product': serializer.data,
@@ -157,11 +225,27 @@ def product_detail(request, product_id):
         )
         if serializer.is_valid():
             serializer.save()
+            logger.info(
+                f"[PRODUCTS] {request.method} /api/products/{product_id}/ - SUCCESS | "
+                f"Tenant: {tenant.name} ({tenant.id}) | "
+                f"User: {request.user.email} | "
+                f"ProductID: {product.id} | "
+                f"ProductName: {product.name} | "
+                f"Status: {status.HTTP_200_OK}"
+            )
             return Response({
                 'success': True,
                 'message': 'Ürün güncellendi.',
                 'product': serializer.data,
             })
+        logger.warning(
+            f"[PRODUCTS] {request.method} /api/products/{product_id}/ - VALIDATION ERROR | "
+            f"Tenant: {tenant.name} ({tenant.id}) | "
+            f"User: {request.user.email} | "
+            f"ProductID: {product.id} | "
+            f"Errors: {serializer.errors} | "
+            f"Status: {status.HTTP_400_BAD_REQUEST}"
+        )
         return Response({
             'success': False,
             'message': 'Ürün güncellenemedi.',
@@ -170,6 +254,14 @@ def product_detail(request, product_id):
     
     elif request.method == 'DELETE':
         product.soft_delete()
+        logger.info(
+            f"[PRODUCTS] DELETE /api/products/{product_id}/ - SUCCESS | "
+            f"Tenant: {tenant.name} ({tenant.id}) | "
+            f"User: {request.user.email} | "
+            f"ProductID: {product.id} | "
+            f"ProductName: {product.name} | "
+            f"Status: {status.HTTP_200_OK}"
+        )
         return Response({
             'success': True,
             'message': 'Ürün silindi.',
@@ -221,9 +313,23 @@ def product_list_public(request):
     
     if page is not None:
         serializer = ProductListSerializer(page, many=True)
-        return paginator.get_paginated_response(serializer.data)
+        response = paginator.get_paginated_response(serializer.data)
+        logger.info(
+            f"[PRODUCTS] GET /api/public/products/ - SUCCESS | "
+            f"Tenant: {tenant.name} ({tenant.id}) | "
+            f"Page: {request.query_params.get('page', 1)} | "
+            f"Total: {paginator.page.paginator.count} | "
+            f"Status: {status.HTTP_200_OK}"
+        )
+        return response
     
     serializer = ProductListSerializer(queryset, many=True)
+    logger.info(
+        f"[PRODUCTS] GET /api/public/products/ - SUCCESS | "
+        f"Tenant: {tenant.name} ({tenant.id}) | "
+        f"Count: {queryset.count()} | "
+        f"Status: {status.HTTP_200_OK}"
+    )
     return Response({
         'success': True,
         'products': serializer.data,
@@ -264,6 +370,14 @@ def product_detail_public(request, product_slug):
     product.save(update_fields=['view_count'])
     
     serializer = ProductDetailSerializer(product)
+    logger.info(
+        f"[PRODUCTS] GET /api/public/products/{product_slug}/ - SUCCESS | "
+        f"Tenant: {tenant.name} ({tenant.id}) | "
+        f"ProductID: {product.id} | "
+        f"ProductName: {product.name} | "
+        f"ViewCount: {product.view_count} | "
+        f"Status: {status.HTTP_200_OK}"
+    )
     return Response({
         'success': True,
         'product': serializer.data,
