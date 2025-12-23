@@ -3,7 +3,8 @@ Multi-tenant middleware.
 Request'ten tenant bilgisini alıp database router'a iletir.
 """
 from django.utils.deprecation import MiddlewareMixin
-from core.db_router import set_tenant_schema, clear_tenant_schema
+from django.db import connection
+from core.db_router import set_tenant_schema, clear_tenant_schema, get_tenant_schema
 
 
 class TenantMiddleware(MiddlewareMixin):
@@ -13,8 +14,6 @@ class TenantMiddleware(MiddlewareMixin):
     
     def process_request(self, request):
         """Request geldiğinde tenant schema'sını ayarla."""
-        from django.db import connection
-        
         # Tenant instance'ını al
         tenant = get_tenant_from_request(request)
         
@@ -23,14 +22,28 @@ class TenantMiddleware(MiddlewareMixin):
             tenant_schema = f'tenant_{tenant.id}'
             set_tenant_schema(tenant_schema)
             
-            # PostgreSQL search_path'i ayarla
-            with connection.cursor() as cursor:
-                cursor.execute(f'SET search_path TO "{tenant_schema}", public;')
+            # Connection wrapper ile her sorgudan önce search_path'i ayarla
+            self._setup_search_path(tenant_schema)
         else:
             # Default schema (public)
             set_tenant_schema('public')
+            self._setup_search_path('public')
+    
+    def _setup_search_path(self, schema_name):
+        """Connection'da search_path'i ayarla."""
+        # Connection'ı aç ve search_path'i ayarla
+        # Her sorgudan önce bu ayar geçerli olacak (connection pooling ile)
+        connection.ensure_connection()
+        
+        # Connection'ın thread-local'ına schema'yı kaydet
+        if not hasattr(connection, '_tenant_schema'):
+            connection._tenant_schema = None
+        
+        # Eğer schema değiştiyse search_path'i güncelle
+        if connection._tenant_schema != schema_name:
             with connection.cursor() as cursor:
-                cursor.execute('SET search_path TO public;')
+                cursor.execute(f'SET search_path TO "{schema_name}", public;')
+            connection._tenant_schema = schema_name
     
     def process_response(self, request, response):
         """Response döndürülmeden önce schema'yı temizle."""
