@@ -22,7 +22,8 @@ SECRET_KEY = env('SECRET_KEY', default='django-insecure-temporary-key-change-in-
 # DEBUG = env('DEBUG')  # Geçici olarak kapalı
 DEBUG = True  # ⚠️ GEÇİCİ - Hata ayıklama için açıldı, production'da kapat!
 
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1', 'api.tinisoft.com.tr'])
+# Development için tüm localhost varyasyonlarına izin ver
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1', '0.0.0.0', 'api.tinisoft.com.tr', '*'])
 
 # Custom User Model
 AUTH_USER_MODEL = 'apps.User'
@@ -151,13 +152,31 @@ REST_FRAMEWORK = {
 JWT_EXPIRATION_HOURS = env.int('JWT_EXPIRATION_HOURS', default=24)  # Token geçerlilik süresi (saat)
 
 # CORS
-CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'http://localhost:3456',
-])
+# Development için tüm localhost portlarına izin ver
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True  # Development'ta tüm origin'lere izin ver
+    CORS_ALLOWED_ORIGINS = []  # Production'da kullanılacak
+else:
+    CORS_ALLOW_ALL_ORIGINS = False
+    CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'http://localhost:3456',
+    ])
 
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+    'x-tenant-id',  # Multi-tenant için
+]
 
 # Celery Configuration
 CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='redis://redis:6379/0')
