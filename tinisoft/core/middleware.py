@@ -13,16 +13,37 @@ class TenantMiddleware(MiddlewareMixin):
     
     def process_request(self, request):
         """Request geldiğinde tenant schema'sını ayarla."""
-        # Domain'den tenant bul
-        tenant_schema = self.get_tenant_from_request(request)
-        if tenant_schema:
+        from django.db import connection
+        from core.db_router import get_tenant_from_request
+        
+        # Tenant instance'ını al
+        tenant = get_tenant_from_request(request)
+        
+        if tenant:
+            # Tenant schema adını oluştur
+            tenant_schema = f'tenant_{tenant.id}'
             set_tenant_schema(tenant_schema)
+            
+            # PostgreSQL search_path'i ayarla
+            with connection.cursor() as cursor:
+                cursor.execute(f'SET search_path TO "{tenant_schema}", public;')
         else:
             # Default schema (public)
             set_tenant_schema('public')
+            with connection.cursor() as cursor:
+                cursor.execute('SET search_path TO public;')
     
     def process_response(self, request, response):
         """Response döndürülmeden önce schema'yı temizle."""
+        from django.db import connection
+        
+        # Search path'i public'e geri al
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute('SET search_path TO public;')
+        except:
+            pass
+        
         clear_tenant_schema()
         return response
     
