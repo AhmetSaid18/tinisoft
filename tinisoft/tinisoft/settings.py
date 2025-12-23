@@ -131,6 +131,11 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
+# File Upload Limits (413 hatası için)
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 MB
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000  # Form field limit
+
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -152,17 +157,23 @@ REST_FRAMEWORK = {
 JWT_EXPIRATION_HOURS = env.int('JWT_EXPIRATION_HOURS', default=24)  # Token geçerlilik süresi (saat)
 
 # CORS
-# Development için tüm localhost portlarına izin ver
+# Production domain'leri de ekle
+CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:3456',
+    'https://tinisoft.com.tr',
+    'https://www.tinisoft.com.tr',
+    'https://app.tinisoft.com.tr',
+    'http://tinisoft.com.tr',
+    'http://www.tinisoft.com.tr',
+])
+
+# Development için tüm origin'lere izin ver (DEBUG=True ise)
 if DEBUG:
-    CORS_ALLOW_ALL_ORIGINS = True  # Development'ta tüm origin'lere izin ver
-    CORS_ALLOWED_ORIGINS = []  # Production'da kullanılacak
+    CORS_ALLOW_ALL_ORIGINS = True
 else:
     CORS_ALLOW_ALL_ORIGINS = False
-    CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[
-        'http://localhost:3000',
-        'http://localhost:3001',
-        'http://localhost:3456',
-    ])
 
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = [
