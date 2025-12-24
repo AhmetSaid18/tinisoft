@@ -25,32 +25,76 @@ class CartService:
         Returns:
             Cart: Sepet instance
         """
+        created = False
+        
         if customer:
-            # Müşteri sepeti
-            cart, created = Cart.objects.get_or_create(
+            # Müşteri sepeti - önce aktif sepeti bul
+            cart = Cart.objects.filter(
                 tenant=tenant,
                 customer=customer,
-                is_active=True,
-                defaults={
-                    'expires_at': timezone.now() + timedelta(days=30),
-                }
-            )
+                is_active=True
+            ).first()
+            
+            if not cart:
+                # Aktif sepet yoksa, pasif sepeti aktif yap veya yeni oluştur
+                cart = Cart.objects.filter(
+                    tenant=tenant,
+                    customer=customer,
+                    is_active=False
+                ).order_by('-created_at').first()
+                
+                if cart:
+                    # Pasif sepeti aktif yap
+                    cart.is_active = True
+                    cart.expires_at = timezone.now() + timedelta(days=30)
+                    cart.save()
+                    logger.info(f"Cart reactivated for tenant {tenant.name}, customer {customer.email}")
+                else:
+                    # Yeni sepet oluştur
+                    cart = Cart.objects.create(
+                        tenant=tenant,
+                        customer=customer,
+                        is_active=True,
+                        expires_at=timezone.now() + timedelta(days=30),
+                    )
+                    created = True
+                    logger.info(f"Cart created for tenant {tenant.name}, customer {customer.email}")
         else:
             # Guest sepeti
             if not session_id:
                 raise ValueError("Guest checkout için session_id gereklidir.")
             
-            cart, created = Cart.objects.get_or_create(
+            # Önce aktif sepeti bul
+            cart = Cart.objects.filter(
                 tenant=tenant,
                 session_id=session_id,
-                is_active=True,
-                defaults={
-                    'expires_at': timezone.now() + timedelta(days=30),
-                }
-            )
-        
-        if created:
-            logger.info(f"Cart created for tenant {tenant.name}")
+                is_active=True
+            ).first()
+            
+            if not cart:
+                # Aktif sepet yoksa, pasif sepeti aktif yap veya yeni oluştur
+                cart = Cart.objects.filter(
+                    tenant=tenant,
+                    session_id=session_id,
+                    is_active=False
+                ).order_by('-created_at').first()
+                
+                if cart:
+                    # Pasif sepeti aktif yap
+                    cart.is_active = True
+                    cart.expires_at = timezone.now() + timedelta(days=30)
+                    cart.save()
+                    logger.info(f"Cart reactivated for tenant {tenant.name}, session {session_id}")
+                else:
+                    # Yeni sepet oluştur
+                    cart = Cart.objects.create(
+                        tenant=tenant,
+                        session_id=session_id,
+                        is_active=True,
+                        expires_at=timezone.now() + timedelta(days=30),
+                    )
+                    created = True
+                    logger.info(f"Cart created for tenant {tenant.name}, session {session_id}")
         
         return cart
     
