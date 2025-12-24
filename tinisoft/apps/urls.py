@@ -112,8 +112,11 @@ urlpatterns = [
     path('products/images/bulk-upload/', bulk_upload_product_images, name='bulk_upload_product_images'),  # POST: Toplu görsel yükle
     path('products/images/upload-by-sku/', upload_product_image_by_sku, name='upload_product_image_by_sku'),  # POST: SKU ile görsel yükle
     path('products/images/upload-from-excel/', upload_images_from_excel_paths, name='upload_images_from_excel_paths'),  # POST: Excel'den resim yollarını yükle
-    path('public/products/', product_list_public, name='product_list_public'),  # Public product list
-    path('public/products/<str:product_slug>/', product_detail_public, name='product_detail_public'),  # Public product detail
+    # Public product endpoints (tenant_slug ile)
+    path('public/products/', product_list_public, name='product_list_public'),  # GET: ?tenant_slug=xxx veya header ile
+    path('public/<str:tenant_slug>/products/', product_list_public, name='product_list_public_by_slug'),  # GET: Path parameter ile
+    path('public/products/<str:product_slug>/', product_detail_public, name='product_detail_public'),  # GET: ?tenant_slug=xxx veya header ile
+    path('public/<str:tenant_slug>/products/<str:product_slug>/', product_detail_public, name='product_detail_public_by_slug'),  # GET: Path parameter ile
     path('categories/', category_list_create, name='category_list_create'),  # GET: List, POST: Create
     
     # Sipariş yönetimi

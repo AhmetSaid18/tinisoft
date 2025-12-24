@@ -143,6 +143,15 @@ def get_tenant_from_request(request):
     except:
         pass
     
+    # Header'dan tenant slug
+    tenant_slug_header = request.headers.get('X-Tenant-Slug')
+    if tenant_slug_header:
+        try:
+            tenant = Tenant.objects.get(slug=tenant_slug_header, is_deleted=False)
+            return tenant
+        except Tenant.DoesNotExist:
+            pass
+    
     # Header'dan tenant ID
     tenant_id = request.headers.get('X-Tenant-ID')
     if tenant_id:

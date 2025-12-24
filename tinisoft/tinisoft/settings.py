@@ -229,6 +229,7 @@ CORS_ALLOW_HEADERS = [
     'x-csrftoken',
     'x-requested-with',
     'x-tenant-id',  # Multi-tenant için
+    'x-tenant-slug',  # Multi-tenant için (slug ile)
     'cache-control',
     'pragma',
 ]
