@@ -4,6 +4,7 @@ Excel import Celery task - Paralel ve hızlı ürün yükleme.
 from celery import shared_task
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
+from django.conf import settings
 from apps.services.excel_import_service import ExcelImportService
 from apps.models import Product, Tenant
 from core.middleware import get_tenant_from_request
@@ -41,9 +42,11 @@ def import_products_from_excel_task(self, file_path, tenant_id, user_id=None, ba
         tenant_schema = f'tenant_{tenant.id}'
         set_tenant_schema(tenant_schema)
         
-        # Excel dosyasını storage'dan oku
+        # Excel dosyasını storage'dan oku (R2 veya local)
         if not default_storage.exists(file_path):
             raise FileNotFoundError(f"Excel file not found in storage: {file_path}")
+        
+        logger.info(f"Reading Excel file from {'R2' if settings.USE_R2 else 'local storage'}: {file_path}")
         
         # Storage'dan dosyayı oku
         with default_storage.open(file_path, 'rb') as excel_file:

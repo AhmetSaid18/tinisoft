@@ -167,8 +167,8 @@ if USE_R2:
     MEDIA_ROOT = ''  # R2 kullanıldığında local media root gerekmez
 else:
     # Local storage (development)
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+    MEDIA_URL = '/media/'
+    MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # File Upload Limits (413 hatası için)
 # Excel dosyaları için yüksek limit (4000+ ürün için)

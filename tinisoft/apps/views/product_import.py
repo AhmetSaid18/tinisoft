@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
+from django.conf import settings
 from apps.services.excel_import_service import ExcelImportService
 from apps.serializers.product import ProductListSerializer
 from apps.tasks.excel_import_task import import_products_from_excel_task, import_products_from_excel_async
@@ -105,10 +106,14 @@ def import_products_from_excel(request):
         file_uuid = str(uuid.uuid4())[:8]
         storage_path = f'temp_imports/{tenant.id}/{timestamp}_{file_uuid}.xlsx'
         
-        # Dosyayı storage'a kaydet
+        # Dosyayı storage'a kaydet (R2 veya local)
         excel_file.seek(0)
+        # default_storage Django'nun DEFAULT_FILE_STORAGE ayarını kullanır
+        # USE_R2=True ise R2'ye, False ise local'e kaydeder
         saved_path = default_storage.save(storage_path, ContentFile(excel_file.read()))
         temp_file_path = saved_path  # Storage path'i kullan
+        
+        logger.info(f"Excel file saved to {'R2' if settings.USE_R2 else 'local storage'}: {saved_path}")
         
         logger.info(f"Excel file saved to storage: {saved_path} for tenant {tenant.name}")
         
