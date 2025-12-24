@@ -6,8 +6,7 @@ from rest_framework.decorators import api_view, permission_classes, parser_class
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
-from django.core.files.storage import default_storage
-from django.core.files.base import ContentFile
+from django.conf import settings
 from django.conf import settings
 from apps.services.excel_import_service import ExcelImportService
 from apps.serializers.product import ProductListSerializer
@@ -94,26 +93,30 @@ def import_products_from_excel(request):
     except:
         total_rows = 0
     
-    # Geçici dosya olarak kaydet
+    # Geçici dosya olarak kaydet (LOCAL FILESYSTEM - R2'ye gitmez, sadece fotoğraflar R2'ye gider)
     temp_file_path = None
     try:
-        # Dosyayı shared storage'a kaydet (Celery worker'ın erişebilmesi için)
+        # Excel dosyasını local filesystem'e kaydet (Docker volume paylaşıldığı için Celery worker erişebilir)
         import uuid
         from django.utils import timezone
         
-        # Tenant bazlı klasör yapısı: temp_imports/{tenant_id}/{timestamp}_{uuid}.xlsx
+        # Local temp dizini oluştur
+        temp_dir = os.path.join(settings.BASE_DIR, 'temp_imports', str(tenant.id))
+        os.makedirs(temp_dir, exist_ok=True)
+        
+        # Dosya adı: {timestamp}_{uuid}.xlsx
         timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
         file_uuid = str(uuid.uuid4())[:8]
-        storage_path = f'temp_imports/{tenant.id}/{timestamp}_{file_uuid}.xlsx'
+        filename = f'{timestamp}_{file_uuid}.xlsx'
+        temp_file_path = os.path.join(temp_dir, filename)
         
-        # Dosyayı storage'a kaydet (R2 veya local)
+        # Dosyayı local filesystem'e kaydet
         excel_file.seek(0)
-        # default_storage Django'nun DEFAULT_FILE_STORAGE ayarını kullanır
-        # USE_R2=True ise R2'ye, False ise local'e kaydeder
-        saved_path = default_storage.save(storage_path, ContentFile(excel_file.read()))
-        temp_file_path = saved_path  # Storage path'i kullan
+        with open(temp_file_path, 'wb') as f:
+            for chunk in excel_file.chunks():
+                f.write(chunk)
         
-        logger.info(f"Excel file saved to {'R2' if settings.USE_R2 else 'local storage'}: {saved_path}")
+        logger.info(f"Excel file saved to local temp storage: {temp_file_path} (NOT to R2 - only product images go to R2)")
         
         logger.info(f"Excel file saved to storage: {saved_path} for tenant {tenant.name}")
         
@@ -181,10 +184,10 @@ def import_products_from_excel(request):
     
     finally:
         # Sync işlemde geçici dosyayı sil (async'te task siler)
-        if not use_async and temp_file_path and default_storage.exists(temp_file_path):
+        if not use_async and temp_file_path and os.path.exists(temp_file_path):
             try:
-                default_storage.delete(temp_file_path)
-                logger.info(f"Temporary file deleted: {temp_file_path}")
+                os.unlink(temp_file_path)
+                logger.info(f"Temporary Excel file deleted: {temp_file_path}")
             except Exception as e:
                 logger.warning(f"Could not delete temporary file {temp_file_path}: {str(e)}")
 

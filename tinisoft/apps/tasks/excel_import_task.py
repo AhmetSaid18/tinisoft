@@ -2,8 +2,6 @@
 Excel import Celery task - Paralel ve hızlı ürün yükleme.
 """
 from celery import shared_task
-from django.core.files.storage import default_storage
-from django.core.files.base import ContentFile
 from django.conf import settings
 from apps.services.excel_import_service import ExcelImportService
 from apps.models import Product, Tenant
@@ -42,16 +40,15 @@ def import_products_from_excel_task(self, file_path, tenant_id, user_id=None, ba
         tenant_schema = f'tenant_{tenant.id}'
         set_tenant_schema(tenant_schema)
         
-        # Excel dosyasını storage'dan oku (R2 veya local)
-        if not default_storage.exists(file_path):
-            raise FileNotFoundError(f"Excel file not found in storage: {file_path}")
+        # Excel dosyasını local filesystem'den oku (R2'ye gitmez, sadece fotoğraflar R2'ye gider)
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"Excel file not found in local filesystem: {file_path}")
         
-        logger.info(f"Reading Excel file from {'R2' if settings.USE_R2 else 'local storage'}: {file_path}")
+        logger.info(f"Reading Excel file from local filesystem: {file_path} (NOT from R2 - only product images go to R2)")
         
-        # Storage'dan dosyayı oku
-        with default_storage.open(file_path, 'rb') as excel_file:
-            df = pd.read_excel(excel_file, engine='openpyxl')
-            df.columns = df.columns.str.lower().str.strip()
+        # Local filesystem'den dosyayı oku
+        df = pd.read_excel(file_path, engine='openpyxl')
+        df.columns = df.columns.str.lower().str.strip()
         
         total_rows = len(df)
         logger.info(f"Starting Excel import: {total_rows} rows for tenant {tenant.name}")
@@ -89,11 +86,11 @@ def import_products_from_excel_task(self, file_path, tenant_id, user_id=None, ba
                 }
             )
         
-        # Geçici dosyayı storage'dan sil
-        if default_storage.exists(file_path):
+        # Geçici dosyayı local filesystem'den sil
+        if os.path.exists(file_path):
             try:
-                default_storage.delete(file_path)
-                logger.info(f"Temporary Excel file deleted from storage: {file_path}")
+                os.unlink(file_path)
+                logger.info(f"Temporary Excel file deleted from local filesystem: {file_path}")
             except Exception as e:
                 logger.warning(f"Could not delete temporary file {file_path}: {str(e)}")
         
