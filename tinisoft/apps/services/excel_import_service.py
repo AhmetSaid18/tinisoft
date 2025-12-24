@@ -186,6 +186,18 @@ class ExcelImportService:
         'imageurl8': 'image_url_8',
         'imageurl9': 'image_url_9',
         'imageurl10': 'image_url_10',
+        
+        # ImageName kolonları (local path)
+        'imagename1': 'image_name_1',
+        'imagename2': 'image_name_2',
+        'imagename3': 'image_name_3',
+        'imagename4': 'image_name_4',
+        'imagename5': 'image_name_5',
+        'imagename6': 'image_name_6',
+        'imagename7': 'image_name_7',
+        'imagename8': 'image_name_8',
+        'imagename9': 'image_name_9',
+        'imagename10': 'image_name_10',
         'gorsel': 'image_url',
         'görsel': 'image_url',
         'image_url': 'image_url',
@@ -477,6 +489,14 @@ class ExcelImportService:
                     if image_url:
                         product_data['image_urls'].append(image_url)
                 
+                elif model_field.startswith('image_name_'):
+                    # ImageName1, ImageName2, vb. (local path)
+                    if 'image_paths' not in product_data:
+                        product_data['image_paths'] = []
+                    image_path = str(value).strip()
+                    if image_path:
+                        product_data['image_paths'].append(image_path)
+                
                 elif model_field == 'images':
                     # Virgülle ayrılmış görsel URL'leri
                     if isinstance(value, str):
@@ -627,6 +647,12 @@ class ExcelImportService:
             if 'metadata' not in product_data:
                 product_data['metadata'] = {}
             product_data['metadata']['inventory_quantity_2'] = product_data.pop('inventory_quantity_2')
+        
+        # Image paths metadata'ya ekle (local resim yolları)
+        if 'image_paths' in product_data:
+            if 'metadata' not in product_data:
+                product_data['metadata'] = {}
+            product_data['metadata']['image_paths'] = product_data.pop('image_paths')
         
         return product_data
     

@@ -150,8 +150,18 @@ def get_tenant_from_request(request):
     
     # User'dan tenant (authenticated ise)
     if hasattr(request, 'user') and request.user.is_authenticated:
+        # TenantUser ise tenant'ı al
         if hasattr(request.user, 'tenant') and request.user.tenant:
             return request.user.tenant
+        # TenantOwner ise owned_tenants'tan ilkini al (veya tenant field'ından)
+        if request.user.is_tenant_owner:
+            try:
+                # TenantOwner'ın owned_tenants'ından ilkini al
+                tenant = request.user.owned_tenants.filter(is_deleted=False).first()
+                if tenant:
+                    return tenant
+            except:
+                pass
     
     return None
 

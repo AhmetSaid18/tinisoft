@@ -11,6 +11,12 @@ from apps.views.product import (
     category_list_create
 )
 from apps.views.product_import import import_products_from_excel, excel_template_download
+from apps.views.product_image_upload import (
+    upload_product_image_by_slug,
+    bulk_upload_product_images,
+    upload_product_image_by_sku
+)
+from apps.views.product_image_from_excel import upload_images_from_excel_paths
 from apps.views.order import order_list_create, order_detail, order_track
 from apps.views.cart import (
     cart_detail, add_to_cart, cart_item_detail,
@@ -91,6 +97,10 @@ urlpatterns = [
     path('products/<uuid:product_id>/', product_detail, name='product_detail'),  # GET, PUT, PATCH, DELETE
     path('products/import/', import_products_from_excel, name='import_products_from_excel'),  # POST: Excel'den ürün import
     path('products/import/template/', excel_template_download, name='excel_template_download'),  # GET: Excel template indir
+    path('products/images/upload/', upload_product_image_by_slug, name='upload_product_image_by_slug'),  # POST: Slug ile görsel yükle
+    path('products/images/bulk-upload/', bulk_upload_product_images, name='bulk_upload_product_images'),  # POST: Toplu görsel yükle
+    path('products/images/upload-by-sku/', upload_product_image_by_sku, name='upload_product_image_by_sku'),  # POST: SKU ile görsel yükle
+    path('products/images/upload-from-excel/', upload_images_from_excel_paths, name='upload_images_from_excel_paths'),  # POST: Excel'den resim yollarını yükle
     path('public/products/', product_list_public, name='product_list_public'),  # Public product list
     path('public/products/<str:product_slug>/', product_detail_public, name='product_detail_public'),  # Public product detail
     path('categories/', category_list_create, name='category_list_create'),  # GET: List, POST: Create

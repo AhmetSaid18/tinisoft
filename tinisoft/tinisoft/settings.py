@@ -128,8 +128,42 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# Media files (Product images) - Cloudflare R2
+USE_R2 = env.bool('USE_R2', default=False)  # R2 kullanılsın mı?
+
+if USE_R2:
+    # Cloudflare R2 Storage
+    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+    STATICFILES_STORAGE = 'storages.backends.s3boto3.S3StaticStorage'
+    
+    # R2 Settings (S3 uyumlu)
+    AWS_ACCESS_KEY_ID = env('R2_ACCESS_KEY_ID', default='')
+    AWS_SECRET_ACCESS_KEY = env('R2_SECRET_ACCESS_KEY', default='')
+    AWS_STORAGE_BUCKET_NAME = env('R2_BUCKET_NAME', default='')
+    AWS_S3_ENDPOINT_URL = env('R2_ENDPOINT_URL', default='')  # Örn: https://xxx.r2.cloudflarestorage.com
+    AWS_S3_REGION_NAME = env('R2_REGION', default='auto')
+    AWS_S3_CUSTOM_DOMAIN = env('R2_CUSTOM_DOMAIN', default='')  # Örn: cdn.tinisoft.com.tr (opsiyonel)
+    
+    # R2 özel ayarlar
+    AWS_S3_OBJECT_PARAMETERS = {
+        'CacheControl': 'max-age=86400',  # 1 gün cache
+    }
+    AWS_DEFAULT_ACL = 'public-read'  # Public read (görseller için)
+    AWS_QUERYSTRING_AUTH = False  # Query string auth yok (CDN için)
+    AWS_S3_FILE_OVERWRITE = False  # Aynı isimli dosya üzerine yazma
+    
+    # Media URL (R2'den)
+    if AWS_S3_CUSTOM_DOMAIN:
+        MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
+    else:
+        MEDIA_URL = f'{AWS_S3_ENDPOINT_URL}/media/'
+    
+    MEDIA_ROOT = ''  # R2 kullanıldığında local media root gerekmez
+else:
+    # Local storage (development)
+    MEDIA_URL = '/media/'
+    MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # File Upload Limits (413 hatası için)
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 MB
