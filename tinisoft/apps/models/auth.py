@@ -145,6 +145,13 @@ class Tenant(BaseModel):
         default='free'
     )
     
+    # Frontend URL (custom domain veya subdomain)
+    def get_frontend_url(self):
+        """Frontend URL'ini döndür."""
+        if self.custom_domain:
+            return f"https://{self.custom_domain}"
+        return f"https://{self.subdomain}.domains.tinisoft.com.tr"
+    
     # Frontend Template
     template = models.CharField(
         max_length=100,

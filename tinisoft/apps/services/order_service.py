@@ -193,6 +193,8 @@ class OrderService:
     @staticmethod
     def update_order_status(order, new_status, admin_user=None):
         """Sipariş durumunu güncelle."""
+        from apps.services.email_service import EmailService
+        
         old_status = order.status
         order.status = new_status
         
@@ -205,6 +207,21 @@ class OrderService:
         order.save()
         
         logger.info(f"Order {order.order_number} status changed: {old_status} -> {new_status}")
+        
+        # Email gönder (asenkron olarak)
+        try:
+            if new_status == Order.OrderStatus.CONFIRMED:
+                EmailService.send_order_confirmation_email(order.tenant, order)
+            elif new_status == Order.OrderStatus.SHIPPED:
+                EmailService.send_order_shipped_email(order.tenant, order)
+            elif new_status == Order.OrderStatus.DELIVERED:
+                EmailService.send_order_delivered_email(order.tenant, order)
+            elif new_status == Order.OrderStatus.CANCELLED:
+                EmailService.send_order_cancelled_email(order.tenant, order)
+        except Exception as e:
+            logger.error(f"Email send error for order {order.order_number}: {str(e)}")
+            # Email hatası sipariş güncellemesini engellemez
+        
         return order
     
     @staticmethod

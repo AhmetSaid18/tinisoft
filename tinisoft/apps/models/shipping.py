@@ -70,4 +70,16 @@ class ShippingAddress(BaseModel):
     
     def __str__(self):
         return f"{self.first_name} {self.last_name} - {self.city}"
+    
+    @property
+    def full_address(self):
+        """Tam adres string'i."""
+        address_parts = [
+            self.address_line_1,
+            self.address_line_2,
+            f"{self.postal_code} {self.city}",
+            self.state,
+            self.country
+        ]
+        return ", ".join([part for part in address_parts if part])
 

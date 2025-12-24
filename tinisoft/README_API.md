@@ -260,6 +260,109 @@ Authorization: Bearer {token}
 
 **Endpoint:** `POST /api/integrations/{integration_id}/test/`
 
+## Ürün Yönetimi
+
+### Ürün Listesi
+
+**Endpoint:** `GET /api/products/`
+
+**Query Parameters:**
+- `status`: Filtreleme (active, draft, archived)
+- `is_visible`: Görünürlük filtresi (true/false)
+- `category`: Kategori ID
+- `search`: Arama (ürün adı, SKU, barkod)
+
+### Ürün Oluşturma
+
+**Endpoint:** `POST /api/products/`
+
+**Request Body:**
+```json
+{
+  "name": "Ürün Adı",
+  "description": "Ürün açıklaması",
+  "price": "100.00",
+  "compare_at_price": "120.00",
+  "sku": "SKU-001",
+  "barcode": "1234567890123",
+  "inventory_quantity": 50,
+  "category": "category-uuid",
+  "status": "active",
+  "is_visible": true
+}
+```
+
+### Excel'den Ürün Import 🆕
+
+**Endpoint:** `POST /api/products/import/`
+
+**Content-Type:** `multipart/form-data`
+
+**Request Body:**
+```
+file: <excel_file.xlsx>
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "150 ürün başarıyla import edildi.",
+  "imported_count": 150,
+  "failed_count": 2,
+  "errors": [
+    "Satır 45: Ürün adı zorunludur.",
+    "Satır 78: Geçersiz fiyat formatı."
+  ],
+  "products": [
+    {
+      "id": "uuid",
+      "name": "Ürün Adı",
+      "sku": "SKU-001",
+      "price": "100.00"
+    }
+  ]
+}
+```
+
+**Desteklenen Excel Kolonları:**
+- `UrunAdi` → Ürün adı
+- `Urun-Kodu` → SKU
+- `Barcode` → Barkod
+- `Marka` → Marka
+- `Ürün Kategori Adı` → Kategori (otomatik oluşturulur)
+- `Fiyat` → Satış fiyatı
+- `Karşılaştırma Fiyatı` → Eski fiyat
+- `Stok` → Stok miktarı
+- `Ürün Ağırlık` → Ağırlık (kg)
+- `Ürün En`, `Ürün Boy`, `Ürün Derinlik` → Boyutlar (cm)
+- `ImageURL1`, `ImageURL2`, ... `ImageURL10` → Görseller
+- Ve daha fazlası...
+
+**Not:** Excel'deki tüm kolonlar otomatik olarak Product modeline map edilir. Detaylı mapping için `apps/services/excel_import_service.py` dosyasına bakabilirsiniz.
+
+### Excel Template İndirme 🆕
+
+**Endpoint:** `GET /api/products/import/template/`
+
+**Response:** Excel dosyası (.xlsx) indirilir
+
+Template dosyası örnek verilerle doldurulmuş şekilde gelir. Bu template'i kullanarak ürünlerinizi hazırlayıp import edebilirsiniz.
+
+### Ürün Detay
+
+**Endpoint:** `GET /api/products/{product_id}/`
+
+### Ürün Güncelleme
+
+**Endpoint:** `PATCH /api/products/{product_id}/`
+
+### Ürün Silme
+
+**Endpoint:** `DELETE /api/products/{product_id}/`
+
+**Not:** Soft delete kullanılır, ürün fiziksel olarak silinmez.
+
 ## Ödeme İşlemleri
 
 ### Ödeme Oluşturma (Kuveyt API)

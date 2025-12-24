@@ -130,6 +130,7 @@ Tüm modüller `apps/` altında modüler yapıda:
 
 ### E-Ticaret Özellikleri
 - ✅ **Ürün Yönetimi**: Ürünler, kategoriler, varyantlar, görseller
+- ✅ **Excel Import**: Excel'den toplu ürün yükleme, template indirme, otomatik mapping
 - ✅ **Sepet Sistemi**: Guest ve müşteri sepetleri
 - ✅ **Sipariş Yönetimi**: Sipariş oluşturma, takip, durum güncelleme
 - ✅ **Ödeme Entegrasyonları**: Kuveyt API, İyzico, PayTR (genişletilebilir)
@@ -178,7 +179,7 @@ Tüm modüller `apps/` altında modüler yapıda:
 
 ## 📚 Dokümantasyon
 
-- **[API Dokümantasyonu](README_API.md)** - API endpoint'leri ve kullanımı
+- **[API Dokümantasyonu](README_API.md)** - API endpoint'leri ve kullanımı (Excel Import dahil)
 - **[Özellikler Özeti](FEATURES_SUMMARY.md)** - Tüm özellikler ve kullanım senaryoları
 - **[Integration API Keys](INTEGRATION_API_KEYS.md)** - Entegrasyon API key yönetimi
 - **[Ödeme Akışı](PAYMENT_FLOW.md)** - Ödeme ve sipariş takip akışı

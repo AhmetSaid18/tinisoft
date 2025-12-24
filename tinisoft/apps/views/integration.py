@@ -13,6 +13,7 @@ from apps.serializers.integration import (
     IntegrationProviderUpdateSerializer,
     IntegrationProviderTestSerializer
 )
+from apps.services.email_service import EmailService
 from core.middleware import get_tenant_from_request
 import logging
 
@@ -238,6 +239,83 @@ def integration_test(request, integration_id):
                 'test_mode': integration.status == IntegrationProvider.Status.TEST_MODE,
             }
             
+        elif integration.provider_type == IntegrationProvider.ProviderType.EMAIL:
+            # Email test - test email gönder
+            test_email = request.data.get('test_email', request.user.email)
+            test_message = request.data.get('test_message', 'Bu bir test emailidir. SMTP ayarlarınız doğru çalışıyor!')
+            
+            if not test_email:
+                return Response({
+                    'success': False,
+                    'message': 'Test email adresi gereklidir.',
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Test email gönder
+            email_result = EmailService.send_email(
+                tenant=tenant,
+                to_email=test_email,
+                subject=f"Test Email - {tenant.name}",
+                html_content=f"""
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <style>
+                        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                        .header {{ background-color: #4CAF50; color: white; padding: 20px; text-align: center; }}
+                        .content {{ padding: 20px; background-color: #f9f9f9; }}
+                        .message {{ background-color: white; padding: 15px; margin: 15px 0; border-radius: 5px; }}
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header">
+                            <h1>Test Email</h1>
+                        </div>
+                        <div class="content">
+                            <p>Merhaba,</p>
+                            <div class="message">
+                                <p>{test_message}</p>
+                            </div>
+                            <p>Bu email {tenant.name} tarafından SMTP ayarlarını test etmek için gönderilmiştir.</p>
+                            <p>Eğer bu emaili alıyorsanız, SMTP ayarlarınız doğru çalışıyor demektir!</p>
+                            <p>Teşekkür ederiz!</p>
+                            <p><strong>{tenant.name}</strong></p>
+                        </div>
+                    </div>
+                </body>
+                </html>
+                """,
+                text_content=f"""
+Test Email
+
+Merhaba,
+
+{test_message}
+
+Bu email {tenant.name} tarafından SMTP ayarlarını test etmek için gönderilmiştir.
+Eğer bu emaili alıyorsanız, SMTP ayarlarınız doğru çalışıyor demektir!
+
+Teşekkür ederiz!
+{tenant.name}
+                """
+            )
+            
+            if email_result['success']:
+                test_result = {
+                    'success': True,
+                    'message': f'Test email başarıyla gönderildi. Lütfen {test_email} adresinizi kontrol edin.',
+                    'test_email': test_email,
+                }
+            else:
+                test_result = {
+                    'success': False,
+                    'message': f'Email gönderilemedi: {email_result.get("message", "Bilinmeyen hata")}',
+                    'error': email_result.get('error', ''),
+                    'test_email': test_email,
+                }
+        
         elif integration.provider_type in [
             IntegrationProvider.ProviderType.ARAS,
             IntegrationProvider.ProviderType.YURTICI,
@@ -255,10 +333,19 @@ def integration_test(request, integration_id):
                 'message': f'{integration.get_provider_type_display()} testi henüz implement edilmedi.',
             }
         
-        return Response({
-            'success': True,
-            'test_result': test_result,
-        })
+        # Test sonucuna göre response döndür
+        if test_result.get('success', False):
+            return Response({
+                'success': True,
+                'message': test_result.get('message', 'Test başarılı.'),
+                'test_result': test_result,
+            })
+        else:
+            return Response({
+                'success': False,
+                'message': test_result.get('message', 'Test başarısız. Lütfen SMTP ayarlarınızı kontrol edin.'),
+                'test_result': test_result,
+            }, status=status.HTTP_400_BAD_REQUEST)
     
     except Exception as e:
         logger.error(f"Integration test error: {str(e)}")
