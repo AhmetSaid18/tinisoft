@@ -42,6 +42,17 @@ class ExcelImportService:
         'price': 'price',
         'satis_fiyati': 'price',
         'satış_fiyatı': 'price',
+        'ecommerce_site_price': 'price',
+        'ecommerce_site_fiyat': 'price',
+        'price_with_vat': 'price',
+        'kdv_dahil_fiyat': 'price',
+        'kdv_dahil': 'price',
+        'satis_fiyat': 'price',
+        'satış_fiyat': 'price',
+        'urun_fiyati': 'price',
+        'ürün_fiyatı': 'price',
+        'urun_fiyat': 'price',
+        'ürün_fiyat': 'price',
         
         'karsilastirma_fiyati': 'compare_at_price',
         'karşılaştırma_fiyatı': 'compare_at_price',
@@ -354,8 +365,14 @@ class ExcelImportService:
             # Excel dosyasını oku
             df = pd.read_excel(file_path, engine='openpyxl')
             
+            # Kolon isimlerini logla (debug için)
+            logger.info(f"Excel columns found: {list(df.columns)}")
+            
             # Kolon isimlerini normalize et (küçük harf, boşlukları temizle)
             df.columns = df.columns.str.lower().str.strip()
+            
+            # Normalize edilmiş kolon isimlerini logla
+            logger.info(f"Normalized Excel columns: {list(df.columns)}")
             
             # Her satırı işle
             for index, row in df.iterrows():
@@ -394,6 +411,28 @@ class ExcelImportService:
         product_data = {
             'tenant': tenant,
         }
+        
+        # Fiyat kolonunu otomatik bul (eğer mapping'de yoksa)
+        price_found = False
+        for col in row.index:
+            col_lower = str(col).lower().strip()
+            # Fiyat içeren kolonları kontrol et
+            if any(keyword in col_lower for keyword in ['fiyat', 'price', 'satis', 'satış', 'ecommerce']):
+                if col_lower not in ExcelImportService.FIELD_MAPPING:
+                    # Fiyat kolonu bulundu ama mapping'de yok - otomatik ekle
+                    if pd.notna(row[col]) and row[col] != '':
+                        try:
+                            value = row[col]
+                            if isinstance(value, (int, float)) or (isinstance(value, str) and value.replace(',', '.').replace(' ', '').replace('₺', '').replace('TL', '').replace('.', '', 1).isdigit()):
+                                clean_value = str(value).replace(',', '.').replace(' ', '').replace('₺', '').replace('TL', '')
+                                price_val = Decimal(clean_value)
+                                if price_val > 0:
+                                    product_data['price'] = price_val
+                                    price_found = True
+                                    logger.info(f"Auto-detected price column: {col} = {price_val}")
+                                    break
+                        except:
+                            pass
         
         # Mapping yap
         for excel_col, model_field in ExcelImportService.FIELD_MAPPING.items():
@@ -469,7 +508,12 @@ class ExcelImportService:
                         product_data[model_field] = bool(value)
                 
                 elif model_field in ['meta_title', 'meta_description', 'meta_keywords', 'sku', 'barcode']:
-                    product_data[model_field] = str(value).strip() if value else ''
+                    # CharField max_length kontrolü (SKU ve barcode için 200 karakter limit)
+                    value_str = str(value).strip() if value else ''
+                    if model_field in ['sku', 'barcode'] and len(value_str) > 200:
+                        value_str = value_str[:200]  # İlk 200 karakteri al
+                        logger.warning(f"SKU/Barcode truncated to 200 chars: {value_str[:50]}...")
+                    product_data[model_field] = value_str
                 
                 elif model_field == 'tags':
                     # Virgülle ayrılmış etiketler

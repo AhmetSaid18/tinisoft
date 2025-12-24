@@ -70,8 +70,8 @@ class Product(BaseModel):
     )
 
     # SKU / Barkod (basit ürünler için)
-    sku = models.CharField(max_length=100, blank=True, db_index=True)
-    barcode = models.CharField(max_length=100, blank=True)
+    sku = models.CharField(max_length=200, blank=True, db_index=True)
+    barcode = models.CharField(max_length=200, blank=True)
 
     # Stok bilgileri (basit ürünler için)
     track_inventory = models.BooleanField(default=True)
