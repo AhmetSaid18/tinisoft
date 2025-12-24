@@ -65,6 +65,16 @@ def import_products_from_excel(request):
             'message': 'Sadece Excel dosyaları (.xlsx, .xls) kabul edilir.',
         }, status=status.HTTP_400_BAD_REQUEST)
     
+    # Dosya boyutu kontrolü (100 MB limit)
+    max_file_size = 100 * 1024 * 1024  # 100 MB
+    if excel_file.size > max_file_size:
+        return Response({
+            'success': False,
+            'message': f'Dosya boyutu çok büyük. Maksimum {max_file_size / (1024*1024):.0f} MB kabul edilir. Mevcut dosya: {excel_file.size / (1024*1024):.2f} MB',
+            'file_size': excel_file.size,
+            'max_size': max_file_size,
+        }, status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE)
+    
     # Async işlem kontrolü
     use_async = request.data.get('async', False)
     

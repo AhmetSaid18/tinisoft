@@ -81,7 +81,7 @@ services:
         python manage.py migrate || echo 'Migration failed, continuing...' &&
         python manage.py collectstatic --noinput || echo 'Collectstatic failed, continuing...' &&
         echo 'Starting Gunicorn...' &&
-        gunicorn --bind 0.0.0.0:8000 --workers 4 --timeout 120 tinisoft.wsgi:application
+        gunicorn --bind 0.0.0.0:8000 --workers 4 --timeout 300 --limit-request-line 8190 tinisoft.wsgi:application
       "
 
   celery:

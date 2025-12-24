@@ -171,9 +171,10 @@ else:
     MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # File Upload Limits (413 hatası için)
-DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 MB
-FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 MB
-DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000  # Form field limit
+# Excel dosyaları için yüksek limit (4000+ ürün için)
+DATA_UPLOAD_MAX_MEMORY_SIZE = 100 * 1024 * 1024  # 100 MB (10 MB'dan artırıldı)
+FILE_UPLOAD_MAX_MEMORY_SIZE = 100 * 1024 * 1024  # 100 MB (10 MB'dan artırıldı)
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 50000  # Form field limit (10000'den artırıldı)
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
