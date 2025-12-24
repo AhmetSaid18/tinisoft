@@ -155,6 +155,10 @@ class Tenant(BaseModel):
     # Metadata
     activated_at = models.DateTimeField(null=True, blank=True)
     suspended_at = models.DateTimeField(null=True, blank=True)
+    metadata = models.JSONField(
+        default=dict,
+        help_text="Ek bilgiler (JSON format) - Payment provider configs, vb."
+    )
     
     class Meta:
         db_table = 'tenants'

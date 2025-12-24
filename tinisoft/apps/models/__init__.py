@@ -23,6 +23,7 @@ from .gift_card import GiftCard, GiftCardTransaction
 from .loyalty import LoyaltyProgram, LoyaltyPoints, LoyaltyTransaction
 from .webhook import Webhook, WebhookEvent
 from .analytics import AnalyticsEvent, SalesReport, ProductAnalytics
+from .integration import IntegrationProvider
 
 __all__ = [
     'User',
@@ -70,4 +71,5 @@ __all__ = [
     'AnalyticsEvent',
     'SalesReport',
     'ProductAnalytics',
+    'IntegrationProvider',
 ]

@@ -200,10 +200,134 @@ class Product(BaseModel):
     view_count = models.PositiveIntegerField(default=0)
     sale_count = models.PositiveIntegerField(default=0)
     
+    # Marka ve Menşei
+    brand = models.CharField(
+        max_length=255,
+        blank=True,
+        db_index=True,
+        help_text="Marka"
+    )
+    origin = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Menşei"
+    )
+    
+    # Ürün Tipi
+    product_type = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Ürün tipi"
+    )
+    
+    # GTIN, MPN, GTIP (E-ticaret standartları)
+    gtin = models.CharField(
+        max_length=50,
+        blank=True,
+        db_index=True,
+        help_text="GTIN (Global Trade Item Number)"
+    )
+    mpn = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="MPN (Manufacturer Part Number)"
+    )
+    gtip = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="GTIP (Gümrük Tarife İstatistik Pozisyonu)"
+    )
+    
+    # Fiyat bilgileri
+    buying_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Alış fiyatı (maliyet)"
+    )
+    ecommerce_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="E-ticaret site fiyatı"
+    )
+    shipping_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Kargo fiyatı"
+    )
+    
+    # Stok bilgileri
+    critical_stock = models.IntegerField(
+        default=0,
+        help_text="Kritik stok seviyesi"
+    )
+    
+    # Kargo bilgileri
+    desi = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Desi (kargo hesaplama için)"
+    )
+    depth = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Derinlik (cm)"
+    )
+    
+    # Tarih bilgileri
+    expiry_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Son kullanma tarihi (Miad)"
+    )
+    
+    # Fatura bilgileri
+    invoice_name = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Fatura adı"
+    )
+    
+    # Raf bilgisi
+    shelf_number = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="Raf numarası"
+    )
+    
+    # E-ticaret entegrasyon
+    ecommerce_category = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="E-ticaret kategori adı"
+    )
+    ecommerce_integration_code = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="E-ticaret entegrasyon kodu"
+    )
+    fulfillment_id = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Fulfillment ID"
+    )
+    
+    # Uyumluluk bilgileri (metadata'da saklanır)
+    # Model, Seri, Hacim, Yıl, Numara, Beden, Renk, Desen, Cinsiyet, vb.
+    
     # Metadata
     metadata = models.JSONField(
         default=dict,
-        help_text="Ek bilgiler (JSON format)"
+        help_text="Ek bilgiler (JSON format) - Uyumluluk bilgileri, vb."
     )
 
     class Meta:

@@ -6,7 +6,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
-from django.db.models import Q
+from django.db.models import Q, F
 from django.utils import timezone
 from decimal import Decimal
 from apps.models import Coupon, Promotion
@@ -265,6 +265,65 @@ def coupon_validate(request):
         'success': False,
         'errors': serializer.errors,
     }, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def coupon_list_public(request):
+    """
+    Public kupon listesi - Müşterilerin görebileceği aktif kuponlar.
+    
+    GET: /api/public/coupons/
+    """
+    tenant = get_tenant_from_request(request)
+    if not tenant:
+        return Response({
+            'success': False,
+            'message': 'Tenant bulunamadı.',
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    from django.utils import timezone
+    
+    # Sadece aktif ve geçerli kuponları göster
+    queryset = Coupon.objects.filter(
+        tenant=tenant,
+        is_deleted=False,
+        is_active=True
+    )
+    
+    # Tarih kontrolü
+    now = timezone.now()
+    queryset = queryset.filter(
+        valid_from__lte=now
+    ).filter(
+        Q(valid_until__isnull=True) | Q(valid_until__gte=now)
+    )
+    
+    # Kullanım limiti kontrolü (limit varsa ve dolmuşsa gösterme)
+    queryset = queryset.filter(
+        Q(usage_limit__isnull=True) | Q(usage_count__lt=F('usage_limit'))
+    )
+    
+    # Sıralama
+    queryset = queryset.order_by('-created_at')
+    
+    # Basit serializer (sadece gerekli bilgiler)
+    coupons_data = []
+    for coupon in queryset:
+        coupons_data.append({
+            'code': coupon.code,
+            'name': coupon.name,
+            'description': coupon.description,
+            'discount_type': coupon.discount_type,
+            'discount_value': str(coupon.discount_value),
+            'minimum_order_amount': str(coupon.minimum_order_amount),
+            'valid_until': coupon.valid_until.isoformat() if coupon.valid_until else None,
+        })
+    
+    return Response({
+        'success': True,
+        'coupons': coupons_data,
+    })
 
 
 @api_view(['GET', 'POST'])

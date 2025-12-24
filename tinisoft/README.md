@@ -126,16 +126,61 @@ Tüm modüller `apps/` altında modüler yapıda:
 - **tasks/**: Celery background tasks
 - **utils/**: Helper fonksiyonlar
 
+## ✨ Özellikler
+
+### E-Ticaret Özellikleri
+- ✅ **Ürün Yönetimi**: Ürünler, kategoriler, varyantlar, görseller
+- ✅ **Sepet Sistemi**: Guest ve müşteri sepetleri
+- ✅ **Sipariş Yönetimi**: Sipariş oluşturma, takip, durum güncelleme
+- ✅ **Ödeme Entegrasyonları**: Kuveyt API, İyzico, PayTR (genişletilebilir)
+- ✅ **Kupon Sistemi**: Kupon oluşturma, doğrulama, sepete uygulama
+- ✅ **Müşteri Yönetimi**: Müşteri profilleri, adresler, sipariş geçmişi
+- ✅ **Stok Yönetimi**: Stok takibi, stok hareketleri, uyarılar
+- ✅ **Kargo Yönetimi**: Kargo yöntemleri, bölgeler, ücret hesaplama
+- ✅ **Yorumlar**: Ürün yorumları ve puanlama
+- ✅ **Favoriler**: Wishlist sistemi
+- ✅ **Sadakat Programı**: Puan sistemi, işlem geçmişi
+- ✅ **Hediye Kartları**: Hediye kartı yönetimi
+- ✅ **Ürün Paketleri**: Bundle/ürün paketleri
+- ✅ **Analytics**: Satış raporları, ürün analitikleri
+
+### Entegrasyonlar
+- ✅ **Integration API Keys**: Tüm entegrasyonlar için merkezi API key yönetimi
+  - Şifreli saklama (Fernet encryption)
+  - Test modu desteği
+  - Desteklenen entegrasyonlar:
+    - **Ödeme**: Kuveyt, İyzico, PayTR, Vakıf, Garanti, Akbank
+    - **Kargo**: Aras, Yurtiçi, MNG, Sendex, Trendyol Express
+    - **Marketplace**: Trendyol, Hepsiburada, N11, GittiGidiyor
+    - **Diğer**: SMS, Email, Analytics
+
+### Multi-Tenant Özellikleri
+- ✅ **Tam İzolasyon**: Her tenant'ın kendi schema'sı, verileri, müşterileri
+- ✅ **Domain Yönetimi**: Subdomain ve custom domain desteği
+- ✅ **SSL Yönetimi**: Otomatik SSL sertifikası
+- ✅ **Frontend Deployment**: Otomatik frontend build ve deployment
+
 ## 🔐 Güvenlik
 
-- JWT authentication (gelecekte eklenecek)
+- JWT authentication
 - CORS yapılandırması
 - Tenant izolasyonu (schema-based)
 - Soft delete (is_deleted flag)
+- **API Key Şifreleme**: Tüm entegrasyon API key'leri şifreli saklanır
+- **Tenant İzolasyonu**: Her tenant sadece kendi verilerine erişebilir
 
 ## 📝 Notlar
 
 - Tüm modeller `BaseModel`'den türetilir (UUID, timestamps, soft delete)
-- Tenant-specific modeller `_tenant_schema` attribute'una sahip olmalı
+- Tenant-specific modeller `tenant` ForeignKey'ine sahiptir
 - Schema'lar otomatik oluşturulur ve yönetilir
+- Her tenant kendi işlemlerinden, müşterilerinden ve siparişlerinden sorumludur
+
+## 📚 Dokümantasyon
+
+- **[API Dokümantasyonu](README_API.md)** - API endpoint'leri ve kullanımı
+- **[Özellikler Özeti](FEATURES_SUMMARY.md)** - Tüm özellikler ve kullanım senaryoları
+- **[Integration API Keys](INTEGRATION_API_KEYS.md)** - Entegrasyon API key yönetimi
+- **[Ödeme Akışı](PAYMENT_FLOW.md)** - Ödeme ve sipariş takip akışı
+- **[Database Mimari](DATABASE_ARCHITECTURE.md)** - Multi-tenant database yapısı
 

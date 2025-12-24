@@ -42,13 +42,23 @@ def order_list_create(request):
     
     if request.method == 'GET':
         # Permission kontrolü
-        if not (request.user.is_owner or (request.user.is_tenant_owner and request.user.tenant == tenant)):
+        # TenantUser sadece kendi siparişlerini görebilir
+        # TenantOwner/Admin tüm siparişleri görebilir
+        if request.user.is_tenant_user and request.user.tenant == tenant:
+            # Müşteri - sadece kendi siparişleri
+            queryset = Order.objects.filter(
+                tenant=tenant,
+                customer=request.user,
+                is_deleted=False
+            )
+        elif request.user.is_owner or (request.user.is_tenant_owner and request.user.tenant == tenant):
+            # Owner/TenantOwner - tüm siparişler
+            queryset = Order.objects.filter(tenant=tenant, is_deleted=False)
+        else:
             return Response({
                 'success': False,
                 'message': 'Bu işlem için yetkiniz yok.',
             }, status=status.HTTP_403_FORBIDDEN)
-        
-        queryset = Order.objects.filter(tenant=tenant, is_deleted=False)
         
         # Status filtresi
         status_filter = request.query_params.get('status')
@@ -255,3 +265,48 @@ def order_detail(request, order_id):
             'order': serializer.data,
         })
 
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def order_track(request, order_number):
+    """
+    Sipariş takip - Müşteriler sipariş numarası ile sipariş durumunu görebilir.
+    
+    GET: /api/orders/track/{order_number}/
+    """
+    tenant = get_tenant_from_request(request)
+    if not tenant:
+        return Response({
+            'success': False,
+            'message': 'Tenant bulunamadı.',
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        order = Order.objects.get(
+            order_number=order_number,
+            tenant=tenant,
+            is_deleted=False
+        )
+    except Order.DoesNotExist:
+        return Response({
+            'success': False,
+            'message': 'Sipariş bulunamadı.',
+        }, status=status.HTTP_404_NOT_FOUND)
+    
+    # Sadece temel bilgileri döndür (güvenlik için)
+    return Response({
+        'success': True,
+        'order': {
+            'order_number': order.order_number,
+            'status': order.status,
+            'status_display': order.get_status_display(),
+            'payment_status': order.payment_status,
+            'payment_status_display': order.get_payment_status_display(),
+            'tracking_number': order.tracking_number,
+            'shipped_at': order.shipped_at.isoformat() if order.shipped_at else None,
+            'delivered_at': order.delivered_at.isoformat() if order.delivered_at else None,
+            'created_at': order.created_at.isoformat(),
+            'total': str(order.total),
+            'currency': order.currency,
+        },
+    })

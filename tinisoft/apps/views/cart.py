@@ -285,3 +285,106 @@ def update_shipping_method(request):
             'message': str(e),
         }, status=status.HTTP_400_BAD_REQUEST)
 
+
+@api_view(['POST', 'DELETE'])
+@permission_classes([AllowAny])
+def apply_coupon(request):
+    """
+    Sepete kupon uygula (POST) veya kaldır (DELETE).
+    
+    POST: /api/cart/coupon/
+    Body: {"coupon_code": "KUPON123"}
+    
+    DELETE: /api/cart/coupon/
+    """
+    tenant = get_tenant_from_request(request)
+    if not tenant:
+        return Response({
+            'success': False,
+            'message': 'Tenant bulunamadı.',
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Sepeti al
+    customer = None
+    session_id = None
+    
+    if request.user.is_authenticated and request.user.is_tenant_user and request.user.tenant == tenant:
+        customer = request.user
+    else:
+        session_id = request.session.session_key
+        if not session_id:
+            return Response({
+                'success': False,
+                'message': 'Sepet bulunamadı.',
+            }, status=status.HTTP_404_NOT_FOUND)
+    
+    try:
+        cart = CartService.get_or_create_cart(tenant, customer, session_id)
+    except ValueError as e:
+        return Response({
+            'success': False,
+            'message': str(e),
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    if request.method == 'POST':
+        coupon_code = request.data.get('coupon_code')
+        if not coupon_code:
+            return Response({
+                'success': False,
+                'message': 'Kupon kodu gereklidir.',
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        from apps.models import Coupon
+        from decimal import Decimal
+        
+        try:
+            coupon = Coupon.objects.get(
+                code=coupon_code,
+                tenant=tenant,
+                is_deleted=False
+            )
+        except Coupon.DoesNotExist:
+            return Response({
+                'success': False,
+                'message': 'Kupon bulunamadı.',
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Kupon geçerliliğini kontrol et
+        customer_email = None
+        if customer:
+            customer_email = customer.email
+        
+        is_valid, message = coupon.is_valid(customer_email, cart.subtotal)
+        
+        if not is_valid:
+            return Response({
+                'success': False,
+                'message': message,
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Kuponu sepete uygula
+        cart.coupon = coupon
+        cart.coupon_code = coupon.code
+        cart.save()
+        cart.calculate_totals()
+        
+        serializer = CartSerializer(cart)
+        return Response({
+            'success': True,
+            'message': 'Kupon sepete uygulandı.',
+            'cart': serializer.data,
+        })
+    
+    elif request.method == 'DELETE':
+        # Kuponu kaldır
+        cart.coupon = None
+        cart.coupon_code = ''
+        cart.save()
+        cart.calculate_totals()
+        
+        serializer = CartSerializer(cart)
+        return Response({
+            'success': True,
+            'message': 'Kupon sepetten kaldırıldı.',
+            'cart': serializer.data,
+        })

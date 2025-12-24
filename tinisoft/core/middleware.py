@@ -14,10 +14,34 @@ class TenantMiddleware(MiddlewareMixin):
     
     def process_request(self, request):
         """Request geldiğinde tenant schema'sını ayarla."""
+        from django.http import HttpResponseNotFound
+        from django.http import JsonResponse
+        
         # Tenant instance'ını al
         tenant = get_tenant_from_request(request)
         
+        # Eğer subdomain veya custom domain varsa ama tenant bulunamadıysa 404 döndür
+        host = request.get_host()
+        is_subdomain_request = '.tinisoft.com.tr' in host and host != 'api.tinisoft.com.tr'
+        is_custom_domain = host not in ['api.tinisoft.com.tr', 'tinisoft.com.tr', 'www.tinisoft.com.tr']
+        
+        if (is_subdomain_request or is_custom_domain) and not tenant:
+            # Mağaza bulunamadı - Shopify/İKAS gibi 404 döndür
+            return JsonResponse({
+                'success': False,
+                'message': 'Mağaza bulunamadı.',
+                'error_code': 'STORE_NOT_FOUND',
+            }, status=404)
+        
         if tenant:
+            # Tenant aktif mi kontrol et
+            if tenant.status != 'active' and tenant.status != 'pending':
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Bu mağaza şu anda aktif değil.',
+                    'error_code': 'STORE_INACTIVE',
+                }, status=403)
+            
             # Tenant schema adını oluştur
             tenant_schema = f'tenant_{tenant.id}'
             set_tenant_schema(tenant_schema)
@@ -25,7 +49,7 @@ class TenantMiddleware(MiddlewareMixin):
             # Connection wrapper ile her sorgudan önce search_path'i ayarla
             self._setup_search_path(tenant_schema)
         else:
-            # Default schema (public)
+            # API endpoint'leri için public schema (api.tinisoft.com.tr)
             set_tenant_schema('public')
             self._setup_search_path('public')
     

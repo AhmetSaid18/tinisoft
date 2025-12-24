@@ -249,3 +249,8 @@ LOGGING = {
     },
 }
 
+# Integration API Keys Encryption Key
+# Production'da mutlaka güçlü bir key kullanın!
+# Key oluşturmak için: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+INTEGRATION_ENCRYPTION_KEY = env('INTEGRATION_ENCRYPTION_KEY', default=None)
+

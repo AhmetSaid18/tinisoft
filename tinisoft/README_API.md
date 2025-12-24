@@ -181,6 +181,186 @@ Authorization: Bearer {token}
 5. `GET /api/domains/{domain_id}/status/` ile durumu kontrol et
 6. Domain doğrulandıktan sonra site yayınlanır
 
+## Integration API Keys
+
+### Entegrasyon Oluşturma
+
+**Endpoint:** `POST /api/integrations/`
+
+**Request Body (Kuveyt API Örneği):**
+```json
+{
+  "provider_type": "kuveyt",
+  "name": "Kuveyt API - Production",
+  "description": "Production ortamı için",
+  "status": "active",
+  "api_key": "your-api-key",
+  "api_secret": "your-api-secret",
+  "api_endpoint": "https://api.kuveyt.com/payment",
+  "test_endpoint": "https://test-api.kuveyt.com/payment",
+  "config": {
+    "return_url": "https://yoursite.com/payment/return",
+    "cancel_url": "https://yoursite.com/payment/cancel"
+  }
+}
+```
+
+**Test Modu:**
+```json
+{
+  "provider_type": "kuveyt",
+  "name": "Kuveyt API - Test",
+  "status": "test_mode",
+  "api_key": "test-api-key",
+  "api_secret": "test-api-secret",
+  "test_endpoint": "https://test-api.kuveyt.com/payment"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Entegrasyon oluşturuldu.",
+  "integration": {
+    "id": "uuid",
+    "provider_type": "kuveyt",
+    "provider_type_display": "Kuveyt API",
+    "name": "Kuveyt API - Production",
+    "status": "active",
+    "status_display": "Aktif",
+    "api_endpoint": "https://api.kuveyt.com/payment",
+    "test_endpoint": "https://test-api.kuveyt.com/payment"
+  }
+}
+```
+
+### Entegrasyon Listesi
+
+**Endpoint:** `GET /api/integrations/`
+
+**Query Parameters:**
+- `provider_type`: Filtreleme (kuveyt, aras, vb.)
+- `status`: Durum filtresi (active, inactive, test_mode)
+
+### Entegrasyon Güncelleme
+
+**Endpoint:** `PATCH /api/integrations/{integration_id}/`
+
+**Test Modundan Canlı Moda Geçiş:**
+```json
+{
+  "status": "active",
+  "api_key": "production-api-key",
+  "api_secret": "production-api-secret"
+}
+```
+
+### Entegrasyon Test Etme
+
+**Endpoint:** `POST /api/integrations/{integration_id}/test/`
+
+## Ödeme İşlemleri
+
+### Ödeme Oluşturma (Kuveyt API)
+
+**Endpoint:** `POST /api/payments/create/`
+
+**Request Body:**
+```json
+{
+  "order_id": "order-uuid",
+  "provider": "kuveyt",
+  "customer_info": {
+    "email": "customer@example.com",
+    "name": "Ahmet Yılmaz",
+    "phone": "+905551234567"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Ödeme oluşturuldu.",
+  "payment": {
+    "id": "uuid",
+    "payment_number": "PAY-TENANT-...",
+    "status": "pending"
+  },
+  "payment_url": "https://api.kuveyt.com/payment/redirect/...",
+  "transaction_id": "TRX123456789"
+}
+```
+
+**Not:** Integration oluşturulduktan sonra config göndermenize gerek yok, sistem otomatik olarak integration'dan alır.
+
+### Ödeme Doğrulama (Callback)
+
+**Endpoint:** `POST /api/payments/verify/`
+
+**Request Body:**
+```json
+{
+  "transaction_id": "TRX123456789",
+  "provider": "kuveyt"
+}
+```
+
+## Sepet ve Sipariş
+
+### Sepete Kupon Uygulama
+
+**Endpoint:** `POST /api/cart/coupon/`
+
+**Request Body:**
+```json
+{
+  "coupon_code": "KUPON123"
+}
+```
+
+**Kuponu Kaldırma:**
+```
+DELETE /api/cart/coupon/
+```
+
+### Public Kupon Listesi
+
+**Endpoint:** `GET /api/public/coupons/`
+
+Müşterilerin görebileceği aktif kuponları listeler.
+
+### Müşteri Sipariş Takip
+
+**Endpoint:** `GET /api/orders/track/{order_number}/`
+
+Sipariş numarası ile sipariş durumunu takip eder (public endpoint).
+
+**Response:**
+```json
+{
+  "success": true,
+  "order": {
+    "order_number": "ORD-TENANT-12345678-ABCD1234",
+    "status": "shipped",
+    "status_display": "Kargoya Verildi",
+    "payment_status": "paid",
+    "tracking_number": "ARAS123456789",
+    "shipped_at": "2024-01-15T10:30:00Z",
+    "total": "150.00",
+    "currency": "TRY"
+  }
+}
+```
+
+### Müşteri Kendi Siparişlerini Görüntüleme
+
+**Endpoint:** `GET /api/orders/`
+
+Müşteriler sadece kendi siparişlerini görür. Tenant owner/admin tüm siparişleri görür.
+
 ## Postman Collection
 
 Postman collection dosyası: `Tinisoft_API.postman_collection.json`
@@ -190,4 +370,10 @@ Import edip kullanabilirsin. Environment variables:
 - `tenant_slug`: `my-store`
 - `domain_id`: Domain ID (register sonrası)
 - `owner_token`: Owner token (login sonrası)
+
+## Detaylı Dokümantasyon
+
+- **[Özellikler Özeti](FEATURES_SUMMARY.md)** - Tüm özellikler ve kullanım senaryoları
+- **[Integration API Keys](INTEGRATION_API_KEYS.md)** - Entegrasyon API key yönetimi detayları
+- **[Ödeme Akışı](PAYMENT_FLOW.md)** - Tam ödeme ve sipariş takip akışı
 

@@ -10,12 +10,13 @@ from apps.views.product import (
     product_list_public, product_detail_public,
     category_list_create
 )
-from apps.views.order import order_list_create, order_detail
+from apps.views.product_import import import_products_from_excel, excel_template_download
+from apps.views.order import order_list_create, order_detail, order_track
 from apps.views.cart import (
     cart_detail, add_to_cart, cart_item_detail,
-    update_shipping_method
+    update_shipping_method, apply_coupon
 )
-from apps.views.payment import payment_list_create, payment_detail
+from apps.views.payment import payment_list_create, payment_detail, payment_create_with_provider, payment_verify
 from apps.views.customer import customer_list, customer_detail, update_customer_statistics
 from apps.views.inventory import inventory_movement_list_create, inventory_movement_detail
 from apps.views.search import search_products, search_suggestions, filter_options
@@ -27,7 +28,7 @@ from apps.views.loyalty import loyalty_program, my_loyalty_points, loyalty_trans
 from apps.views.review import review_list_create, review_detail, review_helpful
 from apps.views.wishlist import wishlist_list_create, wishlist_detail, wishlist_item_add_remove, wishlist_clear
 from apps.views.discount import (
-    coupon_list_create, coupon_detail, coupon_validate,
+    coupon_list_create, coupon_detail, coupon_validate, coupon_list_public,
     promotion_list_create, promotion_detail
 )
 from apps.views.gift_card import (
@@ -61,6 +62,10 @@ from apps.views.inventory_alert import (
     inventory_alert_list_create, inventory_alert_detail,
     inventory_alert_check
 )
+from apps.views.integration import (
+    integration_list_create, integration_detail,
+    integration_test, integration_by_type
+)
 
 app_name = 'apps'
 
@@ -84,6 +89,8 @@ urlpatterns = [
     # Ürün yönetimi
     path('products/', product_list_create, name='product_list_create'),  # GET: List, POST: Create
     path('products/<uuid:product_id>/', product_detail, name='product_detail'),  # GET, PUT, PATCH, DELETE
+    path('products/import/', import_products_from_excel, name='import_products_from_excel'),  # POST: Excel'den ürün import
+    path('products/import/template/', excel_template_download, name='excel_template_download'),  # GET: Excel template indir
     path('public/products/', product_list_public, name='product_list_public'),  # Public product list
     path('public/products/<str:product_slug>/', product_detail_public, name='product_detail_public'),  # Public product detail
     path('categories/', category_list_create, name='category_list_create'),  # GET: List, POST: Create
@@ -91,16 +98,20 @@ urlpatterns = [
     # Sipariş yönetimi
     path('orders/', order_list_create, name='order_list_create'),  # GET: List, POST: Create
     path('orders/<uuid:order_id>/', order_detail, name='order_detail'),  # GET, PATCH
+    path('orders/track/<str:order_number>/', order_track, name='order_track'),  # GET: Track order by order number
     
     # Sepet yönetimi
     path('cart/', cart_detail, name='cart_detail'),  # GET: Get cart, POST: Create cart
     path('cart/add/', add_to_cart, name='add_to_cart'),  # POST: Add to cart
     path('cart/items/<uuid:item_id>/', cart_item_detail, name='cart_item_detail'),  # PATCH: Update, DELETE: Remove
     path('cart/shipping/', update_shipping_method, name='update_shipping_method'),  # PATCH: Update shipping method
+    path('cart/coupon/', apply_coupon, name='apply_coupon'),  # POST: Apply coupon, DELETE: Remove coupon
     
     # Ödeme yönetimi
     path('payments/', payment_list_create, name='payment_list_create'),  # GET: List, POST: Create
     path('payments/<uuid:payment_id>/', payment_detail, name='payment_detail'),  # GET, PATCH
+    path('payments/create/', payment_create_with_provider, name='payment_create_with_provider'),  # POST: Create payment with provider (Kuveyt API)
+    path('payments/verify/', payment_verify, name='payment_verify'),  # POST: Verify payment (callback)
     
     # Müşteri yönetimi
     path('customers/', customer_list, name='customer_list'),  # GET: List
@@ -142,6 +153,7 @@ urlpatterns = [
     path('coupons/', coupon_list_create, name='coupon_list_create'),  # GET: List, POST: Create
     path('coupons/<uuid:coupon_id>/', coupon_detail, name='coupon_detail'),  # GET, PATCH, DELETE
     path('coupons/validate/', coupon_validate, name='coupon_validate'),  # POST: Validate coupon
+    path('public/coupons/', coupon_list_public, name='coupon_list_public'),  # GET: Public coupon list
     
     # Promosyonlar
     path('promotions/', promotion_list_create, name='promotion_list_create'),  # GET: List, POST: Create
@@ -194,5 +206,11 @@ urlpatterns = [
     path('inventory/alerts/', inventory_alert_list_create, name='inventory_alert_list_create'),  # GET: List, POST: Create
     path('inventory/alerts/<uuid:alert_id>/', inventory_alert_detail, name='inventory_alert_detail'),  # GET, PATCH, DELETE
     path('inventory/alerts/<uuid:alert_id>/check/', inventory_alert_check, name='inventory_alert_check'),  # POST: Check and notify
+    
+    # Integration API Keys
+    path('integrations/', integration_list_create, name='integration_list_create'),  # GET: List, POST: Create
+    path('integrations/<uuid:integration_id>/', integration_detail, name='integration_detail'),  # GET, PATCH, DELETE
+    path('integrations/<uuid:integration_id>/test/', integration_test, name='integration_test'),  # POST: Test integration
+    path('integrations/type/<str:provider_type>/', integration_by_type, name='integration_by_type'),  # GET: Get active integration by type
 ]
 
