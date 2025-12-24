@@ -41,9 +41,14 @@ def import_products_from_excel_task(self, file_path, tenant_id, user_id=None, ba
         tenant_schema = f'tenant_{tenant.id}'
         set_tenant_schema(tenant_schema)
         
-        # Excel dosyasını oku
-        df = pd.read_excel(file_path, engine='openpyxl')
-        df.columns = df.columns.str.lower().str.strip()
+        # Excel dosyasını storage'dan oku
+        if not default_storage.exists(file_path):
+            raise FileNotFoundError(f"Excel file not found in storage: {file_path}")
+        
+        # Storage'dan dosyayı oku
+        with default_storage.open(file_path, 'rb') as excel_file:
+            df = pd.read_excel(excel_file, engine='openpyxl')
+            df.columns = df.columns.str.lower().str.strip()
         
         total_rows = len(df)
         logger.info(f"Starting Excel import: {total_rows} rows for tenant {tenant.name}")
@@ -81,12 +86,13 @@ def import_products_from_excel_task(self, file_path, tenant_id, user_id=None, ba
                 }
             )
         
-        # Geçici dosyayı sil
-        if os.path.exists(file_path):
+        # Geçici dosyayı storage'dan sil
+        if default_storage.exists(file_path):
             try:
-                os.unlink(file_path)
-            except:
-                pass
+                default_storage.delete(file_path)
+                logger.info(f"Temporary Excel file deleted from storage: {file_path}")
+            except Exception as e:
+                logger.warning(f"Could not delete temporary file {file_path}: {str(e)}")
         
         result = {
             'success': True,
@@ -101,9 +107,21 @@ def import_products_from_excel_task(self, file_path, tenant_id, user_id=None, ba
         return result
     
     except Exception as e:
-        logger.error(f"Excel import task error: {str(e)}")
-        # Retry için exception fırlat
-        raise self.retry(exc=e, countdown=60)
+        import traceback
+        error_traceback = traceback.format_exc()
+        logger.error(f"Excel import task error for tenant {tenant_id}: {str(e)}")
+        logger.error(f"Traceback: {error_traceback}")
+        
+        # Retry count'u kontrol et
+        retry_count = self.request.retries
+        max_retries = self.max_retries
+        
+        if retry_count < max_retries:
+            logger.warning(f"Retrying import task (attempt {retry_count + 1}/{max_retries})")
+            raise self.retry(exc=e, countdown=60)
+        else:
+            logger.error(f"Max retries reached for import task. Failing permanently.")
+            raise
 
 
 def _process_batch(batch_df, tenant, user, row_offset):

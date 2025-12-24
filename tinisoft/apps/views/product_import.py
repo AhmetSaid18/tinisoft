@@ -94,19 +94,29 @@ def import_products_from_excel(request):
         total_rows = 0
     
     # Geçici dosya olarak kaydet
-    temp_file = None
+    temp_file_path = None
     try:
-        # Geçici dosya oluştur
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp:
-            for chunk in excel_file.chunks():
-                tmp.write(chunk)
-            temp_file = tmp.name
+        # Dosyayı shared storage'a kaydet (Celery worker'ın erişebilmesi için)
+        import uuid
+        from django.utils import timezone
+        
+        # Tenant bazlı klasör yapısı: temp_imports/{tenant_id}/{timestamp}_{uuid}.xlsx
+        timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+        file_uuid = str(uuid.uuid4())[:8]
+        storage_path = f'temp_imports/{tenant.id}/{timestamp}_{file_uuid}.xlsx'
+        
+        # Dosyayı storage'a kaydet
+        excel_file.seek(0)
+        saved_path = default_storage.save(storage_path, ContentFile(excel_file.read()))
+        temp_file_path = saved_path  # Storage path'i kullan
+        
+        logger.info(f"Excel file saved to storage: {saved_path} for tenant {tenant.name}")
         
         # Async işlem
         if use_async:
             # Celery task başlat
             task = import_products_from_excel_task.delay(
-                file_path=temp_file,
+                file_path=temp_file_path,  # Storage path
                 tenant_id=str(tenant.id),
                 user_id=str(request.user.id) if request.user else None,
                 batch_size=100  # Her batch'te 100 ürün
@@ -125,7 +135,7 @@ def import_products_from_excel(request):
         # Sync işlem (küçük dosyalar için)
         else:
             result = ExcelImportService.import_products_from_excel(
-                file_path=temp_file,
+                file_path=temp_file_path,  # Storage path
                 tenant=tenant,
                 user=request.user
             )
@@ -166,11 +176,12 @@ def import_products_from_excel(request):
     
     finally:
         # Sync işlemde geçici dosyayı sil (async'te task siler)
-        if not use_async and temp_file and os.path.exists(temp_file):
+        if not use_async and temp_file_path and default_storage.exists(temp_file_path):
             try:
-                os.unlink(temp_file)
-            except:
-                pass
+                default_storage.delete(temp_file_path)
+                logger.info(f"Temporary file deleted: {temp_file_path}")
+            except Exception as e:
+                logger.warning(f"Could not delete temporary file {temp_file_path}: {str(e)}")
 
 
 @api_view(['GET'])
@@ -228,17 +239,42 @@ def import_status(request, task_id):
                 'errors': result.get('errors', [])[:20],  # İlk 20 hatayı göster
             }
         elif task_result.state == 'FAILURE':
+            error_info = task_result.info
+            if isinstance(error_info, Exception):
+                error_message = str(error_info)
+                error_traceback = getattr(error_info, '__traceback__', None)
+            else:
+                error_message = str(error_info)
+                error_traceback = None
+            
             response = {
                 'success': False,
                 'status': 'FAILURE',
                 'message': 'Import işlemi başarısız oldu.',
-                'error': str(task_result.info),
+                'error': error_message,
+                'traceback': str(error_traceback) if error_traceback else None,
+            }
+        elif task_result.state in ['RETRY', 'REVOKED']:
+            error_info = task_result.info
+            if isinstance(error_info, Exception):
+                error_message = str(error_info)
+            else:
+                error_message = str(error_info) if error_info else 'Bilinmeyen hata'
+            
+            response = {
+                'success': False,
+                'status': task_result.state,
+                'message': f'Import işlemi {task_result.state} durumunda. Hata nedeniyle yeniden deneniyor veya iptal edildi.',
+                'error': error_message,
+                'retry_count': getattr(task_result, 'retries', 0),
+                'max_retries': getattr(task_result, 'max_retries', 3),
             }
         else:
             response = {
                 'success': True,
                 'status': task_result.state,
                 'message': f'Task durumu: {task_result.state}',
+                'info': str(task_result.info) if task_result.info else None,
             }
         
         return Response(response, status=status.HTTP_200_OK)
