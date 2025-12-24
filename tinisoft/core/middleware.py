@@ -17,6 +17,10 @@ class TenantMiddleware(MiddlewareMixin):
         from django.http import HttpResponseNotFound
         from django.http import JsonResponse
         
+        # OPTIONS istekleri için CORS preflight - tenant kontrolü yapma
+        if request.method == 'OPTIONS':
+            return None  # CORS middleware handle edecek
+        
         # Tenant instance'ını al
         tenant = get_tenant_from_request(request)
         

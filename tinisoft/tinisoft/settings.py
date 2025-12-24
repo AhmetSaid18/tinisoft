@@ -210,6 +210,8 @@ else:
     CORS_ALLOW_ALL_ORIGINS = False
 
 CORS_ALLOW_CREDENTIALS = True
+
+# CORS Headers - Tüm gerekli header'ları ekle
 CORS_ALLOW_HEADERS = [
     'accept',
     'accept-encoding',
@@ -221,7 +223,22 @@ CORS_ALLOW_HEADERS = [
     'x-csrftoken',
     'x-requested-with',
     'x-tenant-id',  # Multi-tenant için
+    'cache-control',
+    'pragma',
 ]
+
+# CORS Methods - Tüm HTTP method'larına izin ver
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+
+# Preflight cache süresi (OPTIONS istekleri için)
+CORS_PREFLIGHT_MAX_AGE = 86400  # 24 saat
 
 # Celery Configuration
 CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='redis://redis:6379/0')
