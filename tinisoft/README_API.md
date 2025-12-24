@@ -2,6 +2,33 @@
 
 Base URL: `https://api.tinisoft.com.tr`
 
+## ⚠️ Önemli: Tenant Bilgisi
+
+Tüm API istekleri tenant bilgisi gerektirir. Tenant bilgisi şu yollarla gönderilebilir:
+
+1. **Subdomain**: `https://tenant-slug.tinisoft.com.tr/api/coupons/`
+2. **Custom Domain**: `https://example.com/api/coupons/`
+3. **Header**: `X-Tenant-ID: {tenant-uuid}` header'ı ile
+4. **Authenticated User**: Login olmuş user'ın tenant'ı otomatik kullanılır
+
+**Örnek:**
+```javascript
+// Header ile
+fetch('https://api.tinisoft.com.tr/api/coupons/', {
+  headers: {
+    'Authorization': 'Bearer {token}',
+    'X-Tenant-ID': 'tenant-uuid'
+  }
+})
+
+// Subdomain ile
+fetch('https://tenant-slug.tinisoft.com.tr/api/coupons/', {
+  headers: {
+    'Authorization': 'Bearer {token}'
+  }
+})
+```
+
 ## Authentication
 
 ### Owner (Mağaza Sahibi) Kayıt

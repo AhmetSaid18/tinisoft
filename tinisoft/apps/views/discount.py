@@ -39,7 +39,9 @@ def coupon_list_create(request):
     if not tenant:
         return Response({
             'success': False,
-            'message': 'Tenant bulunamadı.',
+            'message': 'Tenant bulunamadı. Lütfen subdomain, custom domain veya X-Tenant-ID header\'ı ile istek gönderin.',
+            'error_code': 'TENANT_NOT_FOUND',
+            'hint': 'Tenant bilgisi şu yollarla gönderilebilir: 1) Subdomain (örn: tenant-slug.tinisoft.com.tr), 2) Custom domain, 3) X-Tenant-ID header, 4) Authenticated user\'ın tenant\'ı'
         }, status=status.HTTP_400_BAD_REQUEST)
     
     # Sadece admin veya tenant owner
