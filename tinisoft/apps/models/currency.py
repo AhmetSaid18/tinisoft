@@ -111,4 +111,28 @@ class Tax(BaseModel):
     def calculate_tax(self, amount):
         """Vergi tutarını hesapla."""
         return amount * (self.rate / Decimal('100'))
+    
+    def save(self, *args, **kwargs):
+        """Save metodunu override et - Aktif olduğunda tüm ürünlerin KDV dahil fiyatlarını güncelle."""
+        # is_active veya rate değişip değişmediğini kontrol et
+        is_new = self.pk is None
+        if not is_new:
+            try:
+                old_instance = Tax.objects.get(pk=self.pk)
+                active_changed = old_instance.is_active != self.is_active
+                rate_changed = old_instance.rate != self.rate
+            except Tax.DoesNotExist:
+                active_changed = False
+                rate_changed = False
+        else:
+            active_changed = False
+            rate_changed = False
+        
+        super().save(*args, **kwargs)
+        
+        # Eğer aktif edildiyse veya oran değiştiyse, tüm ürünlerin price_with_vat'ini güncelle
+        if (is_new and self.is_active) or (active_changed and self.is_active) or rate_changed:
+            # Background task olarak tüm ürünleri güncelle
+            from apps.tasks.product_task import update_all_products_price_with_vat
+            update_all_products_price_with_vat.delay(str(self.tenant.id))
 

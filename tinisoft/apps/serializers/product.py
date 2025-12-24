@@ -94,13 +94,14 @@ class ProductListSerializer(serializers.ModelSerializer):
         model = Product
         fields = [
             'id', 'name', 'slug', 'price', 'compare_at_price', 'compareAtPrice',
-            'currency', 'sku', 'inventory_quantity', 'inventoryQuantity', 'track_inventory',
+            'currency', 'price_with_vat',
+            'sku', 'inventory_quantity', 'inventoryQuantity', 'track_inventory',
             'primary_image', 'category_names', 'min_price', 'max_price',
             'has_variants', 'is_featured', 'is_new', 'is_bestseller',
             'status', 'is_visible', 'isActive', 'view_count', 'sale_count',
             'created_at',
         ]
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id', 'created_at', 'price_with_vat']
     
     def get_primary_image(self, obj):
         """Ana görseli döndür."""
@@ -153,7 +154,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'slug', 'description',
             'price', 'compare_at_price', 'compareAtPrice',
-            'currency',
+            'currency', 'price_with_vat',
             'sku', 'barcode',
             'track_inventory', 'inventory_quantity', 'inventoryQuantity',
             'is_variant_product',
@@ -170,7 +171,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             'metadata',
             'created_at', 'updated_at',
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'view_count', 'sale_count']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'view_count', 'sale_count', 'price_with_vat']
     
     def validate(self, attrs):
         """Frontend'den gelen field'ları backend field'larına map et."""

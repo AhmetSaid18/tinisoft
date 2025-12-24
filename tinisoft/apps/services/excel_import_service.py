@@ -305,8 +305,11 @@ class ExcelImportService:
         'currency': 'currency',
         
         'kdv': 'tax_rate',
+        'kdv_orani': 'tax_rate',
+        'kdv_oranı': 'tax_rate',
         'tax_rate': 'tax_rate',
         'vergi_orani': 'tax_rate',
+        'vergi_oranı': 'tax_rate',
         
         'ürün güncellenme tarihi': 'updated_date',
         'ürün güncellenme tarıhı': 'updated_date',  # Encoding hatası için
@@ -748,6 +751,7 @@ class ExcelImportService:
         product_data.setdefault('inventory_quantity', 0)
         product_data.setdefault('sort_order', 0)
         product_data.setdefault('currency', 'TRY')
+        # tax_rate ve tax_rate_active artık Product'ta yok, Tax modelinden alınıyor
         
         # Uyumluluk bilgilerini metadata'ya ekle
         if 'compatibility' in product_data:
@@ -769,13 +773,8 @@ class ExcelImportService:
             # Decimal'i string'e çevir (JSON serializable)
             product_data['metadata']['xml_price'] = str(xml_price) if isinstance(xml_price, Decimal) else xml_price
         
-        # Tax rate metadata'ya ekle (Decimal -> string)
-        if 'tax_rate' in product_data:
-            if 'metadata' not in product_data:
-                product_data['metadata'] = {}
-            tax_rate = product_data.pop('tax_rate')
-            # Decimal'i string'e çevir (JSON serializable)
-            product_data['metadata']['tax_rate'] = str(tax_rate) if isinstance(tax_rate, Decimal) else tax_rate
+        # Tax rate artık direkt Product field'ı, metadata'ya gitmemeli
+        # (Eski kod kaldırıldı - tax_rate direkt Product modelinde)
         
         # Varyant bilgilerini metadata'ya ekle (Decimal -> string)
         if 'variant_info' in product_data:

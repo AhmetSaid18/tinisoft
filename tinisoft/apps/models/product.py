@@ -266,6 +266,15 @@ class Product(BaseModel):
         help_text="Kargo fiyatı"
     )
     
+    # KDV dahil fiyat (Tax modelinden otomatik hesaplanır)
+    price_with_vat = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="KDV dahil fiyat (tenant'ın aktif Tax'ından otomatik hesaplanır)"
+    )
+    
     # Stok bilgileri
     critical_stock = models.IntegerField(
         default=0,
@@ -349,6 +358,29 @@ class Product(BaseModel):
 
     def __str__(self):
         return f"{self.name} ({self.tenant.name})"
+    
+    def save(self, *args, **kwargs):
+        """Save metodunu override et - KDV dahil fiyatı tenant'ın aktif Tax'ından otomatik hesapla."""
+        from decimal import Decimal
+        from apps.models import Tax
+        
+        # Tenant'ın aktif ve varsayılan Tax'ını bul
+        active_tax = Tax.objects.filter(
+            tenant=self.tenant,
+            is_active=True,
+            is_deleted=False
+        ).order_by('-is_default', '-created_at').first()
+        
+        # KDV dahil fiyat hesaplama
+        if active_tax and active_tax.rate and active_tax.rate > 0:
+            # KDV dahil fiyat = Fiyat * (1 + KDV oranı / 100)
+            # Örnek: 100 TL * (1 + 20/100) = 100 * 1.20 = 120 TL
+            self.price_with_vat = self.price * (Decimal('1') + (active_tax.rate / Decimal('100')))
+        else:
+            # Aktif Tax yoksa veya oran 0 ise, KDV dahil fiyat = normal fiyat
+            self.price_with_vat = self.price
+        
+        super().save(*args, **kwargs)
 
 
 class ProductImage(BaseModel):
