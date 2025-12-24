@@ -530,19 +530,34 @@ def product_detail_public(request, product_slug, tenant_slug=None):
             'hint': 'Örnek: /api/public/products/urun-adi/?tenant_slug=magaza-adi veya Header: X-Tenant-Slug: magaza-adi',
         }, status=status.HTTP_400_BAD_REQUEST)
     
+    # URL decode yap (boşluklar ve özel karakterler için)
+    from urllib.parse import unquote
+    decoded_slug = unquote(product_slug)
+    
     try:
         product = Product.objects.get(
-            slug=product_slug,
+            slug=decoded_slug,
             tenant=tenant,
             is_deleted=False,
             status='active',
             is_visible=True,
         )
     except Product.DoesNotExist:
-        return Response({
-            'success': False,
-            'message': 'Ürün bulunamadı.',
-        }, status=status.HTTP_404_NOT_FOUND)
+        # Slug bulunamazsa, name ile de dene (geriye dönük uyumluluk için)
+        try:
+            product = Product.objects.get(
+                name=decoded_slug,
+                tenant=tenant,
+                is_deleted=False,
+                status='active',
+                is_visible=True,
+            )
+        except Product.DoesNotExist:
+            return Response({
+                'success': False,
+                'message': 'Ürün bulunamadı.',
+                'hint': f'Slug veya isim ile arandı: {decoded_slug}',
+            }, status=status.HTTP_404_NOT_FOUND)
     
     # Görüntüleme sayısını artır
     product.view_count += 1
