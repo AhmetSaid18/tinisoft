@@ -116,9 +116,7 @@ def import_products_from_excel(request):
             for chunk in excel_file.chunks():
                 f.write(chunk)
         
-        logger.info(f"Excel file saved to local temp storage: {temp_file_path} (NOT to R2 - only product images go to R2)")
-        
-        logger.info(f"Excel file saved to storage: {saved_path} for tenant {tenant.name}")
+        logger.info(f"Excel file saved to local temp storage: {temp_file_path} (NOT to R2 - only product images go to R2) for tenant {tenant.name}")
         
         # Async işlem
         if use_async:
