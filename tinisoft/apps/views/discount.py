@@ -87,10 +87,12 @@ def coupon_list_create(request):
                 f"Count: {len(page)} | "
                 f"Status: {status.HTTP_200_OK}"
             )
-            return paginator.get_paginated_response({
-                'success': True,
-                'coupons': serializer.data,
-            })
+            # Pagination response - DRF'nin standart formatını kullan
+            response = paginator.get_paginated_response(serializer.data)
+            # Custom format ekle
+            response.data['success'] = True
+            response.data['coupons'] = response.data.pop('results')  # results -> coupons
+            return response
         
         serializer = CouponSerializer(queryset, many=True, context={'request': request})
         logger.info(
@@ -132,6 +134,18 @@ def coupon_list_create(request):
         for camel_key, snake_key in camel_to_snake.items():
             if camel_key in data:
                 data[snake_key] = data.pop(camel_key)
+        
+        # discount_type değerini normalize et (Percentage -> percentage)
+        if 'discount_type' in data:
+            discount_type = str(data['discount_type']).lower()
+            # Frontend'den gelebilecek değerler
+            type_mapping = {
+                'percentage': 'percentage',
+                'fixed': 'fixed',
+                'free_shipping': 'free_shipping',
+                'freeshipping': 'free_shipping',
+            }
+            data['discount_type'] = type_mapping.get(discount_type, discount_type)
         
         logger.info(f"[COUPONS] Converted data: {data}")
         
