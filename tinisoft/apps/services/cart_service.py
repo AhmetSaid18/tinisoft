@@ -130,13 +130,8 @@ class CartService:
             except ProductVariant.DoesNotExist:
                 raise ValueError("Varyant bulunamadı.")
         
-        # Stok kontrolü
-        if variant:
-            if variant.track_inventory and variant.inventory_quantity < quantity:
-                raise ValueError(f"Yeterli stok yok. Mevcut stok: {variant.inventory_quantity}")
-        else:
-            if product.track_inventory and product.inventory_quantity < quantity:
-                raise ValueError(f"Yeterli stok yok. Mevcut stok: {product.inventory_quantity}")
+        # Not: Stok kontrolü kaldırıldı - stoksuz ürünler de sepete eklenebilir
+        # Stok kontrolü sipariş oluşturulurken yapılacak
         
         # Aynı ürün/varyant zaten sepette var mı?
         existing_item = CartItem.objects.filter(
@@ -150,13 +145,7 @@ class CartService:
             # Miktarı artır
             new_quantity = existing_item.quantity + quantity
             
-            # Stok kontrolü
-            if variant:
-                if variant.track_inventory and variant.inventory_quantity < new_quantity:
-                    raise ValueError(f"Yeterli stok yok. Mevcut stok: {variant.inventory_quantity}")
-            else:
-                if product.track_inventory and product.inventory_quantity < new_quantity:
-                    raise ValueError(f"Yeterli stok yok. Mevcut stok: {product.inventory_quantity}")
+            # Not: Stok kontrolü kaldırıldı - stoksuz ürünler de sepete eklenebilir
             
             existing_item.quantity = new_quantity
             existing_item.save()
