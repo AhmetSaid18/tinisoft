@@ -360,6 +360,106 @@ def product_list_public(request):
     })
 
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def product_activate(request, product_id):
+    """
+    Ürünü aktif yap (status='active', is_visible=True).
+    
+    POST: /api/products/{product_id}/activate/
+    """
+    tenant = get_tenant_from_request(request)
+    if not tenant:
+        return Response({
+            'success': False,
+            'message': 'Tenant bulunamadı.',
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        product = Product.objects.get(id=product_id, tenant=tenant, is_deleted=False)
+    except Product.DoesNotExist:
+        return Response({
+            'success': False,
+            'message': 'Ürün bulunamadı.',
+        }, status=status.HTTP_404_NOT_FOUND)
+    
+    # Permission kontrolü
+    if not (request.user.is_owner or (request.user.is_tenant_owner and request.user.tenant == tenant)):
+        return Response({
+            'success': False,
+            'message': 'Bu işlem için yetkiniz yok.',
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    product.status = 'active'
+    product.is_visible = True
+    product.save()
+    
+    logger.info(
+        f"[PRODUCTS] POST /api/products/{product_id}/activate/ - SUCCESS | "
+        f"Tenant: {tenant.name} ({tenant.id}) | "
+        f"User: {request.user.email} | "
+        f"ProductID: {product.id} | "
+        f"ProductName: {product.name} | "
+        f"Status: {status.HTTP_200_OK}"
+    )
+    
+    return Response({
+        'success': True,
+        'message': 'Ürün aktif edildi.',
+        'product': ProductDetailSerializer(product).data,
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def product_deactivate(request, product_id):
+    """
+    Ürünü pasif yap (status='archived', is_visible=False).
+    
+    POST: /api/products/{product_id}/deactivate/
+    """
+    tenant = get_tenant_from_request(request)
+    if not tenant:
+        return Response({
+            'success': False,
+            'message': 'Tenant bulunamadı.',
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        product = Product.objects.get(id=product_id, tenant=tenant, is_deleted=False)
+    except Product.DoesNotExist:
+        return Response({
+            'success': False,
+            'message': 'Ürün bulunamadı.',
+        }, status=status.HTTP_404_NOT_FOUND)
+    
+    # Permission kontrolü
+    if not (request.user.is_owner or (request.user.is_tenant_owner and request.user.tenant == tenant)):
+        return Response({
+            'success': False,
+            'message': 'Bu işlem için yetkiniz yok.',
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    product.status = 'archived'
+    product.is_visible = False
+    product.save()
+    
+    logger.info(
+        f"[PRODUCTS] POST /api/products/{product_id}/deactivate/ - SUCCESS | "
+        f"Tenant: {tenant.name} ({tenant.id}) | "
+        f"User: {request.user.email} | "
+        f"ProductID: {product.id} | "
+        f"ProductName: {product.name} | "
+        f"Status: {status.HTTP_200_OK}"
+    )
+    
+    return Response({
+        'success': True,
+        'message': 'Ürün pasif edildi.',
+        'product': ProductDetailSerializer(product).data,
+    })
+
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def product_detail_public(request, product_slug):

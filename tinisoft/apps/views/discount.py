@@ -78,12 +78,28 @@ def coupon_list_create(request):
         
         if page is not None:
             serializer = CouponSerializer(page, many=True, context={'request': request})
+            logger.info(
+                f"[COUPONS] GET /api/coupons/ - SUCCESS | "
+                f"Tenant: {tenant.name} ({tenant.id}) | "
+                f"User: {request.user.email} | "
+                f"Page: {request.query_params.get('page', 1)} | "
+                f"Total: {paginator.page.paginator.count} | "
+                f"Count: {len(page)} | "
+                f"Status: {status.HTTP_200_OK}"
+            )
             return paginator.get_paginated_response({
                 'success': True,
                 'coupons': serializer.data,
             })
         
         serializer = CouponSerializer(queryset, many=True, context={'request': request})
+        logger.info(
+            f"[COUPONS] GET /api/coupons/ - SUCCESS | "
+            f"Tenant: {tenant.name} ({tenant.id}) | "
+            f"User: {request.user.email} | "
+            f"Count: {queryset.count()} | "
+            f"Status: {status.HTTP_200_OK}"
+        )
         return Response({
             'success': True,
             'coupons': serializer.data,
@@ -96,7 +112,30 @@ def coupon_list_create(request):
         logger.info(f"[COUPONS] Request data type: {type(request.data)}")
         logger.info(f"[COUPONS] Request data keys: {list(request.data.keys()) if isinstance(request.data, dict) else 'Not a dict'}")
         
-        serializer = CouponSerializer(data=request.data, context={'request': request})
+        # Frontend camelCase -> backend snake_case dönüşümü
+        data = dict(request.data)
+        camel_to_snake = {
+            'discountType': 'discount_type',
+            'discountValue': 'discount_value',
+            'minOrderAmount': 'min_order_amount',
+            'maxDiscountAmount': 'max_discount_amount',
+            'maxUsageCount': 'max_usage_count',
+            'maxUsagePerCustomer': 'max_usage_per_customer',
+            'validFrom': 'valid_from',
+            'validTo': 'valid_to',
+            'appliesToAllProducts': 'applies_to_all_products',
+            'appliesToAllCustomers': 'applies_to_all_customers',
+            'isActive': 'is_active',
+        }
+        
+        # CamelCase field'ları snake_case'e çevir
+        for camel_key, snake_key in camel_to_snake.items():
+            if camel_key in data:
+                data[snake_key] = data.pop(camel_key)
+        
+        logger.info(f"[COUPONS] Converted data: {data}")
+        
+        serializer = CouponSerializer(data=data, context={'request': request})
         
         if not serializer.is_valid():
             # Detaylı hata loglama

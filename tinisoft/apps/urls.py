@@ -8,7 +8,8 @@ from apps.views.domain import verify_domain, verify_domain_by_code, domain_statu
 from apps.views.product import (
     product_list_create, product_detail,
     product_list_public, product_detail_public,
-    category_list_create
+    category_list_create,
+    product_activate, product_deactivate
 )
 from apps.views.product_import import import_products_from_excel, excel_template_download, import_status
 from apps.views.product_image_upload import (
@@ -95,6 +96,8 @@ urlpatterns = [
     # Ürün yönetimi
     path('products/', product_list_create, name='product_list_create'),  # GET: List, POST: Create
     path('products/<uuid:product_id>/', product_detail, name='product_detail'),  # GET, PUT, PATCH, DELETE
+    path('products/<uuid:product_id>/activate/', product_activate, name='product_activate'),  # POST: Ürünü aktif yap
+    path('products/<uuid:product_id>/deactivate/', product_deactivate, name='product_deactivate'),  # POST: Ürünü pasif yap
     path('products/import/', import_products_from_excel, name='import_products_from_excel'),  # POST: Excel'den ürün import (async/sync)
     path('products/import/status/<str:task_id>/', import_status, name='import_status'),  # GET: Import durumu kontrol
     path('products/import/template/', excel_template_download, name='excel_template_download'),  # GET: Excel template indir
