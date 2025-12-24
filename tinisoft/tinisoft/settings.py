@@ -144,6 +144,7 @@ if USE_R2:
     AWS_S3_ENDPOINT_URL = env('R2_ENDPOINT_URL', default='')  # Örn: https://xxx.r2.cloudflarestorage.com
     AWS_S3_REGION_NAME = env('R2_REGION', default='auto')
     AWS_S3_CUSTOM_DOMAIN = env('R2_CUSTOM_DOMAIN', default='')  # Örn: cdn.tinisoft.com.tr (opsiyonel)
+    R2_ACCOUNT_ID = env('R2_ACCOUNT_ID', default='')  # Cloudflare R2 Account ID (opsiyonel, bazı işlemler için gerekli)
     
     # R2 özel ayarlar
     AWS_S3_OBJECT_PARAMETERS = {
@@ -154,10 +155,14 @@ if USE_R2:
     AWS_S3_FILE_OVERWRITE = False  # Aynı isimli dosya üzerine yazma
     
     # Media URL (R2'den)
+    # Custom domain varsa onu kullan, yoksa endpoint URL'i kullan
     if AWS_S3_CUSTOM_DOMAIN:
         MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
-    else:
+    elif AWS_S3_ENDPOINT_URL:
+        # R2 endpoint URL'i direkt kullan (boto3 otomatik olarak bucket'a yönlendirir)
         MEDIA_URL = f'{AWS_S3_ENDPOINT_URL}/media/'
+    else:
+        MEDIA_URL = '/media/'  # Fallback
     
     MEDIA_ROOT = ''  # R2 kullanıldığında local media root gerekmez
 else:

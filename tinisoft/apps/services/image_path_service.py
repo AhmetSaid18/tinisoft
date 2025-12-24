@@ -96,8 +96,9 @@ class ImagePathService:
             # Dosya adı
             filename = os.path.basename(local_image_path)
             
-            # Storage'a kaydet
-            file_path = f'products/{product.id}/{filename}'
+            # Storage'a kaydet - Tenant bazlı klasör yapısı: {tenant_id}/products/{product_id}/{filename}
+            tenant_id = str(product.tenant.id)
+            file_path = f'{tenant_id}/products/{product.id}/{filename}'
             saved_path = default_storage.save(file_path, ContentFile(file_content))
             file_url = default_storage.url(saved_path)
             

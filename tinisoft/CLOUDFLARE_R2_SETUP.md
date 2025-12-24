@@ -54,6 +54,7 @@ R2_BUCKET_NAME=tinisoft-products
 R2_ENDPOINT_URL=https://xxx.r2.cloudflarestorage.com
 R2_REGION=auto
 R2_CUSTOM_DOMAIN=cdn.tinisoft.com.tr  # Opsiyonel, CDN için
+R2_ACCOUNT_ID=your-account-id  # Opsiyonel, Cloudflare Account ID
 ```
 
 **R2 Endpoint URL'i bulma:**

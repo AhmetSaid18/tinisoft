@@ -114,8 +114,8 @@ def upload_product_image_by_slug(request):
         }, status=status.HTTP_400_BAD_REQUEST)
     
     try:
-        # Dosyayı kaydet
-        file_path = f'products/{product.id}/{image_file.name}'
+        # Dosyayı kaydet - Tenant bazlı klasör yapısı: {tenant_id}/products/{product_id}/{filename}
+        file_path = f'{str(tenant.id)}/products/{product.id}/{image_file.name}'
         saved_path = default_storage.save(file_path, image_file)
         file_url = default_storage.url(saved_path)
         
@@ -357,8 +357,8 @@ def upload_product_image_by_sku(request):
         }, status=status.HTTP_400_BAD_REQUEST)
     
     try:
-        # Dosyayı kaydet
-        file_path = f'products/{product.id}/{image_file.name}'
+        # Dosyayı kaydet - Tenant bazlı klasör yapısı: {tenant_id}/products/{product_id}/{filename}
+        file_path = f'{str(tenant.id)}/products/{product.id}/{image_file.name}'
         saved_path = default_storage.save(file_path, image_file)
         file_url = default_storage.url(saved_path)
         

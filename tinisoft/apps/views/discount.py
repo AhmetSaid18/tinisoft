@@ -35,12 +35,9 @@ def coupon_list_create(request):
     GET: /api/coupons/
     POST: /api/coupons/
     """
-    # Request logging
-    logger.info(f"[COUPONS] {request.method} /api/coupons/ | User: {request.user.email if request.user.is_authenticated else 'Anonymous'} | Headers: {dict(request.headers)}")
-    
     tenant = get_tenant_from_request(request)
     if not tenant:
-        logger.warning(f"[COUPONS] Tenant not found | User: {request.user.email if request.user.is_authenticated else 'Anonymous'} | Host: {request.get_host()} | Headers: {dict(request.headers)}")
+        logger.warning(f"[COUPONS] {request.method} /api/coupons/ | 400 | Tenant not found")
         return Response({
             'success': False,
             'message': 'Tenant bulunamadı. Lütfen subdomain, custom domain veya X-Tenant-ID header\'ı ile istek gönderin.',
@@ -50,7 +47,7 @@ def coupon_list_create(request):
     
     # Sadece admin veya tenant owner
     if not (request.user.is_owner or (request.user.is_tenant_owner and request.user.tenant == tenant)):
-        logger.warning(f"[COUPONS] Permission denied | User: {request.user.email} | Role: {request.user.role} | Tenant: {tenant.name}")
+        logger.warning(f"[COUPONS] {request.method} /api/coupons/ | 403 | Permission denied | User: {request.user.email}")
         return Response({
             'success': False,
             'message': 'Bu işlem için yetkiniz yok.',
@@ -78,42 +75,20 @@ def coupon_list_create(request):
         
         if page is not None:
             serializer = CouponSerializer(page, many=True, context={'request': request})
-            logger.info(
-                f"[COUPONS] GET /api/coupons/ - SUCCESS | "
-                f"Tenant: {tenant.name} ({tenant.id}) | "
-                f"User: {request.user.email} | "
-                f"Page: {request.query_params.get('page', 1)} | "
-                f"Total: {paginator.page.paginator.count} | "
-                f"Count: {len(page)} | "
-                f"Status: {status.HTTP_200_OK}"
-            )
-            # Pagination response - DRF'nin standart formatını kullan
             response = paginator.get_paginated_response(serializer.data)
-            # Custom format ekle
             response.data['success'] = True
-            response.data['coupons'] = response.data.pop('results')  # results -> coupons
+            response.data['coupons'] = response.data.pop('results')
+            logger.info(f"[COUPONS] GET /api/coupons/ | 200 | Count: {len(page)}/{paginator.page.paginator.count}")
             return response
         
         serializer = CouponSerializer(queryset, many=True, context={'request': request})
-        logger.info(
-            f"[COUPONS] GET /api/coupons/ - SUCCESS | "
-            f"Tenant: {tenant.name} ({tenant.id}) | "
-            f"User: {request.user.email} | "
-            f"Count: {queryset.count()} | "
-            f"Status: {status.HTTP_200_OK}"
-        )
+        logger.info(f"[COUPONS] GET /api/coupons/ | 200 | Count: {queryset.count()}")
         return Response({
             'success': True,
             'coupons': serializer.data,
         })
     
     elif request.method == 'POST':
-        # Request data logging
-        logger.info(f"[COUPONS] POST /api/coupons/ | Tenant: {tenant.name} | User: {request.user.email}")
-        logger.info(f"[COUPONS] Request data: {request.data}")
-        logger.info(f"[COUPONS] Request data type: {type(request.data)}")
-        logger.info(f"[COUPONS] Request data keys: {list(request.data.keys()) if isinstance(request.data, dict) else 'Not a dict'}")
-        
         # Frontend camelCase -> backend snake_case dönüşümü
         data = dict(request.data)
         camel_to_snake = {
@@ -147,38 +122,10 @@ def coupon_list_create(request):
             }
             data['discount_type'] = type_mapping.get(discount_type, discount_type)
         
-        logger.info(f"[COUPONS] Converted data: {data}")
-        
         serializer = CouponSerializer(data=data, context={'request': request})
         
         if not serializer.is_valid():
-            # Detaylı hata loglama
-            logger.error(f"[COUPONS] Validation failed | Tenant: {tenant.name} | User: {request.user.email}")
-            logger.error(f"[COUPONS] Received data: {request.data}")
-            logger.error(f"[COUPONS] Validation errors: {serializer.errors}")
-            
-            # Eksik alanları belirle
-            received_fields = list(request.data.keys()) if isinstance(request.data, dict) else []
-            
-            # Coupon model'den required field'ları al
-            required_fields = []
-            optional_fields = []
-            
-            # Model field'larını kontrol et (Coupon zaten import edilmiş)
-            for field in Coupon._meta.get_fields():
-                if field.name in ['id', 'created_at', 'updated_at', 'tenant', 'usage_count']:
-                    continue
-                
-                if hasattr(field, 'blank'):
-                    if not field.blank and field.name not in received_fields:
-                        required_fields.append(field.name)
-                    elif field.name not in received_fields:
-                        optional_fields.append(field.name)
-            
-            logger.error(f"[COUPONS] Missing required fields: {required_fields}")
-            logger.error(f"[COUPONS] Missing optional fields: {optional_fields}")
-            logger.error(f"[COUPONS] Received fields: {received_fields}")
-            
+            logger.error(f"[COUPONS] POST /api/coupons/ | 400 | Validation failed | Errors: {list(serializer.errors.keys())}")
             return Response({
                 'success': False,
                 'message': 'Kupon oluşturma başarısız. Lütfen gerekli alanları kontrol edin.',
@@ -189,19 +136,17 @@ def coupon_list_create(request):
                 'hint': 'Gerekli alanlar: code, name, discount_type, discount_value, is_active'
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        # Serializer geçerli, kupon oluştur
-        # Code unique kontrolü (tenant bazında)
+        # Code unique kontrolü
         code = serializer.validated_data['code']
         if Coupon.objects.filter(tenant=tenant, code=code, is_deleted=False).exists():
-            logger.warning(f"[COUPONS] Duplicate code | Code: {code} | Tenant: {tenant.name}")
+            logger.warning(f"[COUPONS] POST /api/coupons/ | 400 | Duplicate code: {code}")
             return Response({
                 'success': False,
                 'message': 'Bu kupon kodu zaten kullanılıyor.',
             }, status=status.HTTP_400_BAD_REQUEST)
         
         coupon = serializer.save(tenant=tenant)
-        
-        logger.info(f"[COUPONS] Coupon created | ID: {coupon.id} | Code: {coupon.code} | Tenant: {tenant.name}")
+        logger.info(f"[COUPONS] POST /api/coupons/ | 201 | Created | Code: {coupon.code}")
         return Response({
             'success': True,
             'message': 'Kupon oluşturuldu.',
@@ -222,6 +167,7 @@ def coupon_detail(request, coupon_id):
     """
     tenant = get_tenant_from_request(request)
     if not tenant:
+        logger.warning(f"[COUPONS] {request.method} /api/coupons/{coupon_id}/ | 400 | Tenant not found")
         return Response({
             'success': False,
             'message': 'Tenant bulunamadı.',
@@ -230,6 +176,7 @@ def coupon_detail(request, coupon_id):
     try:
         coupon = Coupon.objects.get(id=coupon_id, tenant=tenant, is_deleted=False)
     except Coupon.DoesNotExist:
+        logger.warning(f"[COUPONS] {request.method} /api/coupons/{coupon_id}/ | 404 | Coupon not found")
         return Response({
             'success': False,
             'message': 'Kupon bulunamadı.',
@@ -237,6 +184,7 @@ def coupon_detail(request, coupon_id):
     
     if request.method == 'GET':
         serializer = CouponSerializer(coupon, context={'request': request})
+        logger.info(f"[COUPONS] GET /api/coupons/{coupon_id}/ | 200 | Code: {coupon.code}")
         return Response({
             'success': True,
             'coupon': serializer.data,
@@ -245,6 +193,7 @@ def coupon_detail(request, coupon_id):
     elif request.method in ['PUT', 'PATCH']:
         # Sadece admin veya tenant owner
         if not (request.user.is_owner or (request.user.is_tenant_owner and request.user.tenant == tenant)):
+            logger.warning(f"[COUPONS] {request.method} /api/coupons/{coupon_id}/ | 403 | Permission denied")
             return Response({
                 'success': False,
                 'message': 'Bu işlem için yetkiniz yok.',
@@ -295,18 +244,21 @@ def coupon_detail(request, coupon_id):
                 new_code = serializer.validated_data['code']
                 if new_code != coupon.code:
                     if Coupon.objects.filter(tenant=tenant, code=new_code, is_deleted=False).exclude(id=coupon.id).exists():
+                        logger.warning(f"[COUPONS] {request.method} /api/coupons/{coupon_id}/ | 400 | Duplicate code: {new_code}")
                         return Response({
                             'success': False,
                             'message': 'Bu kupon kodu zaten kullanılıyor.',
                         }, status=status.HTTP_400_BAD_REQUEST)
             
             serializer.save()
+            logger.info(f"[COUPONS] {request.method} /api/coupons/{coupon_id}/ | 200 | Updated | Code: {coupon.code}")
             return Response({
                 'success': True,
                 'message': 'Kupon güncellendi.',
                 'coupon': CouponSerializer(coupon, context={'request': request}).data,
             })
         
+        logger.error(f"[COUPONS] {request.method} /api/coupons/{coupon_id}/ | 400 | Validation failed | Errors: {list(serializer.errors.keys())}")
         return Response({
             'success': False,
             'errors': serializer.errors,
@@ -315,12 +267,14 @@ def coupon_detail(request, coupon_id):
     elif request.method == 'DELETE':
         # Sadece admin veya tenant owner
         if not (request.user.is_owner or (request.user.is_tenant_owner and request.user.tenant == tenant)):
+            logger.warning(f"[COUPONS] DELETE /api/coupons/{coupon_id}/ | 403 | Permission denied")
             return Response({
                 'success': False,
                 'message': 'Bu işlem için yetkiniz yok.',
             }, status=status.HTTP_403_FORBIDDEN)
         
         coupon.soft_delete()
+        logger.info(f"[COUPONS] DELETE /api/coupons/{coupon_id}/ | 200 | Deleted | Code: {coupon.code}")
         return Response({
             'success': True,
             'message': 'Kupon silindi.',
