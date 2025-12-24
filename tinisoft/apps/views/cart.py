@@ -38,11 +38,15 @@ def cart_detail(request):
         if request.user.is_authenticated and request.user.is_tenant_user and request.user.tenant == tenant:
             customer = request.user
         else:
-            # Guest checkout için session_id
-            session_id = request.session.session_key
+            # Önce header'dan session ID al (frontend'den gönderilirse)
+            session_id = request.headers.get('X-Session-ID')
+            
+            # Header'da yoksa, Django session'dan al
             if not session_id:
-                request.session.create()
                 session_id = request.session.session_key
+                if not session_id:
+                    request.session.create()
+                    session_id = request.session.session_key
         
         try:
             cart = CartService.get_or_create_cart(tenant, customer, session_id)
@@ -65,10 +69,15 @@ def cart_detail(request):
         if request.user.is_authenticated and request.user.is_tenant_user and request.user.tenant == tenant:
             customer = request.user
         else:
-            session_id = request.session.session_key
+            # Önce header'dan session ID al (frontend'den gönderilirse)
+            session_id = request.headers.get('X-Session-ID')
+            
+            # Header'da yoksa, Django session'dan al
             if not session_id:
-                request.session.create()
                 session_id = request.session.session_key
+                if not session_id:
+                    request.session.create()
+                    session_id = request.session.session_key
         
         try:
             cart = CartService.get_or_create_cart(tenant, customer, session_id)
@@ -111,10 +120,15 @@ def add_to_cart(request):
         if request.user.is_authenticated and request.user.is_tenant_user and request.user.tenant == tenant:
             customer = request.user
         else:
-            session_id = request.session.session_key
+            # Önce header'dan session ID al (frontend'den gönderilirse)
+            session_id = request.headers.get('X-Session-ID')
+            
+            # Header'da yoksa, Django session'dan al
             if not session_id:
-                request.session.create()
                 session_id = request.session.session_key
+                if not session_id:
+                    request.session.create()
+                    session_id = request.session.session_key
         
         try:
             cart = CartService.get_or_create_cart(tenant, customer, session_id)

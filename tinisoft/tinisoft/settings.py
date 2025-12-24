@@ -251,6 +251,7 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
     'x-tenant-id',  # Multi-tenant için
     'x-tenant-slug',  # Multi-tenant için (slug ile)
+    'x-session-id',  # Session ID için (frontend'den gönderilir)
     'cache-control',
     'pragma',
 ]
