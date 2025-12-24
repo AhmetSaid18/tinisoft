@@ -36,6 +36,10 @@ class CouponSerializer(serializers.ModelSerializer):
             'usage_limit_per_customer', 'valid_from', 'valid_until',
             'is_active', 'customer_emails', 'customer_groups',
             'created_at', 'updated_at',
+            # Frontend uyumluluğu için field mapping'ler
+            'min_order_amount', 'max_usage_count', 'max_usage_per_customer',
+            'valid_to', 'applies_to_all_products', 'applies_to_all_customers',
+            'currency',
         ]
         read_only_fields = ['id', 'usage_count', 'created_at', 'updated_at']
     
@@ -112,7 +116,10 @@ class CouponSerializer(serializers.ModelSerializer):
         super().__init__(*args, **kwargs)
         # Dynamic queryset for category_ids and product_ids
         if self.context.get('request'):
-            tenant = self.context['request'].user.tenant if hasattr(self.context['request'].user, 'tenant') else None
+            from core.middleware import get_tenant_from_request
+            request = self.context['request']
+            tenant = get_tenant_from_request(request)
+            
             if tenant:
                 from apps.models import Category, Product
                 self.fields['category_ids'].queryset = Category.objects.filter(tenant=tenant, is_deleted=False)
