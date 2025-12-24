@@ -63,6 +63,11 @@ class Product(BaseModel):
     # Fiyat (varyant yoksa kullanılır, varyant varsa default display fiyat için)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     compare_at_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    currency = models.CharField(
+        max_length=3,
+        default='TRY',
+        help_text="Para birimi (ISO 4217 kodu: TRY, USD, EUR, vb.) - TCMB entegrasyonu için"
+    )
 
     # SKU / Barkod (basit ürünler için)
     sku = models.CharField(max_length=100, blank=True, db_index=True)

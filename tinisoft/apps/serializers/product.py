@@ -153,6 +153,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'slug', 'description',
             'price', 'compare_at_price', 'compareAtPrice',
+            'currency',
             'sku', 'barcode',
             'track_inventory', 'inventory_quantity', 'inventoryQuantity',
             'is_variant_product',
