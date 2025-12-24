@@ -108,11 +108,10 @@ def coupon_list_create(request):
             received_fields = list(request.data.keys()) if isinstance(request.data, dict) else []
             
             # Coupon model'den required field'ları al
-            from apps.models import Coupon
             required_fields = []
             optional_fields = []
             
-            # Model field'larını kontrol et
+            # Model field'larını kontrol et (Coupon zaten import edilmiş)
             for field in Coupon._meta.get_fields():
                 if field.name in ['id', 'created_at', 'updated_at', 'tenant', 'usage_count']:
                     continue
@@ -137,23 +136,24 @@ def coupon_list_create(request):
                 'hint': 'Gerekli alanlar: code, name, discount_type, discount_value, is_active'
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        if serializer.is_valid():
-            # Code unique kontrolü (tenant bazında)
-            code = serializer.validated_data['code']
-            if Coupon.objects.filter(tenant=tenant, code=code, is_deleted=False).exists():
-                return Response({
-                    'success': False,
-                    'message': 'Bu kupon kodu zaten kullanılıyor.',
-                }, status=status.HTTP_400_BAD_REQUEST)
-            
-            coupon = serializer.save(tenant=tenant)
-            
-            logger.info(f"[COUPONS] Coupon created | ID: {coupon.id} | Code: {coupon.code} | Tenant: {tenant.name}")
+        # Serializer geçerli, kupon oluştur
+        # Code unique kontrolü (tenant bazında)
+        code = serializer.validated_data['code']
+        if Coupon.objects.filter(tenant=tenant, code=code, is_deleted=False).exists():
+            logger.warning(f"[COUPONS] Duplicate code | Code: {code} | Tenant: {tenant.name}")
             return Response({
-                'success': True,
-                'message': 'Kupon oluşturuldu.',
-                'coupon': CouponSerializer(coupon, context={'request': request}).data,
-            }, status=status.HTTP_201_CREATED)
+                'success': False,
+                'message': 'Bu kupon kodu zaten kullanılıyor.',
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        coupon = serializer.save(tenant=tenant)
+        
+        logger.info(f"[COUPONS] Coupon created | ID: {coupon.id} | Code: {coupon.code} | Tenant: {tenant.name}")
+        return Response({
+            'success': True,
+            'message': 'Kupon oluşturuldu.',
+            'coupon': CouponSerializer(coupon, context={'request': request}).data,
+        }, status=status.HTTP_201_CREATED)
 
 
 @api_view(['GET', 'PATCH', 'DELETE'])
