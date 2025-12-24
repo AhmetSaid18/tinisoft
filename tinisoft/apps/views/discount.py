@@ -209,14 +209,15 @@ def coupon_list_create(request):
         }, status=status.HTTP_201_CREATED)
 
 
-@api_view(['GET', 'PATCH', 'DELETE'])
+@api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
 @permission_classes([IsAuthenticated])
 def coupon_detail(request, coupon_id):
     """
-    Kupon detayı (GET), güncelle (PATCH) veya sil (DELETE).
+    Kupon detayı (GET), güncelle (PUT/PATCH) veya sil (DELETE).
     
     GET: /api/coupons/{coupon_id}/
-    PATCH: /api/coupons/{coupon_id}/
+    PUT: /api/coupons/{coupon_id}/ (tüm alanları güncelle)
+    PATCH: /api/coupons/{coupon_id}/ (kısmi güncelleme)
     DELETE: /api/coupons/{coupon_id}/
     """
     tenant = get_tenant_from_request(request)
@@ -241,7 +242,7 @@ def coupon_detail(request, coupon_id):
             'coupon': serializer.data,
         })
     
-    elif request.method == 'PATCH':
+    elif request.method in ['PUT', 'PATCH']:
         # Sadece admin veya tenant owner
         if not (request.user.is_owner or (request.user.is_tenant_owner and request.user.tenant == tenant)):
             return Response({
@@ -249,10 +250,42 @@ def coupon_detail(request, coupon_id):
                 'message': 'Bu işlem için yetkiniz yok.',
             }, status=status.HTTP_403_FORBIDDEN)
         
+        # Frontend camelCase -> backend snake_case dönüşümü
+        data = dict(request.data)
+        camel_to_snake = {
+            'discountType': 'discount_type',
+            'discountValue': 'discount_value',
+            'minOrderAmount': 'min_order_amount',
+            'maxDiscountAmount': 'max_discount_amount',
+            'maxUsageCount': 'max_usage_count',
+            'maxUsagePerCustomer': 'max_usage_per_customer',
+            'validFrom': 'valid_from',
+            'validTo': 'valid_to',
+            'appliesToAllProducts': 'applies_to_all_products',
+            'appliesToAllCustomers': 'applies_to_all_customers',
+            'isActive': 'is_active',
+        }
+        
+        # CamelCase field'ları snake_case'e çevir
+        for camel_key, snake_key in camel_to_snake.items():
+            if camel_key in data:
+                data[snake_key] = data.pop(camel_key)
+        
+        # discount_type değerini normalize et (Percentage -> percentage)
+        if 'discount_type' in data:
+            discount_type = str(data['discount_type']).lower()
+            type_mapping = {
+                'percentage': 'percentage',
+                'fixed': 'fixed',
+                'free_shipping': 'free_shipping',
+                'freeshipping': 'free_shipping',
+            }
+            data['discount_type'] = type_mapping.get(discount_type, discount_type)
+        
         serializer = CouponSerializer(
             coupon,
-            data=request.data,
-            partial=True,
+            data=data,
+            partial=request.method == 'PATCH',
             context={'request': request}
         )
         

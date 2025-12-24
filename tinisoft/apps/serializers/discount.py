@@ -62,7 +62,7 @@ class CouponSerializer(serializers.ModelSerializer):
             # Frontend için computed fields
             'status', 'is_unlimited', 'usage_display',
         ]
-        read_only_fields = ['id', 'usage_count', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'usage_count', 'created_at', 'updated_at', 'status', 'is_unlimited', 'usage_display']
     
     # Frontend uyumluluğu için field mapping
     min_order_amount = serializers.DecimalField(
