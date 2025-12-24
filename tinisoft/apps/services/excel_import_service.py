@@ -622,23 +622,33 @@ class ExcelImportService:
                 product_data['metadata'] = {}
             product_data['metadata']['additional_descriptions'] = product_data.pop('descriptions')
         
-        # XML fiyatı metadata'ya ekle
+        # XML fiyatı metadata'ya ekle (Decimal -> string)
         if 'xml_price' in product_data:
             if 'metadata' not in product_data:
                 product_data['metadata'] = {}
-            product_data['metadata']['xml_price'] = product_data.pop('xml_price')
+            xml_price = product_data.pop('xml_price')
+            # Decimal'i string'e çevir (JSON serializable)
+            product_data['metadata']['xml_price'] = str(xml_price) if isinstance(xml_price, Decimal) else xml_price
         
-        # Tax rate metadata'ya ekle
+        # Tax rate metadata'ya ekle (Decimal -> string)
         if 'tax_rate' in product_data:
             if 'metadata' not in product_data:
                 product_data['metadata'] = {}
-            product_data['metadata']['tax_rate'] = product_data.pop('tax_rate')
+            tax_rate = product_data.pop('tax_rate')
+            # Decimal'i string'e çevir (JSON serializable)
+            product_data['metadata']['tax_rate'] = str(tax_rate) if isinstance(tax_rate, Decimal) else tax_rate
         
-        # Varyant bilgilerini metadata'ya ekle
+        # Varyant bilgilerini metadata'ya ekle (Decimal -> string)
         if 'variant_info' in product_data:
             if 'metadata' not in product_data:
                 product_data['metadata'] = {}
-            product_data['metadata']['variant_info'] = product_data.pop('variant_info')
+            variant_info = product_data.pop('variant_info')
+            # Decimal değerleri string'e çevir
+            if isinstance(variant_info, dict):
+                for key, value in variant_info.items():
+                    if isinstance(value, Decimal):
+                        variant_info[key] = str(value)
+            product_data['metadata']['variant_info'] = variant_info
         
         # Inventory quantity 2 metadata'ya ekle
         if 'inventory_quantity_2' in product_data:
@@ -652,7 +662,24 @@ class ExcelImportService:
                 product_data['metadata'] = {}
             product_data['metadata']['image_paths'] = product_data.pop('image_paths')
         
+        # Metadata'daki tüm Decimal değerleri string'e çevir (JSON serializable)
+        if 'metadata' in product_data:
+            ExcelImportService._convert_decimals_to_string(product_data['metadata'])
+        
         return product_data
+    
+    @staticmethod
+    def _convert_decimals_to_string(obj):
+        """Recursively convert Decimal values to string in dict/list."""
+        if isinstance(obj, Decimal):
+            return str(obj)
+        elif isinstance(obj, dict):
+            for key, value in obj.items():
+                obj[key] = ExcelImportService._convert_decimals_to_string(value)
+        elif isinstance(obj, list):
+            for i, item in enumerate(obj):
+                obj[i] = ExcelImportService._convert_decimals_to_string(item)
+        return obj
     
     @staticmethod
     def _create_product(product_data, tenant, user=None):
