@@ -260,6 +260,150 @@ Authorization: Bearer {token}
 
 **Endpoint:** `POST /api/integrations/{integration_id}/test/`
 
+**Email Test İçin:**
+```json
+{
+  "test_email": "test@example.com",
+  "test_message": "Bu bir test mesajıdır"
+}
+```
+
+**Response (Başarılı):**
+```json
+{
+  "success": true,
+  "message": "Test email başarıyla gönderildi. Lütfen test@example.com adresinizi kontrol edin.",
+  "test_result": {
+    "success": true,
+    "message": "Test email başarıyla gönderildi.",
+    "test_email": "test@example.com"
+  }
+}
+```
+
+**Response (Hatalı):**
+```json
+{
+  "success": false,
+  "message": "Email gönderilemedi: SMTP authentication error. Lütfen SMTP ayarlarınızı kontrol edin.",
+  "test_result": {
+    "success": false,
+    "message": "Email gönderilemedi: SMTP authentication error",
+    "error": "SMTP authentication error: ...",
+    "test_email": "test@example.com"
+  }
+}
+```
+
+## Email Sistemi 🆕
+
+### Email Entegrasyonu Oluşturma
+
+**Endpoint:** `POST /api/integrations/`
+
+**Request Body:**
+```json
+{
+  "provider_type": "email",
+  "name": "Gmail SMTP",
+  "status": "active",
+  "api_key": "your-email@gmail.com",
+  "api_secret": "your-password",
+  "config": {
+    "smtp_host": "smtp.gmail.com",
+    "smtp_port": 587,
+    "smtp_use_tls": true,
+    "smtp_use_ssl": false,
+    "from_email": "your-email@gmail.com",
+    "from_name": "Mağaza Adı"
+  }
+}
+```
+
+**Not:** `api_key` ve `api_secret` şifreli olarak saklanır.
+
+### Email Test Etme
+
+**Endpoint:** `POST /api/integrations/{integration_id}/test/`
+
+**Request Body:**
+```json
+{
+  "test_email": "test@example.com",
+  "test_message": "SMTP ayarlarınızı test ediyorum"
+}
+```
+
+**Response (Başarılı):**
+```json
+{
+  "success": true,
+  "message": "Test email başarıyla gönderildi. Lütfen test@example.com adresinizi kontrol edin.",
+  "test_result": {
+    "success": true,
+    "message": "Test email başarıyla gönderildi.",
+    "test_email": "test@example.com"
+  }
+}
+```
+
+**Response (Hatalı):**
+```json
+{
+  "success": false,
+  "message": "Email gönderilemedi: SMTP authentication error. Lütfen SMTP ayarlarınızı kontrol edin.",
+  "test_result": {
+    "success": false,
+    "message": "Email gönderilemedi: SMTP authentication error",
+    "error": "SMTP authentication error: ...",
+    "test_email": "test@example.com"
+  }
+}
+```
+
+### Otomatik Email Gönderimi
+
+Sipariş durumu değiştiğinde müşterilere otomatik email gönderilir:
+
+- **Sipariş Onaylandı** (`CONFIRMED`) → Onay email'i
+- **Sipariş Kargoya Verildi** (`SHIPPED`) → Kargoya verildi email'i (takip numarası ile)
+- **Sipariş Teslim Edildi** (`DELIVERED`) → Teslim edildi email'i
+- **Sipariş İptal Edildi** (`CANCELLED`) → İptal email'i
+
+**Not:** Email entegrasyonu aktif olmalı ve SMTP ayarları doğru olmalıdır.
+
+### SMTP Ayarları
+
+**Gmail:**
+```json
+{
+  "smtp_host": "smtp.gmail.com",
+  "smtp_port": 587,
+  "smtp_use_tls": true,
+  "smtp_use_ssl": false
+}
+```
+
+**Outlook/Hotmail:**
+```json
+{
+  "smtp_host": "smtp-mail.outlook.com",
+  "smtp_port": 587,
+  "smtp_use_tls": true,
+  "smtp_use_ssl": false
+}
+```
+
+**Özel SMTP:**
+```json
+{
+  "smtp_host": "smtp.example.com",
+  "smtp_port": 587,
+  "smtp_use_tls": true,
+  "smtp_use_ssl": false
+}
+```
+
 ## Ürün Yönetimi
 
 ### Ürün Listesi

@@ -131,6 +131,7 @@ Tüm modüller `apps/` altında modüler yapıda:
 ### E-Ticaret Özellikleri
 - ✅ **Ürün Yönetimi**: Ürünler, kategoriler, varyantlar, görseller
 - ✅ **Excel Import**: Excel'den toplu ürün yükleme, template indirme, otomatik mapping
+- ✅ **Email Sistemi**: SMTP ile email gönderme, otomatik sipariş email'leri, email test
 - ✅ **Sepet Sistemi**: Guest ve müşteri sepetleri
 - ✅ **Sipariş Yönetimi**: Sipariş oluşturma, takip, durum güncelleme
 - ✅ **Ödeme Entegrasyonları**: Kuveyt API, İyzico, PayTR (genişletilebilir)

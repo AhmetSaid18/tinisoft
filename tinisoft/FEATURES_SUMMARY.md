@@ -1,6 +1,6 @@
 # Özellikler Özeti ve Kullanım Kılavuzu
 
-**Son Güncelleme:** 2024 - Excel Import, Integration API Keys, Payment Provider Sistemi, Kupon Yönetimi
+**Son Güncelleme:** 2024 - Email Sistemi, Excel Import, Integration API Keys, Payment Provider Sistemi, Kupon Yönetimi
 
 ## ✅ Mevcut Özellikler
 
@@ -241,7 +241,23 @@ Bu şekilde her ödeme isteğinde config göndermenize gerek kalmaz.
 
 ## 🆕 Son Eklenen Özellikler (2024)
 
-### 1. **Excel Import Sistemi** 🆕
+### 1. **Email Sistemi** 🆕
+- SMTP ile email gönderme
+- Tenant'lar kendi SMTP ayarlarını girebilir
+- Şifreli SMTP password saklama
+- Email test endpoint'i
+- Otomatik sipariş email'leri:
+  - Sipariş onay email'i
+  - Sipariş kargoya verildi email'i
+  - Sipariş teslim edildi email'i
+  - Sipariş iptal email'i
+- HTML ve plain text email template'leri
+
+**Endpoint'ler:**
+- `POST /api/integrations/` - Email entegrasyonu oluştur
+- `POST /api/integrations/{integration_id}/test/` - Email test et
+
+### 2. **Excel Import Sistemi** 🆕
 - Excel'den toplu ürün yükleme
 - Template indirme
 - Tüm Excel kolonları destekleniyor
@@ -265,7 +281,7 @@ Bu şekilde her ödeme isteğinde config göndermenize gerek kalmaz.
 - Görseller (ImageURL1-10)
 - Ve daha fazlası...
 
-### 2. **Integration API Keys Sistemi** 🆕
+### 3. **Integration API Keys Sistemi** 🆕
 - Tüm entegrasyonlar için merkezi API key yönetimi
 - Şifreli saklama (Fernet encryption)
 - Test modu desteği
@@ -275,22 +291,22 @@ Bu şekilde her ödeme isteğinde config göndermenize gerek kalmaz.
   - Marketplace: Trendyol, Hepsiburada, N11, GittiGidiyor
   - Diğer: SMS, Email, Analytics
 
-### 3. **Payment Provider Sistemi** 🆕
+### 4. **Payment Provider Sistemi** 🆕
 - Genişletilebilir ödeme sağlayıcı sistemi
 - Kuveyt API entegrasyonu
 - Otomatik integration'dan config alma
 - Test ve production modları
 
-### 4. **Sepete Kupon Uygulama** 🆕
+### 5. **Sepete Kupon Uygulama** 🆕
 - `POST /api/cart/coupon/` - Kuponu sepete uygula
 - `DELETE /api/cart/coupon/` - Kuponu sepetten kaldır
 - Otomatik indirim hesaplama
 
-### 5. **Public Kupon Listesi** 🆕
+### 6. **Public Kupon Listesi** 🆕
 - `GET /api/public/coupons/` - Müşterilerin görebileceği aktif kuponlar
 - Tarih ve kullanım limiti kontrolü
 
-### 6. **Müşteri Sipariş Takip** 🆕
+### 7. **Müşteri Sipariş Takip** 🆕
 - `GET /api/orders/track/{order_number}/` - Public sipariş takip
 - Müşteriler kendi siparişlerini görüntüleyebilir (`GET /api/orders/`)
 
