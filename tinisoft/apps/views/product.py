@@ -419,7 +419,8 @@ def product_detail_public(request, product_slug):
 @permission_classes([IsAuthenticated])
 def delete_all_products(request):
     """
-    Tenant'a ait tüm ürünleri sil (soft delete).
+    Tenant'a ait tüm ürünleri veritabanından fiziksel olarak sil.
+    ⚠️ UYARI: Bu işlem geri alınamaz! Ürünler veritabanından tamamen silinir.
     
     DELETE: /api/products/delete-all/
     """
@@ -440,8 +441,8 @@ def delete_all_products(request):
         }, status=status.HTTP_403_FORBIDDEN)
     
     try:
-        # Tüm ürünleri al (silinmemiş olanlar)
-        products = Product.objects.filter(tenant=tenant, is_deleted=False)
+        # Tüm ürünleri al (hem silinmiş hem silinmemiş - hepsini DB'den sileceğiz)
+        products = Product.objects.filter(tenant=tenant)
         total_count = products.count()
         
         if total_count == 0:
@@ -452,8 +453,8 @@ def delete_all_products(request):
                 'deleted_count': 0,
             })
         
-        # Soft delete - tüm ürünleri sil
-        deleted_count = products.update(is_deleted=True)
+        # Fiziksel silme - DB'den tamamen sil
+        deleted_count, _ = products.delete()
         
         logger.info(
             f"[PRODUCTS] DELETE /api/products/delete-all/ | {status.HTTP_200_OK} | "
