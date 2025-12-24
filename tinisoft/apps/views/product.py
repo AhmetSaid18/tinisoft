@@ -451,9 +451,6 @@ def product_detail_public(request, urun_slug=None, tenant_slug=None, product_slu
     GET: /api/public/{tenant_slug}/products/urun/{urun_slug}/ (path parameter ile)
     
     Not: product_slug parametresi geriye dönük uyumluluk için (eski URL'ler)
-    """
-    # urun_slug veya product_slug (geriye dönük uyumluluk)
-    product_slug = urun_slug or product_slug
     
     Tenant belirleme önceliği:
     1. Path parameter: tenant_slug
@@ -461,8 +458,9 @@ def product_detail_public(request, urun_slug=None, tenant_slug=None, product_slu
     3. Query parameter: ?tenant_id=xxx
     4. Header: X-Tenant-Slug
     5. Header: X-Tenant-ID
-    6. Subdomain/Custom domain (otomatik)
     """
+    # urun_slug veya product_slug (geriye dönük uyumluluk)
+    product_slug = urun_slug or product_slug
     tenant = None
     
     # 1. Path parameter'dan tenant_slug
