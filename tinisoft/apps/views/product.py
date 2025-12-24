@@ -443,12 +443,17 @@ def product_deactivate(request, product_id):
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
-def product_detail_public(request, product_slug, tenant_slug=None):
+def product_detail_public(request, urun_slug=None, tenant_slug=None, product_slug=None):
     """
     Public ürün detayı (frontend için).
     
-    GET: /api/public/products/{product_slug}/ (tenant_slug query parameter ile)
-    GET: /api/public/{tenant_slug}/products/{product_slug}/ (path parameter ile)
+    GET: /api/public/products/urun/{urun_slug}/ (tenant_slug query parameter ile)
+    GET: /api/public/{tenant_slug}/products/urun/{urun_slug}/ (path parameter ile)
+    
+    Not: product_slug parametresi geriye dönük uyumluluk için (eski URL'ler)
+    """
+    # urun_slug veya product_slug (geriye dönük uyumluluk)
+    product_slug = urun_slug or product_slug
     
     Tenant belirleme önceliği:
     1. Path parameter: tenant_slug

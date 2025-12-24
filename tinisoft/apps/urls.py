@@ -115,8 +115,8 @@ urlpatterns = [
     # Public product endpoints (tenant_slug ile)
     path('public/products/', product_list_public, name='product_list_public'),  # GET: ?tenant_slug=xxx veya header ile
     path('public/<str:tenant_slug>/products/', product_list_public, name='product_list_public_by_slug'),  # GET: Path parameter ile
-    path('public/products/<str:product_slug>/', product_detail_public, name='product_detail_public'),  # GET: ?tenant_slug=xxx veya header ile
-    path('public/<str:tenant_slug>/products/<str:product_slug>/', product_detail_public, name='product_detail_public_by_slug'),  # GET: Path parameter ile
+    path('public/products/urun/<str:urun_slug>/', product_detail_public, name='product_detail_public'),  # GET: ?tenant_slug=xxx veya header ile
+    path('public/<str:tenant_slug>/products/urun/<str:urun_slug>/', product_detail_public, name='product_detail_public_by_slug'),  # GET: Path parameter ile
     path('categories/', category_list_create, name='category_list_create'),  # GET: List, POST: Create
     
     # Sipariş yönetimi
