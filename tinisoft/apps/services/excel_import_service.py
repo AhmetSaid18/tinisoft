@@ -42,10 +42,13 @@ class ExcelImportService:
         'price': 'price',
         'satis_fiyati': 'price',
         'satış_fiyatı': 'price',
-        'ecommerce_site_price': 'price',
-        'ecommerce_site_fiyat': 'price',
+        'ecommerce_site_price': 'ecommerce_price',  # E-ticaret fiyatı (ayrı alan)
+        'ecommerce_site_fiyat': 'ecommerce_price',
+        'eticaret_site_fiyati': 'ecommerce_price',  # Excel'deki kolon → ecommerce_price
         'price_with_vat': 'price',
         'kdv_dahil_fiyat': 'price',
+        'kdv_dahil_fiyatlar': 'price',  # Excel'deki kolon: "KDV Dahil Fiyatlar" → price (ana fiyat)
+        'kdv dahil fiyatlar': 'price',  # Normalized: "kdv dahil fiyatlar" → price (ana fiyat)
         'kdv_dahil': 'price',
         'satis_fiyat': 'price',
         'satış_fiyat': 'price',
@@ -267,7 +270,7 @@ class ExcelImportService:
         'alış_fiyatı': 'buying_price',
         'alis_fiyati': 'buying_price',
         
-        'eticaret_site_fiyati': 'ecommerce_price',
+        # ecommerce_price yukarıda tanımlandı (47. satır)
         'ecommerce_price': 'ecommerce_price',
         'e-ticaret_fiyatı': 'ecommerce_price',
         
@@ -335,6 +338,73 @@ class ExcelImportService:
         'uyumluluk renk': 'compatibility_color',
         'uyumluluk desen': 'compatibility_pattern',
         'uyumluluk cinsiyet': 'compatibility_gender',
+        'uyumluluk alan1': 'compatibility_field_1',
+        'uyumluluk alan2': 'compatibility_field_2',
+        'uyumluluk alan3': 'compatibility_field_3',
+        'uyumluluk alan4': 'compatibility_field_4',
+        'uyumluluk alan5': 'compatibility_field_5',
+        'uyumluluk alan6': 'compatibility_field_6',
+        'uyumluluk alan7': 'compatibility_field_7',
+        'uyumluluk alan8': 'compatibility_field_8',
+        'uyumluluk alan9': 'compatibility_field_9',
+        'uyumluluk alan10': 'compatibility_field_10',
+        'uyumluluk kaydakid': 'compatibility_source_id',
+        'uyumluluk kaynak': 'compatibility_source',
+        'uyumluluk adı': 'compatibility_name',
+        'uyumluluk id': 'compatibility_id',
+        
+        # Diğer alanlar
+        'urunid': 'product_code',
+        'urun_id': 'product_code',
+        'product_code': 'product_code',
+        
+        'ana ürün kodu': 'main_product_code',
+        'ana_urun_kodu': 'main_product_code',
+        'main_product_code': 'main_product_code',
+        
+        'alt başlık': 'subtitle',
+        'alt_baslik': 'subtitle',
+        'subtitle': 'subtitle',
+        
+        'alt başlık2': 'subtitle_2',
+        'alt_baslik2': 'subtitle_2',
+        'subtitle_2': 'subtitle_2',
+        
+        'eticaretentegrasyonkodu': 'ecommerce_integration_code',
+        'eticaret_entegrasyon_kodu': 'ecommerce_integration_code',
+        'ecommerce_integration_code': 'ecommerce_integration_code',
+        
+        'ürün kaynagi': 'product_source',
+        'urun_kaynagi': 'product_source',
+        'product_source': 'product_source',
+        
+        'xml baglı durumu': 'xml_connected_status',
+        'xml_bagli_durumu': 'xml_connected_status',
+        'xml_connected_status': 'xml_connected_status',
+        
+        'entegra-kritik-fiyat': 'entegra_critical_price',
+        'entegra_kritik_fiyat': 'entegra_critical_price',
+        'entegra_critical_price': 'entegra_critical_price',
+        
+        'varyant raf no': 'variant_shelf_no',
+        'varyant_raf_no': 'variant_shelf_no',
+        'variant_shelf_no': 'variant_shelf_no',
+        
+        'ürün eklenme tarihi': 'product_add_date',
+        'urun_eklenme_tarihi': 'product_add_date',
+        'product_add_date': 'product_add_date',
+        
+        # ImageGrup kolonları (metadata'ya gidecek)
+        'imagegrup1': 'image_group_1',
+        'imagegrup2': 'image_group_2',
+        'imagegrup3': 'image_group_3',
+        'imagegrup4': 'image_group_4',
+        'imagegrup5': 'image_group_5',
+        'imagegrup6': 'image_group_6',
+        'imagegrup7': 'image_group_7',
+        'imagegrup8': 'image_group_8',
+        'imagegrup9': 'image_group_9',
+        'imagegrup10': 'image_group_10',
     }
     
     @staticmethod
@@ -412,27 +482,8 @@ class ExcelImportService:
             'tenant': tenant,
         }
         
-        # Fiyat kolonunu otomatik bul (eğer mapping'de yoksa)
-        price_found = False
-        for col in row.index:
-            col_lower = str(col).lower().strip()
-            # Fiyat içeren kolonları kontrol et
-            if any(keyword in col_lower for keyword in ['fiyat', 'price', 'satis', 'satış', 'ecommerce']):
-                if col_lower not in ExcelImportService.FIELD_MAPPING:
-                    # Fiyat kolonu bulundu ama mapping'de yok - otomatik ekle
-                    if pd.notna(row[col]) and row[col] != '':
-                        try:
-                            value = row[col]
-                            if isinstance(value, (int, float)) or (isinstance(value, str) and value.replace(',', '.').replace(' ', '').replace('₺', '').replace('TL', '').replace('.', '', 1).isdigit()):
-                                clean_value = str(value).replace(',', '.').replace(' ', '').replace('₺', '').replace('TL', '')
-                                price_val = Decimal(clean_value)
-                                if price_val > 0:
-                                    product_data['price'] = price_val
-                                    price_found = True
-                                    logger.info(f"Auto-detected price column: {col} = {price_val}")
-                                    break
-                        except:
-                            pass
+        # Fiyat önceliği: Önce "KDV Dahil Fiyatlar", yoksa "eticaret_site_fiyati" kullan
+        # Bu otomatik bulma artık gerekli değil çünkü mapping'de var
         
         # Mapping yap
         for excel_col, model_field in ExcelImportService.FIELD_MAPPING.items():
@@ -448,15 +499,17 @@ class ExcelImportService:
                 elif model_field == 'description':
                     product_data['description'] = str(value).strip()
                 
-                elif model_field in ['price', 'compare_at_price', 'weight', 'length', 'width', 'height']:
+                elif model_field in ['price', 'compare_at_price', 'weight', 'length', 'width', 'height', 
+                                     'buying_price', 'ecommerce_price', 'shipping_price', 'desi', 'depth']:
                     try:
                         # Decimal'e çevir
                         if isinstance(value, (int, float)):
                             product_data[model_field] = Decimal(str(value))
                         else:
-                            # String'den temizle ve çevir
-                            clean_value = str(value).replace(',', '.').replace(' ', '').replace('₺', '').replace('TL', '')
-                            product_data[model_field] = Decimal(clean_value)
+                            # String'den temizle ve çevir (EUR, USD, TRY, TL, ₺ temizle)
+                            clean_value = str(value).replace(',', '.').replace(' ', '').replace('₺', '').replace('TL', '').replace('TRY', '').replace('EUR', '').replace('USD', '')
+                            if clean_value:
+                                product_data[model_field] = Decimal(clean_value)
                     except (InvalidOperation, ValueError):
                         pass  # Geçersiz değer, atla
                 
