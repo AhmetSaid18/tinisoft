@@ -94,7 +94,7 @@ class ProductListSerializer(serializers.ModelSerializer):
         model = Product
         fields = [
             'id', 'name', 'slug', 'price', 'compare_at_price', 'compareAtPrice',
-            'sku', 'inventory_quantity', 'inventoryQuantity', 'track_inventory',
+            'currency', 'sku', 'inventory_quantity', 'inventoryQuantity', 'track_inventory',
             'primary_image', 'category_names', 'min_price', 'max_price',
             'has_variants', 'is_featured', 'is_new', 'is_bestseller',
             'status', 'is_visible', 'isActive', 'view_count', 'sale_count',
