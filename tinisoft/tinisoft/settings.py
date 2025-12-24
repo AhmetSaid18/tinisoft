@@ -119,6 +119,27 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# Session Configuration (Cookie için)
+SESSION_COOKIE_NAME = 'sessionid'
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 30  # 30 gün
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SECURE = False  # HTTPS için True yap (production'da)
+SESSION_COOKIE_SAMESITE = 'Lax'  # CORS için 'Lax' veya 'None' (Secure=True ise 'None')
+SESSION_SAVE_EVERY_REQUEST = True  # Her istekte session'ı kaydet
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False  # Tarayıcı kapanınca session'ı silme
+
+# CSRF Configuration (Cookie için)
+CSRF_COOKIE_NAME = 'csrftoken'
+CSRF_COOKIE_HTTPONLY = False  # JavaScript'ten okunabilir olmalı
+CSRF_COOKIE_SECURE = False  # HTTPS için True yap (production'da)
+CSRF_COOKIE_SAMESITE = 'Lax'  # CORS için 'Lax' veya 'None' (Secure=True ise 'None')
+CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'https://tinisoft.com.tr',
+    'https://www.tinisoft.com.tr',
+])
+
 # Internationalization
 LANGUAGE_CODE = env('LANGUAGE_CODE', default='tr-tr')
 TIME_ZONE = env('TIME_ZONE', default='Europe/Istanbul')
