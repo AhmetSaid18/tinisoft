@@ -293,6 +293,73 @@ def import_status(request, task_id):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser])
+def excel_columns_info(request):
+    """
+    Excel dosyasındaki kolon isimlerini listele (debug için).
+    
+    POST: /api/products/import/columns/
+    Body: {
+        "file": <excel_file>
+    }
+    """
+    tenant = get_tenant_from_request(request)
+    if not tenant:
+        return Response({
+            'success': False,
+            'message': 'Tenant bulunamadı.',
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    if 'file' not in request.FILES:
+        return Response({
+            'success': False,
+            'message': 'Excel dosyası yüklenmedi.',
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    excel_file = request.FILES['file']
+    
+    try:
+        import pandas as pd
+        import io
+        
+        # Excel dosyasını oku
+        df = pd.read_excel(excel_file, engine='openpyxl', nrows=0)  # Sadece header
+        
+        # Orijinal kolon isimleri
+        original_columns = list(df.columns)
+        
+        # Normalize edilmiş kolon isimleri
+        normalized_columns = [col.lower().strip() for col in original_columns]
+        
+        # Fiyat içeren kolonları bul
+        price_columns = []
+        for orig, norm in zip(original_columns, normalized_columns):
+            if any(keyword in norm for keyword in ['fiyat', 'price', 'satis', 'satış', 'ecommerce']):
+                price_columns.append({
+                    'original': orig,
+                    'normalized': norm,
+                    'index': normalized_columns.index(norm)
+                })
+        
+        return Response({
+            'success': True,
+            'total_columns': len(original_columns),
+            'original_columns': original_columns,
+            'normalized_columns': normalized_columns,
+            'price_columns': price_columns,
+            'message': f'{len(price_columns)} fiyat kolonu bulundu.' if price_columns else 'Fiyat kolonu bulunamadı!'
+        }, status=status.HTTP_200_OK)
+    
+    except Exception as e:
+        logger.error(f"Excel columns info error: {str(e)}")
+        return Response({
+            'success': False,
+            'message': f'Hata: {str(e)}',
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def excel_template_download(request):

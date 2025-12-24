@@ -12,7 +12,7 @@ from apps.views.product import (
     product_activate, product_deactivate,
     delete_all_products
 )
-from apps.views.product_import import import_products_from_excel, excel_template_download, import_status
+from apps.views.product_import import import_products_from_excel, excel_template_download, import_status, excel_columns_info
 from apps.views.product_image_upload import (
     upload_product_image_by_slug,
     bulk_upload_product_images,
@@ -101,6 +101,7 @@ urlpatterns = [
     path('products/<uuid:product_id>/activate/', product_activate, name='product_activate'),  # POST: Ürünü aktif yap
     path('products/<uuid:product_id>/deactivate/', product_deactivate, name='product_deactivate'),  # POST: Ürünü pasif yap
     path('products/import/', import_products_from_excel, name='import_products_from_excel'),  # POST: Excel'den ürün import (async/sync)
+    path('products/import/columns/', excel_columns_info, name='excel_columns_info'),  # POST: Excel kolon isimlerini listele (debug)
     path('products/import/status/<str:task_id>/', import_status, name='import_status'),  # GET: Import durumu kontrol
     path('products/import/template/', excel_template_download, name='excel_template_download'),  # GET: Excel template indir
     path('products/images/upload/', upload_product_image_by_slug, name='upload_product_image_by_slug'),  # POST: Slug ile görsel yükle
