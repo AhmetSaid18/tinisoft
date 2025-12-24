@@ -415,6 +415,65 @@ def product_detail_public(request, product_slug):
     })
 
 
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_all_products(request):
+    """
+    Tenant'a ait tüm ürünleri sil (soft delete).
+    
+    DELETE: /api/products/delete-all/
+    """
+    tenant = get_tenant_from_request(request)
+    if not tenant:
+        logger.warning(f"[PRODUCTS] DELETE /api/products/delete-all/ | {status.HTTP_400_BAD_REQUEST} | Tenant not found")
+        return Response({
+            'success': False,
+            'message': 'Tenant bulunamadı.',
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Sadece tenant owner veya admin
+    if not (request.user.is_owner or (request.user.is_tenant_owner and request.user.tenant == tenant)):
+        logger.warning(f"[PRODUCTS] DELETE /api/products/delete-all/ | {status.HTTP_403_FORBIDDEN} | Permission denied")
+        return Response({
+            'success': False,
+            'message': 'Bu işlem için yetkiniz yok.',
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        # Tüm ürünleri al (silinmemiş olanlar)
+        products = Product.objects.filter(tenant=tenant, is_deleted=False)
+        total_count = products.count()
+        
+        if total_count == 0:
+            logger.info(f"[PRODUCTS] DELETE /api/products/delete-all/ | {status.HTTP_200_OK} | No products to delete | Tenant: {tenant.name}")
+            return Response({
+                'success': True,
+                'message': 'Silinecek ürün bulunamadı.',
+                'deleted_count': 0,
+            })
+        
+        # Soft delete - tüm ürünleri sil
+        deleted_count = products.update(is_deleted=True)
+        
+        logger.info(
+            f"[PRODUCTS] DELETE /api/products/delete-all/ | {status.HTTP_200_OK} | "
+            f"Deleted {deleted_count} products | Tenant: {tenant.name} ({tenant.id})"
+        )
+        
+        return Response({
+            'success': True,
+            'message': f'{deleted_count} ürün başarıyla silindi.',
+            'deleted_count': deleted_count,
+        }, status=status.HTTP_200_OK)
+    
+    except Exception as e:
+        logger.error(f"[PRODUCTS] DELETE /api/products/delete-all/ | {status.HTTP_500_INTERNAL_SERVER_ERROR} | Error: {str(e)}")
+        return Response({
+            'success': False,
+            'message': f'Ürün silme hatası: {str(e)}',
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def category_list_create(request):
