@@ -482,8 +482,40 @@ class ExcelImportService:
             'tenant': tenant,
         }
         
-        # Fiyat önceliği: Önce "KDV Dahil Fiyatlar", yoksa "eticaret_site_fiyati" kullan
-        # Bu otomatik bulma artık gerekli değil çünkü mapping'de var
+        # Fiyat önceliği: Önce "eticaret_site_fiyati" kolonunu kontrol et (en yaygın kullanılan)
+        # Sonra "KDV Dahil Fiyatlar" kolonunu kontrol et
+        price_columns = ['eticaret_site_fiyati', 'kdv dahil fiyatlar', 'kdv_dahil_fiyatlar', 'fiyat', 'price']
+        price_value = None
+        price_column_used = None
+        
+        for price_col in price_columns:
+            if price_col in row.index and pd.notna(row[price_col]) and row[price_col] != '':
+                try:
+                    value = row[price_col]
+                    # 0 değerini de geçerli say (boş değilse)
+                    if isinstance(value, (int, float)):
+                        # NaN kontrolü
+                        if pd.notna(value):
+                            price_value = Decimal(str(value))
+                            price_column_used = price_col
+                            logger.info(f"Price found from column '{price_col}': {price_value}")
+                            break
+                    elif isinstance(value, str):
+                        # String'den temizle
+                        clean_value = str(value).replace(',', '.').replace(' ', '').replace('₺', '').replace('TL', '').replace('TRY', '').replace('EUR', '').replace('USD', '').strip()
+                        if clean_value and clean_value.replace('.', '', 1).replace('-', '', 1).isdigit():
+                            price_value = Decimal(clean_value)
+                            price_column_used = price_col
+                            logger.info(f"Price found from column '{price_col}': {price_value} (cleaned from: {value})")
+                            break
+                except (InvalidOperation, ValueError, TypeError) as e:
+                    logger.warning(f"Could not parse price from column '{price_col}': {value} - Error: {str(e)}")
+                    continue
+        
+        # Price değerini set et (0 olsa bile, çünkü mapping kısmında override edilebilir)
+        if price_value is not None:
+            product_data['price'] = price_value
+            logger.info(f"Price set to: {price_value} from column: {price_column_used}")
         
         # Mapping yap
         for excel_col, model_field in ExcelImportService.FIELD_MAPPING.items():
@@ -618,10 +650,20 @@ class ExcelImportService:
                 elif model_field in ['buying_price', 'ecommerce_price', 'shipping_price', 'desi']:
                     try:
                         if isinstance(value, (int, float)):
-                            product_data[model_field] = Decimal(str(value))
+                            decimal_value = Decimal(str(value))
                         else:
                             clean_value = str(value).replace(',', '.').replace(' ', '').replace('₺', '').replace('TL', '')
-                            product_data[model_field] = Decimal(clean_value)
+                            decimal_value = Decimal(clean_value)
+                        
+                        product_data[model_field] = decimal_value
+                        
+                        # Özel durum: "eticaret_site_fiyati" -> "ecommerce_price" map edilirken
+                        # Eğer "price" 0 ise veya set edilmemişse, aynı değeri "price" olarak da set et
+                        if model_field == 'ecommerce_price' and excel_col == 'eticaret_site_fiyati':
+                            current_price = product_data.get('price', Decimal('0.00'))
+                            if current_price == 0 or current_price is None:
+                                product_data['price'] = decimal_value
+                                logger.info(f"Price also set from 'eticaret_site_fiyati' (ecommerce_price): {decimal_value}")
                     except (InvalidOperation, ValueError):
                         pass
                 
