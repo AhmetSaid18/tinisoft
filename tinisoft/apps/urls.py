@@ -50,6 +50,10 @@ from apps.views.shipping import (
     shipping_zone_rate_list_create, shipping_zone_rate_detail,
     shipping_calculate
 )
+from apps.views.tax import (
+    tax_list_create, tax_detail,
+    tax_activate, tax_deactivate, tax_active
+)
 from apps.views.bundle import (
     bundle_list_create, bundle_detail,
     bundle_item_add, bundle_item_detail
@@ -229,5 +233,12 @@ urlpatterns = [
     path('integrations/<uuid:integration_id>/', integration_detail, name='integration_detail'),  # GET, PATCH, DELETE
     path('integrations/<uuid:integration_id>/test/', integration_test, name='integration_test'),  # POST: Test integration
     path('integrations/type/<str:provider_type>/', integration_by_type, name='integration_by_type'),  # GET: Get active integration by type
+    
+    # KDV/Vergi Yönetimi
+    path('taxes/', tax_list_create, name='tax_list_create'),  # GET: List, POST: Create
+    path('taxes/active/', tax_active, name='tax_active'),  # GET: Aktif vergiyi getir
+    path('taxes/<uuid:tax_id>/', tax_detail, name='tax_detail'),  # GET, PUT, PATCH, DELETE
+    path('taxes/<uuid:tax_id>/activate/', tax_activate, name='tax_activate'),  # POST: Vergiyi aktif et
+    path('taxes/<uuid:tax_id>/deactivate/', tax_deactivate, name='tax_deactivate'),  # POST: Vergiyi pasif et
 ]
 
