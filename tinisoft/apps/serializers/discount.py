@@ -25,6 +25,25 @@ class CouponSerializer(serializers.ModelSerializer):
         source='applicable_products'
     )
     
+    # Frontend için computed fields
+    status = serializers.SerializerMethodField()
+    is_unlimited = serializers.SerializerMethodField()
+    usage_display = serializers.SerializerMethodField()
+    
+    def get_status(self, obj):
+        """Frontend için status field (active/inactive)."""
+        return 'active' if obj.is_active else 'inactive'
+    
+    def get_is_unlimited(self, obj):
+        """Kullanım sınırı sınırsız mı?"""
+        return obj.usage_limit is None
+    
+    def get_usage_display(self, obj):
+        """Kullanım gösterimi (0 / 222 veya 0 / ∞)."""
+        if obj.usage_limit is None:
+            return f"{obj.usage_count} / ∞"
+        return f"{obj.usage_count} / {obj.usage_limit}"
+    
     class Meta:
         model = Coupon
         fields = [
@@ -40,6 +59,8 @@ class CouponSerializer(serializers.ModelSerializer):
             'min_order_amount', 'max_usage_count', 'max_usage_per_customer',
             'valid_to', 'applies_to_all_products', 'applies_to_all_customers',
             'currency',
+            # Frontend için computed fields
+            'status', 'is_unlimited', 'usage_display',
         ]
         read_only_fields = ['id', 'usage_count', 'created_at', 'updated_at']
     
