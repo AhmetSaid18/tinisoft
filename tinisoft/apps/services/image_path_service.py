@@ -22,45 +22,53 @@ class ImagePathService:
         """
         Local'deki resmi bul.
         
+        Excel'deki ImageName kolonundan gelen path'i kullanarak local'deki dosyayı bulur.
+        Örnek: Excel'de "resimler/remta-st23-elegance...jpg" varsa,
+        local'de "resimler/remta-st23-elegance...jpg" veya sadece dosya adını arar.
+        
         Args:
-            image_path: Resim yolu (örn: resimler/urun-adi.jpg)
-            base_directories: Arama yapılacak dizinler (liste)
+            image_path: Resim yolu (örn: resimler/remta-st23-elegance-dijital-serbet-ve-ayran-sogutucu-20-l-gold-6112.jpg)
+            base_directories: Arama yapılacak dizinler (liste). None ise varsayılan dizinler kullanılır.
         
         Returns:
-            str: Bulunan dosya yolu veya None
+            str: Bulunan dosya yolu (absolute path) veya None
         """
         if base_directories is None:
-            # Varsayılan dizinler
+            # Varsayılan dizinler - local PC'deki resim klasörleri
             base_directories = [
                 'images',
                 'resimler',
                 'photos',
                 'pictures',
-                '.',
+                'fotograflar',
+                'fotoğraflar',
+                '.',  # Mevcut dizin
             ]
         
-        # Path'i normalize et
+        # Path'i normalize et (Windows \ -> /)
         image_path = str(image_path).replace('\\', '/').strip()
         
-        # Sadece dosya adı
+        # Dosya adını çıkar (örn: remta-st23-elegance...jpg)
         filename = os.path.basename(image_path)
         
         # Her dizinde ara
         for base_dir in base_directories:
-            # Tam path
+            # 1. Tam path ile dene (örn: resimler/remta-st23-elegance...jpg)
             full_path = os.path.join(base_dir, image_path)
             if os.path.exists(full_path) and os.path.isfile(full_path):
-                return full_path
+                return os.path.abspath(full_path)
             
-            # Sadece dosya adı ile ara
+            # 2. Base dir + filename ile dene (örn: resimler/remta-st23-elegance...jpg)
             filename_path = os.path.join(base_dir, filename)
             if os.path.exists(filename_path) and os.path.isfile(filename_path):
-                return filename_path
+                return os.path.abspath(filename_path)
             
-            # Alt dizinlerde ara (recursive)
-            for root, dirs, files in os.walk(base_dir):
-                if filename in files:
-                    return os.path.join(root, filename)
+            # 3. Recursive arama - Alt dizinlerde dosya adını ara
+            if os.path.isdir(base_dir):
+                for root, dirs, files in os.walk(base_dir):
+                    if filename in files:
+                        found_path = os.path.join(root, filename)
+                        return os.path.abspath(found_path)
         
         return None
     

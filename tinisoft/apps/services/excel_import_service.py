@@ -437,18 +437,16 @@ class ExcelImportService:
                         product_data['track_inventory'] = bool(value)
                 
                 elif model_field == 'category':
-                    # Kategori adından kategori bul veya oluştur
-                    category_name = str(value).strip()
-                    if category_name:
-                        category, _ = Category.objects.get_or_create(
-                            tenant=tenant,
-                            name=category_name,
-                            defaults={
-                                'is_active': True,
-                                'is_deleted': False
-                            }
-                        )
-                        product_data['category'] = category
+                    # Hiyerarşik kategori işleme (örn: "İçecek Ekipmanları>Soğuk İçecek Makineleri")
+                    if value:
+                        category_path = str(value).strip()
+                        if category_path:
+                            # Hiyerarşik kategori oluştur
+                            category = ExcelImportService._get_or_create_category_tree(
+                                tenant=tenant,
+                                category_path=category_path
+                            )
+                            product_data['category'] = category
                 
                 elif model_field == 'status':
                     status_value = str(value).strip().lower()
@@ -703,4 +701,56 @@ class ExcelImportService:
                         )
             
             return product
+    
+    @staticmethod
+    def _get_or_create_category_tree(tenant, category_path):
+        """
+        Hiyerarşik kategori ağacı oluştur.
+        
+        Args:
+            tenant: Tenant instance
+            category_path: Kategori yolu (örn: "İçecek Ekipmanları>Soğuk İçecek Makineleri")
+        
+        Returns:
+            Category: En alt seviye kategori
+        """
+        if not category_path or not category_path.strip():
+            return None
+        
+        # Kategori yolu ">" ile ayrılmış
+        category_names = [name.strip() for name in str(category_path).split('>') if name.strip()]
+        
+        if not category_names:
+            return None
+        
+        parent = None
+        current_category = None
+        
+        # Her seviyeyi oluştur
+        for category_name in category_names:
+            # Slug oluştur
+            category_slug = slugify(category_name)
+            
+            # Kategoriyi bul veya oluştur
+            if parent:
+                # Alt kategori - parent'a göre ara
+                current_category, created = Category.objects.get_or_create(
+                    tenant=tenant,
+                    name=category_name,
+                    parent=parent,
+                    defaults={'slug': category_slug}
+                )
+            else:
+                # Root kategori - parent yok
+                current_category, created = Category.objects.get_or_create(
+                    tenant=tenant,
+                    name=category_name,
+                    parent=None,
+                    defaults={'slug': category_slug}
+                )
+            
+            # Parent'ı güncelle (bir sonraki seviye için)
+            parent = current_category
+        
+        return current_category
 

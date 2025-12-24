@@ -5,7 +5,7 @@ from celery import shared_task
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from apps.services.excel_import_service import ExcelImportService
-from apps.models import Product
+from apps.models import Product, Tenant
 from core.middleware import get_tenant_from_request
 from core.db_router import set_tenant_schema
 import logging
@@ -30,7 +30,7 @@ def import_products_from_excel_task(self, file_path, tenant_id, user_id=None, ba
     Returns:
         dict: Import sonuçları
     """
-    from apps.models import Tenant, User
+    from apps.models import User
     
     try:
         # Tenant ve user'ı al
@@ -167,5 +167,159 @@ def import_products_from_excel_async(file_path, tenant_id, user_id=None):
         'task_id': task.id,
         'status': 'PENDING',
         'message': 'Excel import başlatıldı. Task ID ile durumu takip edebilirsiniz.'
+    }
+
+
+@shared_task(bind=True, max_retries=3)
+def upload_images_from_excel_task(self, tenant_id, base_directories=None, batch_size=50):
+    """
+    Excel'den import edilen ürünlerin görsellerini paralel olarak yükle (Celery task).
+    
+    4000-5000 fotoğrafı batch'ler halinde işler ve R2'ye yükler.
+    
+    Args:
+        tenant_id: Tenant ID
+        base_directories: Local resim dizinleri (liste)
+        batch_size: Her batch'te kaç ürün işlenecek (default: 50)
+    
+    Returns:
+        dict: Upload sonuçları
+    """
+    from apps.models import Tenant
+    from apps.services.image_path_service import ImagePathService
+    
+    try:
+        # Tenant'ı al
+        tenant = Tenant.objects.get(id=tenant_id, is_deleted=False)
+        
+        # Tenant schema'sını ayarla
+        tenant_schema = f'tenant_{tenant.id}'
+        set_tenant_schema(tenant_schema)
+        
+        # Tüm ürünleri al (metadata'da image_paths olanlar)
+        products = Product.objects.filter(
+            tenant=tenant,
+            is_deleted=False
+        )
+        
+        total_products = products.count()
+        logger.info(f"Starting image upload: {total_products} products for tenant {tenant.name}")
+        
+        success_count = 0
+        failed_count = 0
+        results = []
+        
+        # Batch'ler halinde işle
+        products_list = list(products)
+        for batch_start in range(0, len(products_list), batch_size):
+            batch_end = min(batch_start + batch_size, len(products_list))
+            batch_products = products_list[batch_start:batch_end]
+            
+            logger.info(f"Processing image batch {batch_start // batch_size + 1}: products {batch_start + 1}-{batch_end}")
+            
+            # Batch'i işle
+            batch_results = _process_image_batch(batch_products, base_directories)
+            
+            success_count += batch_results['success_count']
+            failed_count += batch_results['failed_count']
+            results.extend(batch_results['results'])
+            
+            # Progress update
+            self.update_state(
+                state='PROGRESS',
+                meta={
+                    'current': batch_end,
+                    'total': total_products,
+                    'success': success_count,
+                    'failed': failed_count,
+                    'progress': int((batch_end / total_products) * 100) if total_products > 0 else 0
+                }
+            )
+        
+        result = {
+            'success': True,
+            'success_count': success_count,
+            'failed_count': failed_count,
+            'total_products': total_products,
+            'results': results[:100],  # İlk 100 sonucu göster
+        }
+        
+        logger.info(f"Image upload completed: {success_count} uploaded, {failed_count} failed")
+        return result
+    
+    except Exception as e:
+        logger.error(f"Image upload task error: {str(e)}")
+        raise self.retry(exc=e, countdown=60)
+
+
+def _process_image_batch(batch_products, base_directories):
+    """
+    Bir batch ürünün görsellerini işle.
+    
+    Args:
+        batch_products: Product listesi (batch)
+        base_directories: Local resim dizinleri
+    
+    Returns:
+        dict: Batch sonuçları
+    """
+    from apps.services.image_path_service import ImagePathService
+    
+    success_count = 0
+    failed_count = 0
+    results = []
+    
+    for product in batch_products:
+        # Metadata'dan image path'leri al
+        image_paths = product.metadata.get('image_paths', [])
+        
+        if not image_paths:
+            continue
+        
+        # Her resim yolunu işle
+        for idx, image_path in enumerate(image_paths[:10]):  # MAX_IMAGES_PER_PRODUCT = 10
+            # Local'de bul
+            local_path = ImagePathService.find_local_image(image_path, base_directories)
+            
+            if not local_path:
+                failed_count += 1
+                results.append({
+                    'product_slug': product.slug,
+                    'image_path': image_path,
+                    'status': 'not_found',
+                    'error': 'Local resim bulunamadı'
+                })
+                continue
+            
+            # Yükle
+            product_image = ImagePathService.upload_image_from_local(
+                product=product,
+                local_image_path=local_path,
+                position=idx,
+                is_primary=(idx == 0)
+            )
+            
+            if product_image:
+                success_count += 1
+                results.append({
+                    'product_slug': product.slug,
+                    'image_path': image_path,
+                    'local_path': local_path,
+                    'image_url': product_image.image_url,
+                    'status': 'success'
+                })
+            else:
+                failed_count += 1
+                results.append({
+                    'product_slug': product.slug,
+                    'image_path': image_path,
+                    'status': 'upload_failed',
+                    'error': 'Yükleme başarısız'
+                })
+    
+    return {
+        'success_count': success_count,
+        'failed_count': failed_count,
+        'results': results
     }
 
