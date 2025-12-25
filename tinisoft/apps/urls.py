@@ -131,12 +131,17 @@ urlpatterns = [
     path('orders/<uuid:order_id>/', order_detail, name='order_detail'),  # GET, PATCH
     path('orders/track/<str:order_number>/', order_track, name='order_track'),  # GET: Track order by order number
     
-    # Sepet yönetimi
-    path('cart/', cart_detail, name='cart_detail'),  # GET: Get cart, POST: Create cart
-    path('cart/add/', add_to_cart, name='add_to_cart'),  # POST: Add to cart
-    path('cart/items/<uuid:item_id>/', cart_item_detail, name='cart_item_detail'),  # PATCH: Update, DELETE: Remove
-    path('cart/shipping/', update_shipping_method, name='update_shipping_method'),  # PATCH: Update shipping method
-    path('cart/coupon/', apply_coupon, name='apply_coupon'),  # POST: Apply coupon, DELETE: Remove coupon
+    # Sepet yönetimi (Basket - Basit CRUD)
+    from apps.views.basket import basket, basket_item
+    path('basket/', basket, name='basket'),  # GET: Sepeti getir, POST: Sepete ürün ekle
+    path('basket/<uuid:item_id>/', basket_item, name='basket_item'),  # PATCH: Güncelle, DELETE: Sil
+    
+    # Eski cart endpoint'leri (geriye dönük uyumluluk için - kaldırılabilir)
+    # path('cart/', cart_detail, name='cart_detail'),
+    # path('cart/add/', add_to_cart, name='add_to_cart'),
+    # path('cart/items/<uuid:item_id>/', cart_item_detail, name='cart_item_detail'),
+    # path('cart/shipping/', update_shipping_method, name='update_shipping_method'),
+    # path('cart/coupon/', apply_coupon, name='apply_coupon'),
     
     # Ödeme yönetimi
     path('payments/', payment_list_create, name='payment_list_create'),  # GET: List, POST: Create

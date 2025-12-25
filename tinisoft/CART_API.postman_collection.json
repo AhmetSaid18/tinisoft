@@ -1,0 +1,438 @@
+{
+	"info": {
+		"_postman_id": "cart-api-collection",
+		"name": "Cart API - Sepet İşlemleri",
+		"description": "Sepet yönetimi API'leri - Redis entegrasyonu ve para birimi desteği ile",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Sepet Getir (GET)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "X-Session-ID",
+						"value": "{{session_id}}",
+						"type": "text"
+					},
+					{
+						"key": "X-Tenant-Slug",
+						"value": "avrupamutfak",
+						"type": "text"
+					},
+					{
+						"key": "X-Currency-Code",
+						"value": "TRY",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "https://api.tinisoft.com.tr/api/cart/",
+					"protocol": "https",
+					"host": [
+						"api",
+						"tinisoft",
+						"com",
+						"tr"
+					],
+					"path": [
+						"api",
+						"cart",
+						""
+					]
+				},
+				"description": "Sepeti getir veya oluştur. Guest kullanıcılar için Redis'te, kayıtlı kullanıcılar için DB'de tutulur."
+			}
+		},
+		{
+			"name": "2. Sepet Oluştur (POST)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "X-Session-ID",
+						"value": "{{session_id}}",
+						"type": "text"
+					},
+					{
+						"key": "X-Tenant-Slug",
+						"value": "avrupamutfak",
+						"type": "text"
+					},
+					{
+						"key": "X-Currency-Code",
+						"value": "TRY",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "https://api.tinisoft.com.tr/api/cart/",
+					"protocol": "https",
+					"host": [
+						"api",
+						"tinisoft",
+						"com",
+						"tr"
+					],
+					"path": [
+						"api",
+						"cart",
+						""
+					]
+				},
+				"description": "Yeni sepet oluştur (genelde GET ile otomatik oluşturulur)"
+			}
+		},
+		{
+			"name": "3. Sepete Ürün Ekle (POST)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "X-Session-ID",
+						"value": "{{session_id}}",
+						"type": "text"
+					},
+					{
+						"key": "X-Tenant-Slug",
+						"value": "avrupamutfak",
+						"type": "text"
+					},
+					{
+						"key": "X-Currency-Code",
+						"value": "TRY",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"product_id\": \"BURAYA-ÜRÜN-ID-YAPIŞTIR\",\n  \"variant_id\": null,\n  \"quantity\": 1\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://api.tinisoft.com.tr/api/cart/add/",
+					"protocol": "https",
+					"host": [
+						"api",
+						"tinisoft",
+						"com",
+						"tr"
+					],
+					"path": [
+						"api",
+						"cart",
+						"add",
+						""
+					]
+				},
+				"description": "Sepete ürün ekle. Para birimi dönüşümü otomatik yapılır."
+			}
+		},
+		{
+			"name": "4. Sepet Kalemi Güncelle (PATCH)",
+			"request": {
+				"method": "PATCH",
+				"header": [
+					{
+						"key": "X-Session-ID",
+						"value": "{{session_id}}",
+						"type": "text"
+					},
+					{
+						"key": "X-Tenant-Slug",
+						"value": "avrupamutfak",
+						"type": "text"
+					},
+					{
+						"key": "X-Currency-Code",
+						"value": "TRY",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"quantity\": 3\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://api.tinisoft.com.tr/api/cart/items/{{item_id}}/",
+					"protocol": "https",
+					"host": [
+						"api",
+						"tinisoft",
+						"com",
+						"tr"
+					],
+					"path": [
+						"api",
+						"cart",
+						"items",
+						"{{item_id}}",
+						""
+					]
+				},
+				"description": "Sepet kalemi miktarını güncelle"
+			}
+		},
+		{
+			"name": "5. Sepet Kalemi Sil (DELETE)",
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "X-Session-ID",
+						"value": "{{session_id}}",
+						"type": "text"
+					},
+					{
+						"key": "X-Tenant-Slug",
+						"value": "avrupamutfak",
+						"type": "text"
+					},
+					{
+						"key": "X-Currency-Code",
+						"value": "TRY",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "https://api.tinisoft.com.tr/api/cart/items/{{item_id}}/",
+					"protocol": "https",
+					"host": [
+						"api",
+						"tinisoft",
+						"com",
+						"tr"
+					],
+					"path": [
+						"api",
+						"cart",
+						"items",
+						"{{item_id}}",
+						""
+					]
+				},
+				"description": "Sepet kalemini sil"
+			}
+		},
+		{
+			"name": "6. Kargo Yöntemi Güncelle (PATCH)",
+			"request": {
+				"method": "PATCH",
+				"header": [
+					{
+						"key": "X-Session-ID",
+						"value": "{{session_id}}",
+						"type": "text"
+					},
+					{
+						"key": "X-Tenant-Slug",
+						"value": "avrupamutfak",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"shipping_method_id\": \"kargo-yöntemi-id-buraya\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://api.tinisoft.com.tr/api/cart/shipping/",
+					"protocol": "https",
+					"host": [
+						"api",
+						"tinisoft",
+						"com",
+						"tr"
+					],
+					"path": [
+						"api",
+						"cart",
+						"shipping",
+						""
+					]
+				},
+				"description": "Sepet kargo yöntemini güncelle"
+			}
+		},
+		{
+			"name": "7. Kupon Uygula (POST)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "X-Session-ID",
+						"value": "{{session_id}}",
+						"type": "text"
+					},
+					{
+						"key": "X-Tenant-Slug",
+						"value": "avrupamutfak",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"coupon_code\": \"KUPON123\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://api.tinisoft.com.tr/api/cart/coupon/",
+					"protocol": "https",
+					"host": [
+						"api",
+						"tinisoft",
+						"com",
+						"tr"
+					],
+					"path": [
+						"api",
+						"cart",
+						"coupon",
+						""
+					]
+				},
+				"description": "Sepete kupon uygula"
+			}
+		},
+		{
+			"name": "8. Kupon Kaldır (DELETE)",
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "X-Session-ID",
+						"value": "{{session_id}}",
+						"type": "text"
+					},
+					{
+						"key": "X-Tenant-Slug",
+						"value": "avrupamutfak",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "https://api.tinisoft.com.tr/api/cart/coupon/",
+					"protocol": "https",
+					"host": [
+						"api",
+						"tinisoft",
+						"com",
+						"tr"
+					],
+					"path": [
+						"api",
+						"cart",
+						"coupon",
+						""
+					]
+				},
+				"description": "Sepetten kuponu kaldır"
+			}
+		},
+		{
+			"name": "9. Ürün Listesi (Ürün ID Bulmak İçin)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "X-Tenant-Slug",
+						"value": "avrupamutfak",
+						"type": "text"
+					},
+					{
+						"key": "X-Currency-Code",
+						"value": "TRY",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "https://api.tinisoft.com.tr/api/public/products/?tenant_slug=avrupamutfak&page=1&page_size=20",
+					"protocol": "https",
+					"host": [
+						"api",
+						"tinisoft",
+						"com",
+						"tr"
+					],
+					"path": [
+						"api",
+						"public",
+						"products",
+						""
+					],
+					"query": [
+						{
+							"key": "tenant_slug",
+							"value": "avrupamutfak"
+						},
+						{
+							"key": "page",
+							"value": "1"
+						},
+						{
+							"key": "page_size",
+							"value": "20"
+						}
+					]
+				},
+				"description": "Ürün listesini getir - Sepete eklemek için ürün ID'si bulmak için kullanılır"
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "session_id",
+			"value": "session_1766663912012_qggbklv28",
+			"type": "string"
+		},
+		{
+			"key": "item_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "product_id",
+			"value": "",
+			"type": "string"
+		}
+	]
+}
+
