@@ -65,93 +65,57 @@ class CartService:
         logger.debug(f"Cart deleted from Redis: {cache_key}")
     
     @staticmethod
-    def get_or_create_cart(tenant, customer=None, session_id=None, currency='TRY'):
+    def get_or_create_cart(tenant, customer, session_id=None, currency='TRY'):
         """
         Sepeti al veya oluştur.
+        Sadece giriş yapan kullanıcılar için çalışır (customer zorunlu).
         
         Args:
             tenant: Tenant instance
-            customer: User instance (opsiyonel)
-            session_id: Session ID (guest checkout için)
+            customer: User instance (zorunlu)
+            session_id: Artık kullanılmıyor (geriye uyumluluk için)
             currency: Para birimi kodu (default: TRY)
         
         Returns:
-            Cart: Sepet instance (DB'den) veya dict (Redis'ten)
+            Cart: Sepet instance (DB'den)
         """
-        if customer:
-            # Müşteri sepeti - DB'de tutulur
+        if not customer:
+            raise ValueError("Sepet işlemleri için giriş yapmanız gerekiyor.")
+        
+        # Müşteri sepeti - DB'de tutulur
+        cart = Cart.objects.filter(
+            tenant=tenant,
+            customer=customer,
+            is_active=True
+        ).first()
+        
+        if not cart:
+            # Aktif sepet yoksa, pasif sepeti aktif yap veya yeni oluştur
             cart = Cart.objects.filter(
                 tenant=tenant,
                 customer=customer,
-                is_active=True
-            ).first()
+                is_active=False
+            ).order_by('-created_at').first()
             
-            if not cart:
-                # Aktif sepet yoksa, pasif sepeti aktif yap veya yeni oluştur
-                cart = Cart.objects.filter(
-                    tenant=tenant,
-                    customer=customer,
-                    is_active=False
-                ).order_by('-created_at').first()
-                
-                if cart:
-                    # Pasif sepeti aktif yap
-                    cart.is_active = True
-                    cart.currency = currency
-                    cart.expires_at = timezone.now() + timedelta(days=30)
-                    cart.save()
-                    logger.info(f"Cart reactivated for tenant {tenant.name}, customer {customer.email}")
-                else:
-                    # Yeni sepet oluştur
-                    cart = Cart.objects.create(
-                        tenant=tenant,
-                        customer=customer,
-                        is_active=True,
-                        currency=currency,
-                        expires_at=timezone.now() + timedelta(days=30),
-                    )
-                    logger.info(f"Cart created for tenant {tenant.name}, customer {customer.email}")
-            
-            return cart
-        else:
-            # Guest sepeti - Redis'te tutulur
-            if not session_id:
-                raise ValueError("Guest checkout için guest ID gereklidir.")
-            
-            # Redis'ten sepeti al
-            cart_data = CartService._get_redis_cart(str(tenant.id), session_id)
-            
-            if cart_data:
-                # Sepet var, güncelle
-                cart_data['currency'] = currency
-                cart_data['updated_at'] = timezone.now().isoformat()
-                CartService._save_redis_cart(str(tenant.id), session_id, cart_data)
-                logger.debug(f"Cart retrieved from Redis: {session_id}")
-                return cart_data
+            if cart:
+                # Pasif sepeti aktif yap
+                cart.is_active = True
+                cart.currency = currency
+                cart.expires_at = timezone.now() + timedelta(days=30)
+                cart.save()
+                logger.info(f"Cart reactivated for tenant {tenant.name}, customer {customer.email}")
             else:
                 # Yeni sepet oluştur
-                cart_data = {
-                    'id': str(uuid.uuid4()),
-                    'tenant_id': str(tenant.id),
-                    'session_id': session_id,
-                    'customer_id': None,
-                    'currency': currency,
-                    'items': [],
-                    'subtotal': '0.00',
-                    'shipping_cost': '0.00',
-                    'tax_amount': '0.00',
-                    'discount_amount': '0.00',
-                    'total': '0.00',
-                    'shipping_method_id': None,
-                    'coupon_code': None,
-                    'is_active': True,
-                    'created_at': timezone.now().isoformat(),
-                    'updated_at': timezone.now().isoformat(),
-                    'expires_at': (timezone.now() + timedelta(days=30)).isoformat(),
-                }
-                CartService._save_redis_cart(str(tenant.id), session_id, cart_data)
-                logger.info(f"Cart created in Redis for tenant {tenant.name}, session {session_id}")
-                return cart_data
+                cart = Cart.objects.create(
+                    tenant=tenant,
+                    customer=customer,
+                    is_active=True,
+                    currency=currency,
+                    expires_at=timezone.now() + timedelta(days=30),
+                )
+                logger.info(f"Cart created for tenant {tenant.name}, customer {customer.email}")
+        
+        return cart
     
     @staticmethod
     def add_to_cart(cart, product_id, variant_id=None, quantity=1, target_currency=None):
