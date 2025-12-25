@@ -153,10 +153,26 @@ def basket_item(request, item_id):
         if request.method == 'PATCH':
             # Güncelle
             quantity = request.data.get('quantity')
-            if not quantity or quantity < 1:
+            if quantity is None:
+                logger.warning(f"PATCH request missing quantity: {request.data}")
                 return Response({
                     'success': False,
-                    'message': 'Geçerli bir miktar giriniz.',
+                    'message': 'Miktar (quantity) gereklidir.',
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            try:
+                quantity = int(quantity)
+            except (ValueError, TypeError):
+                logger.warning(f"PATCH request invalid quantity: {quantity}")
+                return Response({
+                    'success': False,
+                    'message': 'Geçerli bir miktar giriniz (sayı olmalı).',
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            if quantity < 1:
+                return Response({
+                    'success': False,
+                    'message': 'Miktar en az 1 olmalıdır.',
                 }, status=status.HTTP_400_BAD_REQUEST)
             
             CartService.update_cart_item_quantity(cart, cart_item.id, quantity)
