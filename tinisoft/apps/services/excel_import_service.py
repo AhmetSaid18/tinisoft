@@ -696,8 +696,12 @@ class ExcelImportService:
                     product_data['currency'] = str(value).strip().upper()[:3] if value else 'TRY'
                 
                 elif model_field == 'tax_rate':
+                    # tax_rate Product modelinde yok, metadata'ya ekle
                     try:
-                        product_data['tax_rate'] = Decimal(str(value))
+                        tax_rate_value = Decimal(str(value))
+                        if 'metadata' not in product_data:
+                            product_data['metadata'] = {}
+                        product_data['metadata']['tax_rate'] = str(tax_rate_value)
                     except:
                         pass
                 
@@ -829,6 +833,9 @@ class ExcelImportService:
             category = product_data.pop('category', None)
             image_urls = product_data.pop('image_urls', [])
             primary_image_url = product_data.pop('primary_image_url', None)
+            
+            # tax_rate Product modelinde yok, metadata'da tutuluyor - eğer hala product_data'da varsa çıkar
+            product_data.pop('tax_rate', None)
             
             # Slug unique kontrolü
             base_slug = product_data['slug']
