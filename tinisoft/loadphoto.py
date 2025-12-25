@@ -26,12 +26,28 @@ def upload_to_cloudflare_images(image_url, filename=None):
     """
     URL'den resim indirip Cloudflare Images'e yükle.
     """
-    account_id = getattr(settings, 'CLOUDFLARE_ACCOUNT_ID', '')
-    api_token = getattr(settings, 'CLOUDFLARE_IMAGES_API_TOKEN', '')
+    # Önce direkt env'den oku
+    account_id = os.environ.get('CLOUDFLARE_ACCOUNT_ID', '')
+    api_token = os.environ.get('CLOUDFLARE_IMAGES_API_TOKEN', '')
+    
+    # Eğer yoksa, R2 endpoint'inden account ID çıkar
+    if not account_id:
+        r2_endpoint = os.environ.get('R2_ENDPOINT_URL', '')
+        if r2_endpoint:
+            # R2 endpoint format: https://{account_id}.r2.cloudflarestorage.com
+            try:
+                import re
+                match = re.search(r'https://([a-f0-9]+)\.r2\.cloudflarestorage\.com', r2_endpoint)
+                if match:
+                    account_id = match.group(1)
+                    logger.info(f"Account ID extracted from R2 endpoint: {account_id}")
+            except:
+                pass
     
     if not account_id or not api_token:
         logger.error("Cloudflare Images API credentials not configured!")
-        logger.error("Set CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_IMAGES_API_TOKEN in .env")
+        logger.error("Set CLOUDFLARE_IMAGES_API_TOKEN in .env")
+        logger.error("Account ID will be extracted from R2_ENDPOINT_URL if available")
         return None
     
     base_url = f"https://api.cloudflare.com/client/v4/accounts/{account_id}/images/v1"
@@ -321,17 +337,39 @@ if __name__ == '__main__':
     print()
     
     # Cloudflare credentials kontrolü
-    account_id = getattr(settings, 'CLOUDFLARE_ACCOUNT_ID', '')
-    api_token = getattr(settings, 'CLOUDFLARE_IMAGES_API_TOKEN', '')
+    account_id = os.environ.get('CLOUDFLARE_ACCOUNT_ID', '')
+    api_token = os.environ.get('CLOUDFLARE_IMAGES_API_TOKEN', '')
     
-    if not account_id or not api_token:
-        print("HATA: Cloudflare Images API credentials bulunamadı!")
+    # Eğer account_id yoksa, R2 endpoint'inden çıkar
+    if not account_id:
+        r2_endpoint = os.environ.get('R2_ENDPOINT_URL', '')
+        if r2_endpoint:
+            try:
+                import re
+                match = re.search(r'https://([a-f0-9]+)\.r2\.cloudflarestorage\.com', r2_endpoint)
+                if match:
+                    account_id = match.group(1)
+                    print(f"✓ Account ID R2 endpoint'inden alındı: {account_id}")
+            except:
+                pass
+    
+    if not api_token:
+        print("HATA: Cloudflare Images API token bulunamadı!")
         print()
-        print(".env dosyasına şunları ekle:")
-        print("CLOUDFLARE_ACCOUNT_ID=your-account-id")
+        print(".env dosyasına şunu ekle:")
         print("CLOUDFLARE_IMAGES_API_TOKEN=your-api-token")
         print()
-        print("Cloudflare Dashboard → Images → API Token oluştur")
+        print("Cloudflare Dashboard → Images → API Tokens → Create Token")
+        print("Permission: Account:Cloudflare Images:Edit")
+        sys.exit(1)
+    
+    if not account_id:
+        print("HATA: Cloudflare Account ID bulunamadı!")
+        print()
+        print(".env dosyasına şunu ekle:")
+        print("CLOUDFLARE_ACCOUNT_ID=your-account-id")
+        print()
+        print("Veya R2_ENDPOINT_URL'den otomatik çıkarılabilir (zaten var gibi görünüyor)")
         sys.exit(1)
     
     print("✓ Cloudflare credentials bulundu.")
