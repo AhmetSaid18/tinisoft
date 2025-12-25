@@ -1,5 +1,5 @@
 """
-WooCommerce'den ürün görsellerini indirip Cloudflare Images'e yükleyen script.
+Ürün görsellerini indirip Cloudflare R2'ye yükleyen script.
 Tek seferlik kullanım için.
 """
 import os
@@ -22,35 +22,23 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def upload_to_cloudflare_images(image_url, filename=None):
+def upload_to_r2(image_url, filename=None):
     """
-    URL'den resim indirip Cloudflare Images'e yükle.
+    URL'den resim indirip Cloudflare R2'ye yükle.
     """
-    # Önce direkt env'den oku
-    account_id = os.environ.get('CLOUDFLARE_ACCOUNT_ID', '')
-    api_token = os.environ.get('CLOUDFLARE_IMAGES_API_TOKEN', '')
+    import boto3
+    from botocore.config import Config
     
-    # Eğer yoksa, R2 endpoint'inden account ID çıkar
-    if not account_id:
-        r2_endpoint = os.environ.get('R2_ENDPOINT_URL', '')
-        if r2_endpoint:
-            # R2 endpoint format: https://{account_id}.r2.cloudflarestorage.com
-            try:
-                import re
-                match = re.search(r'https://([a-f0-9]+)\.r2\.cloudflarestorage\.com', r2_endpoint)
-                if match:
-                    account_id = match.group(1)
-                    logger.info(f"Account ID extracted from R2 endpoint: {account_id}")
-            except:
-                pass
+    # R2 credentials
+    access_key_id = os.environ.get('R2_ACCESS_KEY_ID', '')
+    secret_access_key = os.environ.get('R2_SECRET_ACCESS_KEY', '')
+    bucket_name = os.environ.get('R2_BUCKET_NAME', '')
+    endpoint_url = os.environ.get('R2_ENDPOINT_URL', '')
     
-    if not account_id or not api_token:
-        logger.error("Cloudflare Images API credentials not configured!")
-        logger.error("Set CLOUDFLARE_IMAGES_API_TOKEN in .env")
-        logger.error("Account ID will be extracted from R2_ENDPOINT_URL if available")
+    if not all([access_key_id, secret_access_key, bucket_name, endpoint_url]):
+        logger.error("R2 credentials not configured!")
+        logger.error("Set R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME, R2_ENDPOINT_URL in .env")
         return None
-    
-    base_url = f"https://api.cloudflare.com/client/v4/accounts/{account_id}/images/v1"
     
     try:
         # 1. Resmi indir
@@ -58,50 +46,49 @@ def upload_to_cloudflare_images(image_url, filename=None):
         response = requests.get(image_url, timeout=30, stream=True)
         response.raise_for_status()
         
-        # 2. Resmi BytesIO'ya yükle
-        image_data = BytesIO()
-        for chunk in response.iter_content(chunk_size=8192):
-            image_data.write(chunk)
-        image_data.seek(0)
-        
-        # 3. Dosya adını belirle
+        # 2. Dosya adını belirle
         if not filename:
             filename = os.path.basename(image_url.split('?')[0])
             if not filename or '.' not in filename:
                 filename = 'image.jpg'
         
-        # 4. Cloudflare Images API'ye yükle
-        files = {
-            'file': (filename, image_data, response.headers.get('Content-Type', 'image/jpeg'))
-        }
+        # 3. R2'ye yükle (products/ klasörüne)
+        r2_path = f"products/{filename}"
         
-        headers = {
-            'Authorization': f'Bearer {api_token}'
-        }
-        
-        logger.info(f"Uploading to Cloudflare: {filename}")
-        upload_response = requests.post(
-            base_url,
-            files=files,
-            headers=headers,
-            timeout=60
+        # S3-compatible client oluştur
+        s3_client = boto3.client(
+            's3',
+            endpoint_url=endpoint_url,
+            aws_access_key_id=access_key_id,
+            aws_secret_access_key=secret_access_key,
+            config=Config(signature_version='s3v4')
         )
         
-        if upload_response.status_code == 200:
-            data = upload_response.json()
-            if data.get('success'):
-                result = data.get('result', {})
-                variants = result.get('variants', [])
-                cloudflare_url = variants[0] if variants else result.get('filename', '')
-                logger.info(f"✓ Uploaded: {cloudflare_url}")
-                return cloudflare_url
-            else:
-                error_msg = data.get('errors', [{}])[0].get('message', 'Upload failed')
-                logger.error(f"✗ Upload failed: {error_msg}")
-                return None
+        logger.info(f"Uploading to R2: {r2_path}")
+        
+        # Resmi direkt stream olarak yükle
+        s3_client.upload_fileobj(
+            response.raw,
+            bucket_name,
+            r2_path,
+            ExtraArgs={
+                'ContentType': response.headers.get('Content-Type', 'image/jpeg'),
+                'CacheControl': 'max-age=31536000'  # 1 yıl cache
+            }
+        )
+        
+        # Public URL oluştur
+        # Custom domain varsa onu kullan, yoksa endpoint URL'i kullan
+        custom_domain = os.environ.get('R2_CUSTOM_DOMAIN', '')
+        if custom_domain:
+            cloudflare_url = f"https://{custom_domain}/{r2_path}"
         else:
-            logger.error(f"✗ HTTP {upload_response.status_code}: {upload_response.text}")
-            return None
+            # Endpoint URL'den custom domain çıkar (eğer varsa)
+            # Yoksa direkt endpoint kullan
+            cloudflare_url = f"{endpoint_url}/{bucket_name}/{r2_path}"
+        
+        logger.info(f"✓ Uploaded: {cloudflare_url}")
+        return cloudflare_url
     
     except Exception as e:
         logger.error(f"✗ Error: {str(e)}")
@@ -214,9 +201,9 @@ def migrate_all_images():
                 logger.info(f"  → Zaten Cloudflare'de: {image.image_url}")
                 continue
             
-            # WooCommerce URL'i ise yükle
+            # URL'i R2'ye yükle
             logger.info(f"  → Eski URL: {image.image_url}")
-            cloudflare_url = upload_to_cloudflare_images(image.image_url)
+            cloudflare_url = upload_to_r2(image.image_url)
             
             if cloudflare_url:
                 # URL'i güncelle
@@ -293,7 +280,7 @@ def test_random_product():
         logger.info(f"[{idx}/{images_to_migrate.count()}] Görsel işleniyor...")
         logger.info(f"  URL: {image.image_url}")
         
-        cloudflare_url = upload_to_cloudflare_images(image.image_url)
+        cloudflare_url = upload_to_r2(image.image_url)
         
         if cloudflare_url:
             old_url = image.image_url
@@ -336,43 +323,23 @@ if __name__ == '__main__':
     
     print()
     
-    # Cloudflare credentials kontrolü
-    account_id = os.environ.get('CLOUDFLARE_ACCOUNT_ID', '')
-    api_token = os.environ.get('CLOUDFLARE_IMAGES_API_TOKEN', '')
+    # R2 credentials kontrolü
+    access_key_id = os.environ.get('R2_ACCESS_KEY_ID', '')
+    secret_access_key = os.environ.get('R2_SECRET_ACCESS_KEY', '')
+    bucket_name = os.environ.get('R2_BUCKET_NAME', '')
+    endpoint_url = os.environ.get('R2_ENDPOINT_URL', '')
     
-    # Eğer account_id yoksa, R2 endpoint'inden çıkar
-    if not account_id:
-        r2_endpoint = os.environ.get('R2_ENDPOINT_URL', '')
-        if r2_endpoint:
-            try:
-                import re
-                match = re.search(r'https://([a-f0-9]+)\.r2\.cloudflarestorage\.com', r2_endpoint)
-                if match:
-                    account_id = match.group(1)
-                    print(f"✓ Account ID R2 endpoint'inden alındı: {account_id}")
-            except:
-                pass
-    
-    if not api_token:
-        print("HATA: Cloudflare Images API token bulunamadı!")
+    if not all([access_key_id, secret_access_key, bucket_name, endpoint_url]):
+        print("HATA: R2 credentials bulunamadı!")
         print()
-        print(".env dosyasına şunu ekle:")
-        print("CLOUDFLARE_IMAGES_API_TOKEN=your-api-token")
-        print()
-        print("Cloudflare Dashboard → Images → API Tokens → Create Token")
-        print("Permission: Account:Cloudflare Images:Edit")
+        print(".env dosyasında şunlar olmalı:")
+        print("R2_ACCESS_KEY_ID=...")
+        print("R2_SECRET_ACCESS_KEY=...")
+        print("R2_BUCKET_NAME=...")
+        print("R2_ENDPOINT_URL=...")
         sys.exit(1)
     
-    if not account_id:
-        print("HATA: Cloudflare Account ID bulunamadı!")
-        print()
-        print(".env dosyasına şunu ekle:")
-        print("CLOUDFLARE_ACCOUNT_ID=your-account-id")
-        print()
-        print("Veya R2_ENDPOINT_URL'den otomatik çıkarılabilir (zaten var gibi görünüyor)")
-        sys.exit(1)
-    
-    print("✓ Cloudflare credentials bulundu.")
+    print("✓ R2 credentials bulundu.")
     print()
     
     # Random ürün test
