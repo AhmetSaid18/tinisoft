@@ -252,6 +252,7 @@ CORS_ALLOW_HEADERS = [
     'x-tenant-id',  # Multi-tenant için
     'x-tenant-slug',  # Multi-tenant için (slug ile)
     'x-session-id',  # Session ID için (frontend'den gönderilir)
+    'x-currency-code',  # Para birimi seçimi için (TRY, USD, EUR)
     'cache-control',
     'pragma',
 ]
