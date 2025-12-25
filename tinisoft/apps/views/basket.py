@@ -159,11 +159,11 @@ def basket_item(request, item_id):
                     'message': 'Geçerli bir miktar giriniz.',
                 }, status=status.HTTP_400_BAD_REQUEST)
             
-            CartService.update_cart_item_quantity(cart, cart_item, quantity)
+            CartService.update_cart_item_quantity(cart, cart_item.id, quantity)
             message = 'Sepet kalemi güncellendi.'
         else:
             # Sil
-            CartService.remove_from_cart(cart, cart_item)
+            CartService.remove_from_cart(cart, cart_item.id)
             message = 'Ürün sepetten çıkarıldı.'
         
         # Sepeti yeniden yükle
