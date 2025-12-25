@@ -117,8 +117,11 @@ def basket_item(request, item_id):
     
     DELETE: /api/basket/{item_id}/
     """
+    logger.info(f"[BASKET_ITEM] {request.method} /api/basket/{item_id}/ | User: {request.user.email if request.user.is_authenticated else 'Anonymous'}")
+    
     tenant = get_tenant_from_request(request)
     if not tenant:
+        logger.warning(f"[BASKET_ITEM] Tenant not found for item_id: {item_id}")
         return Response({
             'success': False,
             'message': 'Mağaza bulunamadı.',
@@ -126,6 +129,7 @@ def basket_item(request, item_id):
     
     # Sadece giriş yapan kullanıcılar için
     if not request.user.is_authenticated or not request.user.is_tenant_user or request.user.tenant != tenant:
+        logger.warning(f"[BASKET_ITEM] Unauthorized access attempt for item_id: {item_id}")
         return Response({
             'success': False,
             'message': 'Sepet işlemleri için giriş yapmanız gerekiyor.',
@@ -144,7 +148,9 @@ def basket_item(request, item_id):
         from apps.models import CartItem
         try:
             cart_item = CartItem.objects.get(id=item_id, cart=cart, is_deleted=False)
+            logger.debug(f"[BASKET_ITEM] CartItem found: {cart_item.product.name} (qty: {cart_item.quantity})")
         except CartItem.DoesNotExist:
+            logger.warning(f"[BASKET_ITEM] CartItem not found: item_id={item_id}, cart_id={cart.id}, tenant={tenant.slug}")
             return Response({
                 'success': False,
                 'message': 'Sepet kalemi bulunamadı.',
@@ -154,7 +160,7 @@ def basket_item(request, item_id):
             # Güncelle
             quantity = request.data.get('quantity')
             if quantity is None:
-                logger.warning(f"PATCH request missing quantity: {request.data}")
+                logger.warning(f"[BASKET_ITEM] PATCH request missing quantity: {request.data} | item_id: {item_id}")
                 return Response({
                     'success': False,
                     'message': 'Miktar (quantity) gereklidir.',
@@ -163,23 +169,26 @@ def basket_item(request, item_id):
             try:
                 quantity = int(quantity)
             except (ValueError, TypeError):
-                logger.warning(f"PATCH request invalid quantity: {quantity}")
+                logger.warning(f"[BASKET_ITEM] PATCH request invalid quantity: {quantity} (type: {type(quantity)}) | item_id: {item_id}")
                 return Response({
                     'success': False,
                     'message': 'Geçerli bir miktar giriniz (sayı olmalı).',
                 }, status=status.HTTP_400_BAD_REQUEST)
             
             if quantity < 1:
+                logger.warning(f"[BASKET_ITEM] PATCH request quantity < 1: {quantity} | item_id: {item_id}")
                 return Response({
                     'success': False,
                     'message': 'Miktar en az 1 olmalıdır.',
                 }, status=status.HTTP_400_BAD_REQUEST)
             
             CartService.update_cart_item_quantity(cart, cart_item.id, quantity)
+            logger.info(f"[BASKET_ITEM] CartItem updated: {cart_item.product.name} (qty: {quantity})")
             message = 'Sepet kalemi güncellendi.'
         else:
             # Sil
             CartService.remove_from_cart(cart, cart_item.id)
+            logger.info(f"[BASKET_ITEM] CartItem deleted: {cart_item.product.name}")
             message = 'Ürün sepetten çıkarıldı.'
         
         # Sepeti yeniden yükle
@@ -192,8 +201,15 @@ def basket_item(request, item_id):
             'basket': serializer.data,
         })
     except ValueError as e:
+        logger.error(f"[BASKET_ITEM] ValueError: {str(e)} | item_id: {item_id}, method: {request.method}")
         return Response({
             'success': False,
             'message': str(e),
         }, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        logger.error(f"[BASKET_ITEM] Unexpected error: {str(e)} | item_id: {item_id}, method: {request.method}", exc_info=True)
+        return Response({
+            'success': False,
+            'message': 'Bir hata oluştu.',
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
