@@ -35,6 +35,10 @@ def cart_detail(request):
         customer = None
         session_id = None
         
+        # Para birimi al (header veya query param)
+        currency = request.headers.get('X-Currency-Code') or request.query_params.get('currency', 'TRY')
+        currency = currency.upper()
+        
         if request.user.is_authenticated and request.user.is_tenant_user and request.user.tenant == tenant:
             customer = request.user
         else:
@@ -49,8 +53,8 @@ def cart_detail(request):
                     session_id = request.session.session_key
         
         try:
-            cart = CartService.get_or_create_cart(tenant, customer, session_id)
-            serializer = CartSerializer(cart)
+            cart = CartService.get_or_create_cart(tenant, customer, session_id, currency)
+            serializer = CartSerializer(cart, context={'request': request})
             return Response({
                 'success': True,
                 'cart': serializer.data,
@@ -66,6 +70,10 @@ def cart_detail(request):
         customer = None
         session_id = None
         
+        # Para birimi al
+        currency = request.headers.get('X-Currency-Code') or request.query_params.get('currency', 'TRY')
+        currency = currency.upper()
+        
         if request.user.is_authenticated and request.user.is_tenant_user and request.user.tenant == tenant:
             customer = request.user
         else:
@@ -80,8 +88,8 @@ def cart_detail(request):
                     session_id = request.session.session_key
         
         try:
-            cart = CartService.get_or_create_cart(tenant, customer, session_id)
-            serializer = CartSerializer(cart)
+            cart = CartService.get_or_create_cart(tenant, customer, session_id, currency)
+            serializer = CartSerializer(cart, context={'request': request})
             return Response({
                 'success': True,
                 'message': 'Sepet oluşturuldu.',
@@ -113,6 +121,10 @@ def add_to_cart(request):
     if serializer.is_valid():
         data = serializer.validated_data
         
+        # Para birimi al
+        currency = request.headers.get('X-Currency-Code') or request.query_params.get('currency', 'TRY')
+        currency = currency.upper()
+        
         # Sepeti al veya oluştur
         customer = None
         session_id = None
@@ -131,17 +143,24 @@ def add_to_cart(request):
                     session_id = request.session.session_key
         
         try:
-            cart = CartService.get_or_create_cart(tenant, customer, session_id)
+            cart = CartService.get_or_create_cart(tenant, customer, session_id, currency)
             cart_item = CartService.add_to_cart(
                 cart=cart,
                 product_id=data['product_id'],
                 variant_id=data.get('variant_id'),
                 quantity=data.get('quantity', 1),
+                target_currency=currency,
             )
             
             # Sepeti yeniden yükle
-            cart.refresh_from_db()
-            serializer = CartSerializer(cart)
+            if isinstance(cart, dict):
+                # Redis sepeti - zaten güncellendi
+                pass
+            else:
+                # DB sepeti
+                cart.refresh_from_db()
+            
+            serializer = CartSerializer(cart, context={'request': request})
             return Response({
                 'success': True,
                 'message': 'Ürün sepete eklendi.',
@@ -176,41 +195,77 @@ def cart_item_detail(request, item_id):
             'message': 'Tenant bulunamadı.',
         }, status=status.HTTP_400_BAD_REQUEST)
     
-    from apps.models import CartItem
+    # Sepeti al
+    customer = None
+    session_id = None
+    
+    if request.user.is_authenticated and request.user.is_tenant_user and request.user.tenant == tenant:
+        customer = request.user
+    else:
+        session_id = request.headers.get('X-Session-ID') or request.session.session_key
+        if not session_id:
+            return Response({
+                'success': False,
+                'message': 'Sepet bulunamadı.',
+            }, status=status.HTTP_404_NOT_FOUND)
+    
+    # Para birimi al
+    currency = request.headers.get('X-Currency-Code') or request.query_params.get('currency', 'TRY')
+    currency = currency.upper()
     
     try:
-        cart_item = CartItem.objects.get(
-            id=item_id,
-            cart__tenant=tenant,
-            is_deleted=False,
-        )
-    except CartItem.DoesNotExist:
+        cart = CartService.get_or_create_cart(tenant, customer, session_id, currency)
+    except ValueError as e:
         return Response({
             'success': False,
-            'message': 'Sepet kalemi bulunamadı.',
-        }, status=status.HTTP_404_NOT_FOUND)
+            'message': str(e),
+        }, status=status.HTTP_400_BAD_REQUEST)
     
-    # Permission kontrolü
-    if request.user.is_authenticated:
-        if cart_item.cart.customer and cart_item.cart.customer != request.user:
+    # Redis sepeti mi DB sepeti mi?
+    is_redis_cart = isinstance(cart, dict)
+    
+    if is_redis_cart:
+        # Redis sepeti - item'ı bul
+        items = cart.get('items', [])
+        cart_item = None
+        for item in items:
+            if str(item.get('id')) == str(item_id):
+                cart_item = item
+                break
+        
+        if not cart_item:
             return Response({
                 'success': False,
-                'message': 'Bu sepet kalemine erişim yetkiniz yok.',
-            }, status=status.HTTP_403_FORBIDDEN)
+                'message': 'Sepet kalemi bulunamadı.',
+            }, status=status.HTTP_404_NOT_FOUND)
     else:
-        if cart_item.cart.session_id != request.session.session_key:
+        # DB sepeti
+        from apps.models import CartItem
+        try:
+            cart_item = CartItem.objects.get(
+                id=item_id,
+                cart=cart,
+                is_deleted=False,
+            )
+        except CartItem.DoesNotExist:
             return Response({
                 'success': False,
-                'message': 'Bu sepet kalemine erişim yetkiniz yok.',
-            }, status=status.HTTP_403_FORBIDDEN)
+                'message': 'Sepet kalemi bulunamadı.',
+            }, status=status.HTTP_404_NOT_FOUND)
     
     if request.method == 'PATCH':
         quantity = request.data.get('quantity')
         if quantity:
             try:
-                CartService.update_cart_item_quantity(cart_item, quantity)
-                cart_item.cart.refresh_from_db()
-                serializer = CartSerializer(cart_item.cart)
+                CartService.update_cart_item_quantity(cart, cart_item, quantity)
+                
+                # Sepeti yeniden yükle
+                if is_redis_cart:
+                    cart = CartService.get_or_create_cart(tenant, None, session_id, currency)
+                else:
+                    cart.refresh_from_db()
+                
+                serializer = CartSerializer(cart, context={'request': request})
                 return Response({
                     'success': True,
                     'message': 'Sepet kalemi güncellendi.',
@@ -223,9 +278,15 @@ def cart_item_detail(request, item_id):
                 }, status=status.HTTP_400_BAD_REQUEST)
     
     elif request.method == 'DELETE':
-        CartService.remove_from_cart(cart_item)
-        cart_item.cart.refresh_from_db()
-        serializer = CartSerializer(cart_item.cart)
+        CartService.remove_from_cart(cart, cart_item)
+        
+        # Sepeti yeniden yükle
+        if is_redis_cart:
+            cart = CartService.get_or_create_cart(tenant, None, session_id, currency)
+        else:
+            cart.refresh_from_db()
+        
+        serializer = CartSerializer(cart, context={'request': request})
         return Response({
             'success': True,
             'message': 'Ürün sepetten çıkarıldı.',

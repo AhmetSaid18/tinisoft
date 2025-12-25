@@ -87,12 +87,12 @@ def product_list_create(request):
         page = paginator.paginate_queryset(queryset, request)
         
         if page is not None:
-            serializer = ProductListSerializer(page, many=True)
+            serializer = ProductListSerializer(page, many=True, context={'request': request})
             response = paginator.get_paginated_response(serializer.data)
             logger.info(f"[PRODUCTS] GET /api/products/ | 200 | Count: {len(page)}/{paginator.page.paginator.count}")
             return response
         
-        serializer = ProductListSerializer(queryset, many=True)
+        serializer = ProductListSerializer(queryset, many=True, context={'request': request})
         logger.info(f"[PRODUCTS] GET /api/products/ | 200 | Count: {queryset.count()}")
         return Response({
             'success': True,
@@ -107,7 +107,7 @@ def product_list_create(request):
             return Response({
                 'success': True,
                 'message': 'Ürün oluşturuldu.',
-                'product': ProductDetailSerializer(product).data,
+                'product': ProductDetailSerializer(product, context={'request': request}).data,
             }, status=status.HTTP_201_CREATED)
         logger.error(f"[PRODUCTS] POST /api/products/ | 400 | Validation failed | Errors: {list(serializer.errors.keys())}")
         return Response({
@@ -152,7 +152,7 @@ def product_detail(request, product_id):
         }, status=status.HTTP_403_FORBIDDEN)
     
     if request.method == 'GET':
-        serializer = ProductDetailSerializer(product)
+        serializer = ProductDetailSerializer(product, context={'request': request})
         logger.info(
             f"[PRODUCTS] GET /api/products/{product_id}/ - SUCCESS | "
             f"Tenant: {tenant.name} ({tenant.id}) | "
@@ -170,7 +170,8 @@ def product_detail(request, product_id):
         serializer = ProductDetailSerializer(
             product,
             data=request.data,
-            partial=request.method == 'PATCH'
+            partial=request.method == 'PATCH',
+            context={'request': request}
         )
         if serializer.is_valid():
             serializer.save()
@@ -335,12 +336,12 @@ def product_list_public(request, tenant_slug=None):
     page = paginator.paginate_queryset(queryset, request)
     
     if page is not None:
-        serializer = ProductListSerializer(page, many=True)
+        serializer = ProductListSerializer(page, many=True, context={'request': request})
         response = paginator.get_paginated_response(serializer.data)
         logger.info(f"[PRODUCTS] GET /api/public/products/ | 200 | Count: {len(page)}/{paginator.page.paginator.count}")
         return response
     
-    serializer = ProductListSerializer(queryset, many=True)
+    serializer = ProductListSerializer(queryset, many=True, context={'request': request})
     logger.info(f"[PRODUCTS] GET /api/public/products/ | 200 | Count: {queryset.count()}")
     return Response({
         'success': True,
@@ -387,7 +388,7 @@ def product_activate(request, product_id):
     return Response({
         'success': True,
         'message': 'Ürün aktif edildi.',
-        'product': ProductDetailSerializer(product).data,
+        'product': ProductDetailSerializer(product, context={'request': request}).data,
     })
 
 
@@ -437,7 +438,7 @@ def product_deactivate(request, product_id):
     return Response({
         'success': True,
         'message': 'Ürün pasif edildi.',
-        'product': ProductDetailSerializer(product).data,
+        'product': ProductDetailSerializer(product, context={'request': request}).data,
     })
 
 
@@ -566,7 +567,7 @@ def product_detail_public(request, urun_slug=None, tenant_slug=None, product_slu
     product.view_count += 1
     product.save(update_fields=['view_count'])
     
-    serializer = ProductDetailSerializer(product)
+    serializer = ProductDetailSerializer(product, context={'request': request})
     logger.info(
         f"[PRODUCTS] GET /api/public/products/{product_slug}/ - SUCCESS | "
         f"Tenant: {tenant.name} ({tenant.id}) | "

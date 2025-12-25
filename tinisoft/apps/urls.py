@@ -54,6 +54,9 @@ from apps.views.tax import (
     tax_list_create, tax_detail,
     tax_activate, tax_deactivate, tax_active
 )
+from apps.views.currency import (
+    currency_list, currency_exchange_rates, currency_update_rates
+)
 from apps.views.bundle import (
     bundle_list_create, bundle_detail,
     bundle_item_add, bundle_item_detail
@@ -247,5 +250,10 @@ urlpatterns = [
     path('taxes/<uuid:tax_id>/', tax_detail, name='tax_detail'),  # GET, PUT, PATCH, DELETE
     path('taxes/<uuid:tax_id>/activate/', tax_activate, name='tax_activate'),  # POST: Vergiyi aktif et
     path('taxes/<uuid:tax_id>/deactivate/', tax_deactivate, name='tax_deactivate'),  # POST: Vergiyi pasif et
+    
+    # Para Birimi Yönetimi
+    path('public/currencies/', currency_list, name='currency_list'),  # GET: Aktif para birimlerini listele (public)
+    path('public/currency/exchange-rates/', currency_exchange_rates, name='currency_exchange_rates'),  # GET: TCMB kurları (public)
+    path('currency/update-rates/', currency_update_rates, name='currency_update_rates'),  # POST: Tenant para birimi kurlarını güncelle
 ]
 

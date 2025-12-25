@@ -2,10 +2,12 @@
 Product serializers.
 """
 from rest_framework import serializers
+from decimal import Decimal
 from apps.models import (
     Product, Category, ProductImage, ProductOption,
     ProductOptionValue, ProductVariant
 )
+from apps.services.currency_service import CurrencyService
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -66,16 +68,77 @@ class ProductOptionSerializer(serializers.ModelSerializer):
 class ProductVariantSerializer(serializers.ModelSerializer):
     """Product variant serializer."""
     option_values = ProductOptionValueSerializer(many=True, read_only=True)
+    display_price = serializers.SerializerMethodField()
+    display_compare_at_price = serializers.SerializerMethodField()
     
     class Meta:
         model = ProductVariant
         fields = [
             'id', 'name', 'price', 'compare_at_price',
+            'display_price', 'display_compare_at_price',
             'track_inventory', 'inventory_quantity',
             'sku', 'barcode', 'option_values', 'is_default',
             'image_url', 'created_at',
         ]
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id', 'created_at', 'display_price', 'display_compare_at_price']
+    
+    def get_display_price(self, obj):
+        """Kullanıcının seçtiği para birimine göre fiyat göster."""
+        request = self.context.get('request')
+        if not request:
+            return str(obj.price)
+        
+        # Request'ten para birimi al (header'dan veya query param'dan)
+        target_currency = request.headers.get('X-Currency-Code') or request.query_params.get('currency', 'TRY')
+        target_currency = target_currency.upper()
+        
+        # Ürünün para birimini al (parent product'tan)
+        product = obj.product
+        from_currency = product.currency or 'TRY'
+        
+        # Aynı para birimiyse direkt döndür
+        if from_currency == target_currency:
+            return str(obj.price)
+        
+        # Para birimi dönüşümü yap
+        try:
+            converted_price = CurrencyService.convert_amount(
+                obj.price,
+                from_currency,
+                target_currency
+            )
+            return str(converted_price)
+        except Exception as e:
+            # Hata durumunda orijinal fiyatı döndür
+            return str(obj.price)
+    
+    def get_display_compare_at_price(self, obj):
+        """Kullanıcının seçtiği para birimine göre karşılaştırma fiyatı göster."""
+        if not obj.compare_at_price:
+            return None
+        
+        request = self.context.get('request')
+        if not request:
+            return str(obj.compare_at_price)
+        
+        target_currency = request.headers.get('X-Currency-Code') or request.query_params.get('currency', 'TRY')
+        target_currency = target_currency.upper()
+        
+        product = obj.product
+        from_currency = product.currency or 'TRY'
+        
+        if from_currency == target_currency:
+            return str(obj.compare_at_price)
+        
+        try:
+            converted_price = CurrencyService.convert_amount(
+                obj.compare_at_price,
+                from_currency,
+                target_currency
+            )
+            return str(converted_price)
+        except Exception:
+            return str(obj.compare_at_price)
 
 
 class ProductListSerializer(serializers.ModelSerializer):
@@ -84,6 +147,10 @@ class ProductListSerializer(serializers.ModelSerializer):
     category_names = serializers.SerializerMethodField()
     min_price = serializers.SerializerMethodField()
     max_price = serializers.SerializerMethodField()
+    display_price = serializers.SerializerMethodField()
+    display_compare_at_price = serializers.SerializerMethodField()
+    display_min_price = serializers.SerializerMethodField()
+    display_max_price = serializers.SerializerMethodField()
     has_variants = serializers.BooleanField(source='is_variant_product', read_only=True)
     # Frontend uyumluluğu için camelCase field'lar
     inventoryQuantity = serializers.IntegerField(source='inventory_quantity', read_only=True)
@@ -95,13 +162,15 @@ class ProductListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'slug', 'price', 'compare_at_price', 'compareAtPrice',
             'currency', 'price_with_vat',
+            'display_price', 'display_compare_at_price',
+            'display_min_price', 'display_max_price',
             'sku', 'inventory_quantity', 'inventoryQuantity', 'track_inventory',
             'primary_image', 'category_names', 'min_price', 'max_price',
             'has_variants', 'is_featured', 'is_new', 'is_bestseller',
             'status', 'is_visible', 'isActive', 'view_count', 'sale_count',
             'created_at',
         ]
-        read_only_fields = ['id', 'created_at', 'price_with_vat']
+        read_only_fields = ['id', 'created_at', 'price_with_vat', 'display_price', 'display_compare_at_price', 'display_min_price', 'display_max_price']
     
     def get_primary_image(self, obj):
         """Ana görseli döndür."""
@@ -129,6 +198,113 @@ class ProductListSerializer(serializers.ModelSerializer):
             if variants.exists():
                 return max(v.price for v in variants)
         return obj.price
+    
+    def get_display_price(self, obj):
+        """Kullanıcının seçtiği para birimine göre fiyat göster."""
+        request = self.context.get('request')
+        if not request:
+            return str(obj.price)
+        
+        target_currency = request.headers.get('X-Currency-Code') or request.query_params.get('currency', 'TRY')
+        target_currency = target_currency.upper()
+        
+        from_currency = obj.currency or 'TRY'
+        
+        if from_currency == target_currency:
+            return str(obj.price)
+        
+        try:
+            converted_price = CurrencyService.convert_amount(
+                obj.price,
+                from_currency,
+                target_currency
+            )
+            return str(converted_price)
+        except Exception:
+            return str(obj.price)
+    
+    def get_display_compare_at_price(self, obj):
+        """Kullanıcının seçtiği para birimine göre karşılaştırma fiyatı göster."""
+        if not obj.compare_at_price:
+            return None
+        
+        request = self.context.get('request')
+        if not request:
+            return str(obj.compare_at_price)
+        
+        target_currency = request.headers.get('X-Currency-Code') or request.query_params.get('currency', 'TRY')
+        target_currency = target_currency.upper()
+        
+        from_currency = obj.currency or 'TRY'
+        
+        if from_currency == target_currency:
+            return str(obj.compare_at_price)
+        
+        try:
+            converted_price = CurrencyService.convert_amount(
+                obj.compare_at_price,
+                from_currency,
+                target_currency
+            )
+            return str(converted_price)
+        except Exception:
+            return str(obj.compare_at_price)
+    
+    def get_display_min_price(self, obj):
+        """Kullanıcının seçtiği para birimine göre minimum fiyat göster."""
+        min_price = self.get_min_price(obj)
+        if min_price is None:
+            return None
+        
+        request = self.context.get('request')
+        if not request:
+            return str(min_price)
+        
+        target_currency = request.headers.get('X-Currency-Code') or request.query_params.get('currency', 'TRY')
+        target_currency = target_currency.upper()
+        
+        from_currency = obj.currency or 'TRY'
+        
+        if from_currency == target_currency:
+            return str(min_price)
+        
+        try:
+            converted_price = CurrencyService.convert_amount(
+                Decimal(str(min_price)),
+                from_currency,
+                target_currency
+            )
+            return str(converted_price)
+        except Exception:
+            return str(min_price)
+    
+    def get_display_max_price(self, obj):
+        """Kullanıcının seçtiği para birimine göre maximum fiyat göster."""
+        max_price = self.get_max_price(obj)
+        if max_price is None:
+            return None
+        
+        request = self.context.get('request')
+        if not request:
+            return str(max_price)
+        
+        target_currency = request.headers.get('X-Currency-Code') or request.query_params.get('currency', 'TRY')
+        target_currency = target_currency.upper()
+        
+        from_currency = obj.currency or 'TRY'
+        
+        if from_currency == target_currency:
+            return str(max_price)
+        
+        try:
+            converted_price = CurrencyService.convert_amount(
+                Decimal(str(max_price)),
+                from_currency,
+                target_currency
+            )
+            return str(converted_price)
+        except Exception:
+            return str(max_price)
 
 
 class ProductDetailSerializer(serializers.ModelSerializer):
@@ -137,6 +313,8 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     options = ProductOptionSerializer(many=True, read_only=True)
     variants = ProductVariantSerializer(many=True, read_only=True)
     categories = CategorySerializer(many=True, read_only=True)
+    display_price = serializers.SerializerMethodField()
+    display_compare_at_price = serializers.SerializerMethodField()
     category_ids = serializers.PrimaryKeyRelatedField(
         many=True,
         queryset=Category.objects.all(),
@@ -155,6 +333,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             'id', 'name', 'slug', 'description',
             'price', 'compare_at_price', 'compareAtPrice',
             'currency', 'price_with_vat',
+            'display_price', 'display_compare_at_price',
             'sku', 'barcode',
             'track_inventory', 'inventory_quantity', 'inventoryQuantity',
             'is_variant_product',
@@ -171,7 +350,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             'metadata',
             'created_at', 'updated_at',
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'view_count', 'sale_count', 'price_with_vat']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'view_count', 'sale_count', 'price_with_vat', 'display_price', 'display_compare_at_price']
     
     def validate(self, attrs):
         """Frontend'den gelen field'ları backend field'larına map et."""
@@ -218,4 +397,55 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         if category_ids is not None:
             instance.categories.set(category_ids)
         return instance
+    
+    def get_display_price(self, obj):
+        """Kullanıcının seçtiği para birimine göre fiyat göster."""
+        request = self.context.get('request')
+        if not request:
+            return str(obj.price)
+        
+        target_currency = request.headers.get('X-Currency-Code') or request.query_params.get('currency', 'TRY')
+        target_currency = target_currency.upper()
+        
+        from_currency = obj.currency or 'TRY'
+        
+        if from_currency == target_currency:
+            return str(obj.price)
+        
+        try:
+            converted_price = CurrencyService.convert_amount(
+                obj.price,
+                from_currency,
+                target_currency
+            )
+            return str(converted_price)
+        except Exception:
+            return str(obj.price)
+    
+    def get_display_compare_at_price(self, obj):
+        """Kullanıcının seçtiği para birimine göre karşılaştırma fiyatı göster."""
+        if not obj.compare_at_price:
+            return None
+        
+        request = self.context.get('request')
+        if not request:
+            return str(obj.compare_at_price)
+        
+        target_currency = request.headers.get('X-Currency-Code') or request.query_params.get('currency', 'TRY')
+        target_currency = target_currency.upper()
+        
+        from_currency = obj.currency or 'TRY'
+        
+        if from_currency == target_currency:
+            return str(obj.compare_at_price)
+        
+        try:
+            converted_price = CurrencyService.convert_amount(
+                obj.compare_at_price,
+                from_currency,
+                target_currency
+            )
+            return str(converted_price)
+        except Exception:
+            return str(obj.compare_at_price)
 
