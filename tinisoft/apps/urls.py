@@ -81,6 +81,7 @@ from apps.views.integration import (
     integration_list_create, integration_detail,
     integration_test, integration_by_type
 )
+from apps.views.basket import basket, basket_item
 
 app_name = 'apps'
 
@@ -132,7 +133,6 @@ urlpatterns = [
     path('orders/track/<str:order_number>/', order_track, name='order_track'),  # GET: Track order by order number
     
     # Sepet yönetimi (Basket - Basit CRUD)
-    from apps.views.basket import basket, basket_item
     path('basket/', basket, name='basket'),  # GET: Sepeti getir, POST: Sepete ürün ekle
     path('basket/<uuid:item_id>/', basket_item, name='basket_item'),  # PATCH: Güncelle, DELETE: Sil
     
