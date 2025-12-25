@@ -22,9 +22,14 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def upload_to_r2(image_url, filename=None):
+def upload_to_r2(image_url, filename=None, tenant_slug=None):
     """
     URL'den resim indirip Cloudflare R2'ye yükle.
+    
+    Args:
+        image_url: İndirilecek resim URL'i
+        filename: Dosya adı (opsiyonel)
+        tenant_slug: Tenant slug (klasör için, örn: "avrupa-mutfak")
     """
     import boto3
     from botocore.config import Config
@@ -52,8 +57,11 @@ def upload_to_r2(image_url, filename=None):
             if not filename or '.' not in filename:
                 filename = 'image.jpg'
         
-        # 3. R2'ye yükle (products/ klasörüne)
-        r2_path = f"products/{filename}"
+        # 3. R2'ye yükle (tenant_slug/products/ klasörüne)
+        if tenant_slug:
+            r2_path = f"{tenant_slug}/products/{filename}"
+        else:
+            r2_path = f"products/{filename}"
         
         # S3-compatible client oluştur
         s3_client = boto3.client(
@@ -145,9 +153,10 @@ def migrate_product_images(product_id=None, product_slug=None):
             skip_count += 1
             continue
         
-        # WooCommerce URL'i ise yükle
+        # URL'i R2'ye yükle (tenant slug ile)
         logger.info(f"    → İndiriliyor ve yükleniyor...")
-        cloudflare_url = upload_to_cloudflare_images(image.image_url)
+        tenant_slug = product.tenant.slug if hasattr(product.tenant, 'slug') else None
+        cloudflare_url = upload_to_r2(image.image_url, tenant_slug=tenant_slug)
         
         if cloudflare_url:
             # URL'i güncelle
@@ -201,15 +210,20 @@ def migrate_all_images():
                 logger.info(f"  → Zaten Cloudflare'de: {image.image_url}")
                 continue
             
-            # URL'i R2'ye yükle
+            # URL'i R2'ye yükle (tenant slug ile)
             logger.info(f"  → Eski URL: {image.image_url}")
-            cloudflare_url = upload_to_r2(image.image_url)
+            tenant_slug = product.tenant.slug if hasattr(product.tenant, 'slug') else None
+            cloudflare_url = upload_to_r2(image.image_url, tenant_slug=tenant_slug)
             
             if cloudflare_url:
                 # URL'i güncelle
+                old_url = image.image_url
                 image.image_url = cloudflare_url
                 image.save()
-                logger.info(f"  ✓ Güncellendi: {cloudflare_url}")
+                logger.info(f"  ✓ Güncellendi!")
+                logger.info(f"    Eski: {old_url[:80]}...")
+                logger.info(f"    Yeni: {cloudflare_url}")
+                logger.info(f"    ✓ DB'ye kaydedildi (ProductImage ID: {image.id})")
                 success_count += 1
             else:
                 logger.error(f"  ✗ Yüklenemedi: {image.image_url}")
@@ -280,7 +294,9 @@ def test_random_product():
         logger.info(f"[{idx}/{images_to_migrate.count()}] Görsel işleniyor...")
         logger.info(f"  URL: {image.image_url}")
         
-        cloudflare_url = upload_to_r2(image.image_url)
+        # Tenant slug'ını al (klasör için)
+        tenant_slug = product.tenant.slug if hasattr(product.tenant, 'slug') else None
+        cloudflare_url = upload_to_r2(image.image_url, tenant_slug=tenant_slug)
         
         if cloudflare_url:
             old_url = image.image_url
@@ -289,6 +305,7 @@ def test_random_product():
             logger.info(f"  ✓ Başarılı!")
             logger.info(f"    Eski: {old_url[:80]}...")
             logger.info(f"    Yeni: {cloudflare_url}")
+            logger.info(f"    ✓ DB'ye kaydedildi (ProductImage ID: {image.id})")
             success_count += 1
         else:
             logger.error(f"  ✗ Başarısız!")
@@ -342,10 +359,23 @@ if __name__ == '__main__':
     print("✓ R2 credentials bulundu.")
     print()
     
-    # Random ürün test
-    print("Random bir ürün seçilip test edilecek...")
+    # Tüm ürünleri işle
+    print("TÜM ÜRÜNLER İŞLENECEK!")
     print()
-    test_random_product()
+    print("Bu işlem uzun sürebilir. Devam etmek istiyor musun?")
+    response = input("(evet/hayır): ").strip().lower()
+    
+    if response not in ['evet', 'e', 'yes', 'y']:
+        print("İptal edildi.")
+        sys.exit(0)
+    
+    print()
+    print("="*50)
+    print("TÜM ÜRÜNLER İŞLENİYOR...")
+    print("="*50)
+    print()
+    
+    migrate_all_images()
     print()
     print("Tamamlandı!")
 
