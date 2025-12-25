@@ -116,7 +116,7 @@ class CartService:
         else:
             # Guest sepeti - Redis'te tutulur
             if not session_id:
-                raise ValueError("Guest checkout için session_id gereklidir.")
+                raise ValueError("Guest checkout için guest ID gereklidir.")
             
             # Redis'ten sepeti al
             cart_data = CartService._get_redis_cart(str(tenant.id), session_id)
