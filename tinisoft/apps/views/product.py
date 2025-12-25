@@ -80,6 +80,25 @@ def product_list_create(request):
         
         # Sıralama
         ordering = request.query_params.get('ordering', '-created_at')
+        
+        # Geçerli ordering field'ları
+        valid_orderings = [
+            'created_at', '-created_at',
+            'updated_at', '-updated_at',
+            'name', '-name',
+            'price', '-price',
+            'sort_order', '-sort_order',
+            'view_count', '-view_count',
+            'sale_count', '-sale_count',
+            'is_featured', '-is_featured',
+        ]
+        
+        # Ordering parametresini kontrol et
+        if ordering not in valid_orderings:
+            # Geçersiz ordering ise default kullan
+            logger.warning(f"Invalid ordering parameter: {ordering}, using default: -created_at")
+            ordering = '-created_at'
+        
         queryset = queryset.order_by(ordering)
         
         # Pagination
@@ -329,6 +348,25 @@ def product_list_public(request, tenant_slug=None):
     
     # Sıralama
     ordering = request.query_params.get('ordering', '-created_at')
+    
+    # Geçerli ordering field'ları
+    valid_orderings = [
+        'created_at', '-created_at',
+        'updated_at', '-updated_at',
+        'name', '-name',
+        'price', '-price',
+        'sort_order', '-sort_order',
+        'view_count', '-view_count',
+        'sale_count', '-sale_count',
+        'is_featured', '-is_featured',
+    ]
+    
+    # Ordering parametresini kontrol et
+    if ordering not in valid_orderings:
+        # Geçersiz ordering ise default kullan
+        logger.warning(f"Invalid ordering parameter: {ordering}, using default: -created_at")
+        ordering = '-created_at'
+    
     queryset = queryset.order_by(ordering)
     
     # Pagination
