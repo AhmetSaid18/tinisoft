@@ -726,3 +726,113 @@ def category_list_create(request):
             'errors': serializer.errors,
         }, status=status.HTTP_400_BAD_REQUEST)
 
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def category_list_public(request, tenant_slug=None):
+    """
+    Public kategori listesi (frontend için).
+    
+    GET: /api/public/categories/ (tenant_slug query parameter ile)
+    GET: /api/public/{tenant_slug}/categories/ (path parameter ile)
+    
+    Tenant belirleme önceliği:
+    1. Path parameter: tenant_slug
+    2. Query parameter: ?tenant_slug=xxx
+    3. Query parameter: ?tenant_id=xxx
+    4. Header: X-Tenant-Slug
+    5. Header: X-Tenant-ID
+    6. Subdomain/Custom domain (otomatik)
+    """
+    tenant = None
+    
+    # 1. Path parameter'dan tenant_slug
+    if tenant_slug:
+        try:
+            from apps.models import Tenant
+            tenant = Tenant.objects.get(slug=tenant_slug, is_deleted=False)
+        except Tenant.DoesNotExist:
+            return Response({
+                'success': False,
+                'message': f'Mağaza bulunamadı: {tenant_slug}',
+            }, status=status.HTTP_404_NOT_FOUND)
+    
+    # 2. Query parameter'dan tenant_slug
+    if not tenant:
+        tenant_slug_param = request.query_params.get('tenant_slug')
+        if tenant_slug_param:
+            try:
+                from apps.models import Tenant
+                tenant = Tenant.objects.get(slug=tenant_slug_param, is_deleted=False)
+            except Tenant.DoesNotExist:
+                return Response({
+                    'success': False,
+                    'message': f'Mağaza bulunamadı: {tenant_slug_param}',
+                }, status=status.HTTP_404_NOT_FOUND)
+    
+    # 3. Query parameter'dan tenant_id
+    if not tenant:
+        tenant_id_param = request.query_params.get('tenant_id')
+        if tenant_id_param:
+            try:
+                from apps.models import Tenant
+                tenant = Tenant.objects.get(id=tenant_id_param, is_deleted=False)
+            except Tenant.DoesNotExist:
+                return Response({
+                    'success': False,
+                    'message': f'Mağaza bulunamadı: {tenant_id_param}',
+                }, status=status.HTTP_404_NOT_FOUND)
+    
+    # 4. Header'dan tenant_slug
+    if not tenant:
+        tenant_slug_header = request.headers.get('X-Tenant-Slug')
+        if tenant_slug_header:
+            try:
+                from apps.models import Tenant
+                tenant = Tenant.objects.get(slug=tenant_slug_header, is_deleted=False)
+            except Tenant.DoesNotExist:
+                return Response({
+                    'success': False,
+                    'message': f'Mağaza bulunamadı: {tenant_slug_header}',
+                }, status=status.HTTP_404_NOT_FOUND)
+    
+    # 5. Header'dan tenant_id
+    if not tenant:
+        tenant_id_header = request.headers.get('X-Tenant-ID')
+        if tenant_id_header:
+            try:
+                from apps.models import Tenant
+                tenant = Tenant.objects.get(id=tenant_id_header, is_deleted=False)
+            except Tenant.DoesNotExist:
+                return Response({
+                    'success': False,
+                    'message': f'Mağaza bulunamadı: {tenant_id_header}',
+                }, status=status.HTTP_404_NOT_FOUND)
+    
+    # 6. Middleware'den tenant (subdomain/custom domain)
+    if not tenant:
+        tenant = get_tenant_from_request(request)
+    
+    if not tenant:
+        return Response({
+            'success': False,
+            'message': 'Tenant bulunamadı. Lütfen tenant_slug veya tenant_id parametresi gönderin.',
+            'hint': 'Örnek: /api/public/categories/?tenant_slug=magaza-adi veya Header: X-Tenant-Slug: magaza-adi',
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Sadece aktif kategorileri getir (ana kategoriler - parent=None)
+    queryset = Category.objects.filter(
+        tenant=tenant,
+        is_deleted=False,
+        parent=None,
+        is_active=True
+    ).order_by('name')
+    
+    serializer = CategorySerializer(queryset, many=True, context={'request': request})
+    logger.info(f"[CATEGORIES] GET /api/public/categories/ | 200 | Count: {queryset.count()} | Tenant: {tenant.name}")
+    
+    return Response({
+        'success': True,
+        'categories': serializer.data,
+    })
+
