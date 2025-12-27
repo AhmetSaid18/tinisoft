@@ -115,12 +115,39 @@ class KuwaitPaymentProvider(PaymentProviderBase):
             self.password = self.config.get('api_secret') or self.config.get('password') or self.config.get('Password')
         
         # PayGate endpoints
+        # Test endpoint varsa ve doğru formatta ise kullan, yoksa default kullan
+        test_endpoint = self.config.get('test_endpoint', '')
+        test_provision = self.config.get('test_provision_endpoint', '')
+        
         if self.test_mode:
-            self.paygate_url = self.config.get('test_endpoint') or 'https://boatest.kuveytturk.com.tr/boa.virtualpos.services/Home/ThreeDModelPayGate'
-            self.provision_url = self.config.get('test_provision_endpoint') or 'https://boatest.kuveytturk.com.tr/boa.virtualpos.services/Home/ThreeDModelProvisionGate'
+            # Test modunda: Eğer test_endpoint doğru format değilse default kullan
+            if test_endpoint and 'boatest.kuveytturk.com.tr' in test_endpoint:
+                self.paygate_url = test_endpoint
+            else:
+                # Default test endpoint
+                self.paygate_url = 'https://boatest.kuveytturk.com.tr/boa.virtualpos.services/Home/ThreeDModelPayGate'
+            
+            if test_provision and 'boatest.kuveytturk.com.tr' in test_provision:
+                self.provision_url = test_provision
+            else:
+                # Default test provision endpoint
+                self.provision_url = 'https://boatest.kuveytturk.com.tr/boa.virtualpos.services/Home/ThreeDModelProvisionGate'
         else:
-            self.paygate_url = self.config.get('api_endpoint') or 'https://sanalpos.kuveytturk.com.tr/ServiceGateWay/Home/ThreeDModelPayGate'
-            self.provision_url = self.config.get('provision_endpoint') or 'https://sanalpos.kuveytturk.com.tr/ServiceGateWay/Home/ThreeDModelProvisionGate'
+            # Production modunda
+            prod_endpoint = self.config.get('api_endpoint', '')
+            prod_provision = self.config.get('provision_endpoint', '')
+            
+            if prod_endpoint and 'kuveytturk.com.tr' in prod_endpoint:
+                self.paygate_url = prod_endpoint
+            else:
+                # Default production endpoint
+                self.paygate_url = 'https://sanalpos.kuveytturk.com.tr/ServiceGateWay/Home/ThreeDModelPayGate'
+            
+            if prod_provision and 'kuveytturk.com.tr' in prod_provision:
+                self.provision_url = prod_provision
+            else:
+                # Default production provision endpoint
+                self.provision_url = 'https://sanalpos.kuveytturk.com.tr/ServiceGateWay/Home/ThreeDModelProvisionGate'
     
     def _calculate_hash(self, merchant_id, merchant_order_id, amount, ok_url, fail_url, username, password):
         """
@@ -234,13 +261,16 @@ class KuwaitPaymentProvider(PaymentProviderBase):
             ET.SubElement(root, 'CustomerId').text = str(self.customer_id)
             ET.SubElement(root, 'UserName').text = self.username
             
-            # Order bilgileri
-            ET.SubElement(root, 'CardNumber').text = customer_info.get('card_number', '')  # Genelde frontend'den alınır
+            # Kart bilgileri (opsiyonel - eğer yoksa boş gönderilebilir, frontend'den alınır)
+            card_number = customer_info.get('card_number', '').replace(' ', '').replace('-', '')
+            ET.SubElement(root, 'CardNumber').text = card_number
             ET.SubElement(root, 'CardExpireDateYear').text = customer_info.get('card_expiry_year', '')
             ET.SubElement(root, 'CardExpireDateMonth').text = customer_info.get('card_expiry_month', '')
             ET.SubElement(root, 'CardCVV2').text = customer_info.get('card_cvv', '')
             ET.SubElement(root, 'CardHolderName').text = customer_info.get('name', '')
-            ET.SubElement(root, 'CardType').text = 'V'  # V: Visa, M: MasterCard
+            # Kart tipi otomatik belirlenir (ilk rakam 4 ise Visa, 5 ise MasterCard)
+            card_type = 'V' if card_number and card_number[0] == '4' else 'M'
+            ET.SubElement(root, 'CardType').text = card_type
             
             # Transaction bilgileri
             ET.SubElement(root, 'TransactionType').text = 'Sale'  # Sale: Satış
