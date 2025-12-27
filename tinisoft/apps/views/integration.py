@@ -93,6 +93,29 @@ def integration_list_create(request):
         })
     
     elif request.method == 'POST':
+        # Debug logging - frontend isteklerini kontrol et
+        logger.info(f"[INTEGRATION POST] Content-Type: {request.content_type}")
+        logger.info(f"[INTEGRATION POST] Request data: {request.data}")
+        logger.info(f"[INTEGRATION POST] Request data type: {type(request.data)}")
+        logger.info(f"[INTEGRATION POST] Request body (raw): {request.body[:500] if request.body else 'Empty'}")
+        logger.info(f"[INTEGRATION POST] Request META Content-Type: {request.META.get('CONTENT_TYPE', 'Not set')}")
+        logger.info(f"[INTEGRATION POST] Request META CONTENT_LENGTH: {request.META.get('CONTENT_LENGTH', 'Not set')}")
+        logger.info(f"[INTEGRATION POST] Request META HTTP_CONTENT_TYPE: {request.META.get('HTTP_CONTENT_TYPE', 'Not set')}")
+        
+        # Eğer request.data boşsa, hata döndür - frontend sorunu
+        if not request.data:
+            logger.error(f"[INTEGRATION POST] Request data is empty! Body: {request.body[:200] if request.body else 'Empty body'}")
+            return Response({
+                'success': False,
+                'message': 'Request body boş veya parse edilemedi. Content-Type: application/json olmalı.',
+                'debug': {
+                    'content_type': request.content_type,
+                    'meta_content_type': request.META.get('CONTENT_TYPE'),
+                    'body_exists': bool(request.body),
+                    'body_preview': request.body[:200].decode('utf-8', errors='ignore') if request.body else None,
+                }
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
         serializer = IntegrationProviderCreateSerializer(
             data=request.data,
             context={'request': request}
@@ -107,6 +130,7 @@ def integration_list_create(request):
                 'integration': IntegrationProviderSerializer(integration).data,
             }, status=status.HTTP_201_CREATED)
         
+        logger.warning(f"[INTEGRATION POST] Validation errors: {serializer.errors}")
         return Response({
             'success': False,
             'errors': serializer.errors,
