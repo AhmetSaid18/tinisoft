@@ -354,6 +354,6 @@ LOGGING = {
 # Development için default key (production'da environment variable'dan ayarlanmalı!)
 INTEGRATION_ENCRYPTION_KEY = env(
     'INTEGRATION_ENCRYPTION_KEY', 
-    default='django-insecure-integration-key-change-in-production-12345678901234567890abcdefghijklmnopqrstuvwxyz'
+    default='AYKTqmBEf7a56UVkiH_E0ZmSd4luaba4q5q6xX-LGP0='
 )
 
