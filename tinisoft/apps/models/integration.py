@@ -136,7 +136,14 @@ class IntegrationProvider(BaseModel):
             models.Index(fields=['tenant', 'status']),
             models.Index(fields=['provider_type', 'status']),
         ]
-        unique_together = ('tenant', 'provider_type', 'name')
+        # Her tenant için her provider_type'tan sadece 1 tane olabilir
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'provider_type'],
+                condition=models.Q(is_deleted=False),
+                name='unique_active_integration_per_tenant'
+            )
+        ]
     
     def __str__(self):
         return f"{self.get_provider_type_display()} - {self.name} ({self.tenant.name})"

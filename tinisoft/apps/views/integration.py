@@ -81,10 +81,16 @@ def integration_list_create(request):
         
         if page is not None:
             serializer = IntegrationProviderSerializer(page, many=True)
-            return paginator.get_paginated_response({
+            response = paginator.get_paginated_response(serializer.data)
+            # Response'a success ve integrations ekle
+            response.data = {
                 'success': True,
-                'integrations': serializer.data,
-            })
+                'count': response.data.get('count', 0),
+                'next': response.data.get('next'),
+                'previous': response.data.get('previous'),
+                'integrations': response.data.get('results', []),
+            }
+            return response
         
         serializer = IntegrationProviderSerializer(queryset, many=True)
         return Response({
@@ -112,19 +118,47 @@ def integration_list_create(request):
                 }
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        serializer = IntegrationProviderCreateSerializer(
-            data=request.data,
-            context={'request': request}
-        )
+        # Aynı provider_type'tan kayıt var mı kontrol et
+        provider_type = request.data.get('provider_type')
+        existing_integration = IntegrationProvider.objects.filter(
+            tenant=tenant,
+            provider_type=provider_type,
+            is_deleted=False
+        ).first()
+        
+        if existing_integration:
+            # Mevcut kaydı güncelle (upsert)
+            serializer = IntegrationProviderUpdateSerializer(
+                existing_integration,
+                data=request.data,
+                context={'request': request},
+                partial=False
+            )
+            action = 'güncellendi'
+        else:
+            # Yeni kayıt oluştur
+            serializer = IntegrationProviderCreateSerializer(
+                data=request.data,
+                context={'request': request}
+            )
+            action = 'oluşturuldu'
         
         if serializer.is_valid():
-            integration = serializer.save()
-            
-            return Response({
-                'success': True,
-                'message': 'Entegrasyon oluşturuldu.',
-                'integration': IntegrationProviderSerializer(integration).data,
-            }, status=status.HTTP_201_CREATED)
+            try:
+                integration = serializer.save()
+                logger.info(f"[INTEGRATION POST] Integration {action}: {integration.id}")
+                
+                return Response({
+                    'success': True,
+                    'message': f'Entegrasyon {action}.',
+                    'integration': IntegrationProviderSerializer(integration).data,
+                }, status=status.HTTP_200_OK if existing_integration else status.HTTP_201_CREATED)
+            except Exception as e:
+                logger.error(f"[INTEGRATION POST] Error saving integration: {str(e)}", exc_info=True)
+                return Response({
+                    'success': False,
+                    'message': f'Entegrasyon kaydedilirken hata oluştu: {str(e)}',
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         logger.warning(f"[INTEGRATION POST] Validation errors: {serializer.errors}")
         return Response({
