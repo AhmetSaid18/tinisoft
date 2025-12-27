@@ -242,52 +242,44 @@ class KuwaitPaymentProvider(PaymentProviderBase):
                 password=self.password
             )
             
-            # XML oluştur
-            root = ET.Element('KuveytTurkVPosMessage')
-            root.set('xmlns', 'http://boa.net/BOA.Integration.VirtualPos/Service')
-            
-            # APIVersion - TDV2.0.0 kullanılmalı
-            ET.SubElement(root, 'APIVersion').text = 'TDV2.0.0'
-            
-            # OkUrl ve FailUrl
-            ET.SubElement(root, 'OkUrl').text = ok_url
-            ET.SubElement(root, 'FailUrl').text = fail_url
-            
-            # HashData
-            ET.SubElement(root, 'HashData').text = hash_data
-            
-            # Merchant bilgileri
-            ET.SubElement(root, 'MerchantId').text = str(self.merchant_id)
-            ET.SubElement(root, 'CustomerId').text = str(self.customer_id)
-            ET.SubElement(root, 'UserName').text = self.username
+            # XML oluştur (Kuveyt Türk formatı - namespace olmadan, doğrudan string olarak)
+            # Dokümantasyona göre XML formatı şöyle olmalı
+            xml_parts = ['<?xml version="1.0" encoding="UTF-8"?>']
+            xml_parts.append('<KuveytTurkVPosMessage>')
+            xml_parts.append(f'<APIVersion>TDV2.0.0</APIVersion>')
+            xml_parts.append(f'<OkUrl>{ok_url}</OkUrl>')
+            xml_parts.append(f'<FailUrl>{fail_url}</FailUrl>')
+            xml_parts.append(f'<HashData>{hash_data}</HashData>')
+            xml_parts.append(f'<MerchantId>{self.merchant_id}</MerchantId>')
+            xml_parts.append(f'<CustomerId>{self.customer_id}</CustomerId>')
+            xml_parts.append(f'<UserName>{self.username}</UserName>')
             
             # Kart bilgileri (opsiyonel - eğer yoksa boş gönderilebilir, frontend'den alınır)
             card_number = customer_info.get('card_number', '').replace(' ', '').replace('-', '')
-            ET.SubElement(root, 'CardNumber').text = card_number
-            ET.SubElement(root, 'CardExpireDateYear').text = customer_info.get('card_expiry_year', '')
-            ET.SubElement(root, 'CardExpireDateMonth').text = customer_info.get('card_expiry_month', '')
-            ET.SubElement(root, 'CardCVV2').text = customer_info.get('card_cvv', '')
-            ET.SubElement(root, 'CardHolderName').text = customer_info.get('name', '')
-            # Kart tipi otomatik belirlenir (ilk rakam 4 ise Visa, 5 ise MasterCard)
-            card_type = 'V' if card_number and card_number[0] == '4' else 'M'
-            ET.SubElement(root, 'CardType').text = card_type
+            if card_number:
+                xml_parts.append(f'<CardNumber>{card_number}</CardNumber>')
+                xml_parts.append(f'<CardExpireDateYear>{customer_info.get("card_expiry_year", "")}</CardExpireDateYear>')
+                xml_parts.append(f'<CardExpireDateMonth>{customer_info.get("card_expiry_month", "")}</CardExpireDateMonth>')
+                xml_parts.append(f'<CardCVV2>{customer_info.get("card_cvv", "")}</CardCVV2>')
+                xml_parts.append(f'<CardHolderName>{customer_info.get("name", "")}</CardHolderName>')
+                # Kart tipi otomatik belirlenir (ilk rakam 4 ise Visa, 5 ise MasterCard)
+                card_type = 'V' if card_number and card_number[0] == '4' else 'M'
+                xml_parts.append(f'<CardType>{card_type}</CardType>')
             
-            # Transaction bilgileri
-            ET.SubElement(root, 'TransactionType').text = 'Sale'  # Sale: Satış
-            ET.SubElement(root, 'InstallmentCount').text = '0'  # 0: Tek çekim
-            ET.SubElement(root, 'Amount').text = formatted_amount
-            ET.SubElement(root, 'CurrencyCode').text = currency_code
-            ET.SubElement(root, 'MerchantOrderId').text = order.order_number
-            
-            # TransactionSecurity - 3D Secure için 3
-            ET.SubElement(root, 'TransactionSecurity').text = '3'
+            xml_parts.append(f'<TransactionType>Sale</TransactionType>')
+            xml_parts.append(f'<InstallmentCount>0</InstallmentCount>')
+            xml_parts.append(f'<Amount>{formatted_amount}</Amount>')
+            xml_parts.append(f'<CurrencyCode>{currency_code}</CurrencyCode>')
+            xml_parts.append(f'<MerchantOrderId>{order.order_number}</MerchantOrderId>')
+            xml_parts.append(f'<TransactionSecurity>3</TransactionSecurity>')
             
             # ClientIP
             client_ip = customer_info.get('ip_address', '')
-            ET.SubElement(root, 'ClientIP').text = client_ip
+            if client_ip:
+                xml_parts.append(f'<ClientIP>{client_ip}</ClientIP>')
             
-            # XML'i string'e çevir
-            xml_string = ET.tostring(root, encoding='utf-8', method='xml').decode('utf-8')
+            xml_parts.append('</KuveytTurkVPosMessage>')
+            xml_string = '\n'.join(xml_parts)
             
             logger.info(f"Kuveyt PayGate request: order={order.order_number}, amount={formatted_amount}, endpoint={self.paygate_url}")
             logger.debug(f"Kuveyt PayGate XML: {xml_string}")
