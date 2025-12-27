@@ -3,6 +3,7 @@ Integration serializers.
 """
 from rest_framework import serializers
 from apps.models import IntegrationProvider
+from core.middleware import get_tenant_from_request
 
 
 class IntegrationProviderSerializer(serializers.ModelSerializer):
@@ -56,7 +57,12 @@ class IntegrationProviderCreateSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         """Create integration provider."""
-        tenant = self.context['request'].tenant
+        # Get the underlying Django request from DRF Request wrapper
+        request = self.context['request']._request
+        tenant = get_tenant_from_request(request)
+        if not tenant:
+            raise serializers.ValidationError('Tenant bulunamadı.')
+        
         api_key = validated_data.pop('api_key', '')
         api_secret = validated_data.pop('api_secret', '')
         api_token = validated_data.pop('api_token', '')
