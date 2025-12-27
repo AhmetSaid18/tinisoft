@@ -92,8 +92,8 @@ class KuwaitPaymentProvider(PaymentProviderBase):
                 'customer_email': customer_info.get('email'),
                 'customer_name': customer_info.get('name'),
                 'customer_phone': customer_info.get('phone'),
-                'return_url': self.config.get('return_url', f'{settings.FRONTEND_URL}/payment/return'),
-                'cancel_url': self.config.get('cancel_url', f'{settings.FRONTEND_URL}/payment/cancel'),
+                'return_url': self.config.get('return_url', f'{getattr(settings, "FRONTEND_URL", "https://api.tinisoft.com.tr")}/payment/return'),
+                'cancel_url': self.config.get('cancel_url', f'{getattr(settings, "FRONTEND_URL", "https://api.tinisoft.com.tr")}/payment/cancel'),
                 'metadata': {
                     'tenant_id': str(self.tenant.id),
                     'order_number': order.order_number,

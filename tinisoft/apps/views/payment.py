@@ -228,6 +228,18 @@ def payment_create_with_provider(request):
     provider_config = request.data.get('provider_config', {})
     customer_info = request.data.get('customer_info', {})
     
+    # Provider name mapping (payment provider name -> integration provider_type)
+    provider_name_mapping = {
+        'kuwait': 'kuveyt',
+        'kuveyt': 'kuveyt',
+        'iyzico': 'iyzico',
+        'paytr': 'paytr',
+        'vakif': 'vakif',
+        'garanti': 'garanti',
+        'akbank': 'akbank',
+    }
+    integration_provider_type = provider_name_mapping.get(provider_name.lower(), provider_name.lower())
+    
     if not order_id:
         return Response({
             'success': False,
@@ -260,7 +272,7 @@ def payment_create_with_provider(request):
             from apps.models import IntegrationProvider
             integration = IntegrationProvider.objects.get(
                 tenant=tenant,
-                provider_type=provider_name.lower(),
+                provider_type=integration_provider_type,
                 status__in=[
                     IntegrationProvider.Status.ACTIVE,
                     IntegrationProvider.Status.TEST_MODE
