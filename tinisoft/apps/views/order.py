@@ -169,6 +169,7 @@ def order_list_create(request):
                     customer_note=data.get('customer_note', ''),
                     billing_address=data.get('billing_address', {}),
                     customer_user=customer_user,
+                    request=request,
                 )
                 
                 return Response({

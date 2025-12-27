@@ -35,6 +35,7 @@ class OrderService:
         customer_note='',
         billing_address=None,
         customer_user=None,
+        request=None,
     ):
         """
         Sepetten sipariş oluştur.
@@ -72,8 +73,8 @@ class OrderService:
             discount_amount=cart.discount_amount,
             total=cart.total,
             currency=cart.currency,
-            ip_address=cart.tenant.__dict__.get('ip_address'),  # TODO: request'ten al
-            user_agent=cart.tenant.__dict__.get('user_agent'),  # TODO: request'ten al
+            ip_address=request.META.get('REMOTE_ADDR') if request else None,
+            user_agent=request.META.get('HTTP_USER_AGENT', '') if request else '',
         )
         
         # Sipariş kalemlerini oluştur
