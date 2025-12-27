@@ -3,8 +3,12 @@ Payment Provider Services - Kuveyt API ve diğer ödeme sağlayıcıları için.
 """
 import requests
 import logging
+import hashlib
+import base64
+import xml.etree.ElementTree as ET
 from decimal import Decimal
 from django.conf import settings
+from urllib.parse import urlencode, unquote
 
 logger = logging.getLogger(__name__)
 
@@ -52,25 +56,107 @@ class PaymentProviderBase:
 
 class KuwaitPaymentProvider(PaymentProviderBase):
     """
-    Kuveyt API ödeme sağlayıcısı.
+    Kuveyt Türk 3D Secure ödeme sağlayıcısı.
     
-    Tenant'ın settings'inde şu bilgiler olmalı:
-    - kuwait_api_key: API anahtarı
-    - kuwait_api_secret: API secret
-    - kuwait_api_endpoint: API endpoint URL (örn: https://api.kuveyt.com/payment)
+    Config'de şu bilgiler olmalı:
+    - customer_id: Müşteri Numarası (CustomerId)
+    - merchant_id: Mağaza Numarası (MerchantId)
+    - api_key / username: API Kullanıcı Adı (UserName)
+    - api_secret / password: API Şifresi (Password)
+    - api_endpoint: PayGate URL (Production)
+    - test_endpoint: PayGate URL (Test)
+    - provision_endpoint: ProvisionGate URL (Production)
+    - test_provision_endpoint: ProvisionGate URL (Test)
     """
+    
+    # Currency Code mapping
+    CURRENCY_CODES = {
+        'TRY': '0949',
+        'TL': '0949',
+        'USD': '0840',
+        'EUR': '0978',
+        'GBP': '0826',
+    }
     
     def __init__(self, tenant, config=None):
         super().__init__(tenant, config)
-        self.api_key = self.config.get('api_key') or getattr(settings, 'KUWAIT_API_KEY', '')
-        self.api_secret = self.config.get('api_secret') or getattr(settings, 'KUWAIT_API_SECRET', '')
-        self.api_endpoint = self.config.get('endpoint') or getattr(settings, 'KUWAIT_API_ENDPOINT', 'https://api.kuveyt.com/payment')
-        self.test_endpoint = self.config.get('test_endpoint')
         self.test_mode = self.config.get('test_mode', False)
+        
+        # Test modunda ve config'de bilgi yoksa env'deki test bilgilerini kullan
+        if self.test_mode:
+            # Test modunda env'deki test bilgilerini öncelik ver
+            self.customer_id = (
+                self.config.get('customer_id') or 
+                self.config.get('customerId') or 
+                getattr(settings, 'KUVEYT_TEST_CUSTOMER_ID', '400235')
+            )
+            self.merchant_id = (
+                self.config.get('merchant_id') or 
+                self.config.get('merchantId') or 
+                getattr(settings, 'KUVEYT_TEST_MERCHANT_ID', '496')
+            )
+            self.username = (
+                self.config.get('api_key') or 
+                self.config.get('username') or 
+                self.config.get('userName') or 
+                getattr(settings, 'KUVEYT_TEST_USERNAME', 'apitest')
+            )
+            self.password = (
+                self.config.get('api_secret') or 
+                self.config.get('password') or 
+                self.config.get('Password') or 
+                getattr(settings, 'KUVEYT_TEST_PASSWORD', 'api123')
+            )
+        else:
+            # Production modunda config'den al (zorunlu)
+            self.customer_id = self.config.get('customer_id') or self.config.get('customerId')
+            self.merchant_id = self.config.get('merchant_id') or self.config.get('merchantId')
+            self.username = self.config.get('api_key') or self.config.get('username') or self.config.get('userName')
+            self.password = self.config.get('api_secret') or self.config.get('password') or self.config.get('Password')
+        
+        # PayGate endpoints
+        if self.test_mode:
+            self.paygate_url = self.config.get('test_endpoint') or 'https://boatest.kuveytturk.com.tr/boa.virtualpos.services/Home/ThreeDModelPayGate'
+            self.provision_url = self.config.get('test_provision_endpoint') or 'https://boatest.kuveytturk.com.tr/boa.virtualpos.services/Home/ThreeDModelProvisionGate'
+        else:
+            self.paygate_url = self.config.get('api_endpoint') or 'https://sanalpos.kuveytturk.com.tr/ServiceGateWay/Home/ThreeDModelPayGate'
+            self.provision_url = self.config.get('provision_endpoint') or 'https://sanalpos.kuveytturk.com.tr/ServiceGateWay/Home/ThreeDModelProvisionGate'
+    
+    def _calculate_hash(self, merchant_id, merchant_order_id, amount, ok_url, fail_url, username, password):
+        """
+        HashData hesapla.
+        HashData = base64(sha1(MerchantId + MerchantOrderId + Amount + OkUrl + FailUrl + UserName + hashPassword, "ISO-8859-9"))
+        """
+        try:
+            hash_string = f"{merchant_id}{merchant_order_id}{amount}{ok_url}{fail_url}{username}{password}"
+            # ISO-8859-9 encoding ile sha1 hash
+            hash_bytes = hash_string.encode('ISO-8859-9')
+            sha1_hash = hashlib.sha1(hash_bytes).digest()
+            hash_data = base64.b64encode(sha1_hash).decode('utf-8')
+            return hash_data
+        except Exception as e:
+            logger.error(f"Hash calculation error: {str(e)}")
+            raise ValueError(f"Hash hesaplama hatası: {str(e)}")
+    
+    def _format_amount(self, amount):
+        """
+        Amount formatı: Noktalama yok, gerçek tutarın 100 katı (1 TL → 100)
+        """
+        # Decimal'i float'a çevir, 100 ile çarp, noktayı kaldır
+        amount_float = float(Decimal(str(amount)))
+        amount_int = int(amount_float * 100)
+        return str(amount_int)
+    
+    def _get_currency_code(self, currency):
+        """
+        Currency code mapping (TL=0949, USD=0840, EUR=0978)
+        """
+        currency_upper = currency.upper()
+        return self.CURRENCY_CODES.get(currency_upper, '0949')  # Default: TRY
     
     def create_payment(self, order, amount, customer_info):
         """
-        Kuveyt API ile ödeme oluştur.
+        Kuveyt Türk 3D Secure ödeme oluştur (Adım 1: PayGate - Kart Doğrulama).
         
         Args:
             order: Order instance
@@ -79,95 +165,161 @@ class KuwaitPaymentProvider(PaymentProviderBase):
                 'email': str,
                 'name': str,
                 'phone': str,
-                'address': dict
+                'address': dict,
+                'card_number': str (optional, genelde frontend'den alınır),
+                'card_cvv': str (optional),
+                'card_expiry': str (optional, format: MM/YY)
             }
         
         Returns:
-            dict: Payment response
+            dict: {
+                'success': bool,
+                'payment_html': str,  # PayGate'den dönen HTML (tarayıcıya gösterilecek)
+                'transaction_id': str,  # Order number kullanılır
+                'error': str (if failed)
+            }
         """
         try:
-            # Kuveyt API'ye ödeme isteği gönder
-            payload = {
-                'amount': float(amount),
-                'currency': order.currency,
-                'order_id': order.order_number,
-                'customer_email': customer_info.get('email'),
-                'customer_name': customer_info.get('name'),
-                'customer_phone': customer_info.get('phone'),
-                'return_url': self.config.get('return_url', f'{getattr(settings, "FRONTEND_URL", "https://api.tinisoft.com.tr")}/payment/return'),
-                'cancel_url': self.config.get('cancel_url', f'{getattr(settings, "FRONTEND_URL", "https://api.tinisoft.com.tr")}/payment/cancel'),
-                'metadata': {
-                    'tenant_id': str(self.tenant.id),
-                    'order_number': order.order_number,
+            # Gerekli alanları kontrol et
+            if not all([self.customer_id, self.merchant_id, self.username, self.password]):
+                return {
+                    'success': False,
+                    'payment_html': None,
+                    'transaction_id': None,
+                    'error': 'Kuveyt API bilgileri eksik. CustomerId, MerchantId, UserName ve Password gerekli.',
                 }
-            }
             
+            # OkUrl ve FailUrl
+            base_url = getattr(settings, 'FRONTEND_URL', 'https://api.tinisoft.com.tr')
+            ok_url = self.config.get('return_url') or f'{base_url}/api/payments/kuveyt/callback/ok'
+            fail_url = self.config.get('cancel_url') or f'{base_url}/api/payments/kuveyt/callback/fail'
+            
+            # & karakterini &amp; ile değiştir (XML'de gerekli)
+            ok_url = ok_url.replace('&', '&amp;')
+            fail_url = fail_url.replace('&', '&amp;')
+            
+            # Amount formatı (100 katı, noktalama yok)
+            formatted_amount = self._format_amount(amount)
+            
+            # Currency code
+            currency_code = self._get_currency_code(order.currency)
+            
+            # HashData hesapla
+            hash_data = self._calculate_hash(
+                merchant_id=self.merchant_id,
+                merchant_order_id=order.order_number,
+                amount=formatted_amount,
+                ok_url=ok_url,
+                fail_url=fail_url,
+                username=self.username,
+                password=self.password
+            )
+            
+            # XML oluştur
+            root = ET.Element('KuveytTurkVPosMessage')
+            root.set('xmlns', 'http://boa.net/BOA.Integration.VirtualPos/Service')
+            
+            # APIVersion - TDV2.0.0 kullanılmalı
+            ET.SubElement(root, 'APIVersion').text = 'TDV2.0.0'
+            
+            # OkUrl ve FailUrl
+            ET.SubElement(root, 'OkUrl').text = ok_url
+            ET.SubElement(root, 'FailUrl').text = fail_url
+            
+            # HashData
+            ET.SubElement(root, 'HashData').text = hash_data
+            
+            # Merchant bilgileri
+            ET.SubElement(root, 'MerchantId').text = str(self.merchant_id)
+            ET.SubElement(root, 'CustomerId').text = str(self.customer_id)
+            ET.SubElement(root, 'UserName').text = self.username
+            
+            # Order bilgileri
+            ET.SubElement(root, 'CardNumber').text = customer_info.get('card_number', '')  # Genelde frontend'den alınır
+            ET.SubElement(root, 'CardExpireDateYear').text = customer_info.get('card_expiry_year', '')
+            ET.SubElement(root, 'CardExpireDateMonth').text = customer_info.get('card_expiry_month', '')
+            ET.SubElement(root, 'CardCVV2').text = customer_info.get('card_cvv', '')
+            ET.SubElement(root, 'CardHolderName').text = customer_info.get('name', '')
+            ET.SubElement(root, 'CardType').text = 'V'  # V: Visa, M: MasterCard
+            
+            # Transaction bilgileri
+            ET.SubElement(root, 'TransactionType').text = 'Sale'  # Sale: Satış
+            ET.SubElement(root, 'InstallmentCount').text = '0'  # 0: Tek çekim
+            ET.SubElement(root, 'Amount').text = formatted_amount
+            ET.SubElement(root, 'CurrencyCode').text = currency_code
+            ET.SubElement(root, 'MerchantOrderId').text = order.order_number
+            
+            # TransactionSecurity - 3D Secure için 3
+            ET.SubElement(root, 'TransactionSecurity').text = '3'
+            
+            # ClientIP
+            client_ip = customer_info.get('ip_address', '')
+            ET.SubElement(root, 'ClientIP').text = client_ip
+            
+            # XML'i string'e çevir
+            xml_string = ET.tostring(root, encoding='utf-8', method='xml').decode('utf-8')
+            
+            logger.info(f"Kuveyt PayGate request: order={order.order_number}, amount={formatted_amount}, endpoint={self.paygate_url}")
+            logger.debug(f"Kuveyt PayGate XML: {xml_string}")
+            
+            # PayGate'e POST isteği gönder
             headers = {
-                'Authorization': f'Bearer {self.api_key}',
-                'Content-Type': 'application/json',
+                'Content-Type': 'application/xml; charset=utf-8',
             }
-            
-            # API çağrısı
-            # Test modunda test_endpoint kullan
-            endpoint = self.test_endpoint if (self.test_mode and self.test_endpoint) else self.api_endpoint
-            
-            logger.info(f"Kuveyt payment request: endpoint={endpoint}, order={order.order_number}")
             
             try:
                 response = requests.post(
-                    f'{endpoint}/create',
-                    json=payload,
+                    self.paygate_url,
+                    data=xml_string.encode('utf-8'),
                     headers=headers,
                     timeout=30
                 )
                 
-                logger.info(f"Kuveyt API response: status={response.status_code}, body={response.text[:200]}")
+                logger.info(f"Kuveyt PayGate response: status={response.status_code}, content-length={len(response.content)}")
                 
                 if response.status_code == 200:
-                    try:
-                        data = response.json()
-                        return {
-                            'success': True,
-                            'payment_url': data.get('payment_url'),
-                            'transaction_id': data.get('transaction_id'),
-                            'error': None,
-                        }
-                    except ValueError as e:
-                        logger.error(f"Kuveyt API JSON parse error: {str(e)}, response: {response.text[:500]}")
+                    # PayGate HTML döner (3D Secure ekranı)
+                    payment_html = response.text
+                    
+                    # HTML'de hata var mı kontrol et
+                    if 'error' in payment_html.lower() or 'hata' in payment_html.lower():
+                        logger.error(f"Kuveyt PayGate HTML error detected: {payment_html[:500]}")
                         return {
                             'success': False,
-                            'payment_url': None,
-                            'transaction_id': None,
-                            'error': f'API response parse edilemedi: {str(e)}',
+                            'payment_html': None,
+                            'transaction_id': order.order_number,
+                            'error': 'PayGate\'den hata döndü. HTML response kontrol edilmeli.',
                         }
-                else:
-                    try:
-                        error_data = response.json()
-                        error_msg = error_data.get('error', 'Ödeme oluşturulamadı.')
-                    except:
-                        error_msg = f'HTTP {response.status_code}: {response.text[:200]}'
                     
-                    logger.error(f"Kuveyt API error: {error_msg}")
+                    return {
+                        'success': True,
+                        'payment_html': payment_html,  # Bu HTML tarayıcıya gösterilecek
+                        'transaction_id': order.order_number,
+                        'error': None,
+                    }
+                else:
+                    error_msg = f'HTTP {response.status_code}: {response.text[:500]}'
+                    logger.error(f"Kuveyt PayGate error: {error_msg}")
                     return {
                         'success': False,
-                        'payment_url': None,
-                        'transaction_id': None,
+                        'payment_html': None,
+                        'transaction_id': order.order_number,
                         'error': error_msg,
                     }
             except requests.exceptions.RequestException as e:
-                logger.error(f"Kuveyt API request error: {str(e)}")
+                logger.error(f"Kuveyt PayGate request error: {str(e)}")
                 return {
                     'success': False,
-                    'payment_url': None,
-                    'transaction_id': None,
-                    'error': f'API isteği başarısız: {str(e)}',
+                    'payment_html': None,
+                    'transaction_id': order.order_number,
+                    'error': f'PayGate isteği başarısız: {str(e)}',
                 }
         
         except Exception as e:
-            logger.error(f"Kuveyt payment creation error: {str(e)}")
+            logger.error(f"Kuveyt payment creation error: {str(e)}", exc_info=True)
             return {
                 'success': False,
-                'payment_url': None,
+                'payment_html': None,
                 'transaction_id': None,
                 'error': str(e),
             }

@@ -357,3 +357,9 @@ INTEGRATION_ENCRYPTION_KEY = env(
     default='AYKTqmBEf7a56UVkiH_E0ZmSd4luaba4q5q6xX-LGP0='
 )
 
+# Kuveyt Türk Test Ortam Bilgileri (Test modunda otomatik kullanılır)
+KUVEYT_TEST_CUSTOMER_ID = env('KUVEYT_TEST_CUSTOMER_ID', default='400235')
+KUVEYT_TEST_MERCHANT_ID = env('KUVEYT_TEST_MERCHANT_ID', default='496')
+KUVEYT_TEST_USERNAME = env('KUVEYT_TEST_USERNAME', default='apitest')
+KUVEYT_TEST_PASSWORD = env('KUVEYT_TEST_PASSWORD', default='api123')
+

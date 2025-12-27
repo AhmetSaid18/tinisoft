@@ -24,7 +24,10 @@ from apps.views.cart import (
     cart_detail, add_to_cart, cart_item_detail,
     update_shipping_method, apply_coupon
 )
-from apps.views.payment import payment_list_create, payment_detail, payment_create_with_provider, payment_verify
+from apps.views.payment import (
+    payment_list_create, payment_detail, payment_create_with_provider, payment_verify,
+    kuveyt_callback_ok, kuveyt_callback_fail
+)
 from apps.views.customer import customer_list, customer_detail, update_customer_statistics
 from apps.views.inventory import inventory_movement_list_create, inventory_movement_detail
 from apps.views.search import search_products, search_suggestions, filter_options
@@ -151,6 +154,9 @@ urlpatterns = [
     path('payments/<uuid:payment_id>/', payment_detail, name='payment_detail'),  # GET, PATCH
     path('payments/create/', payment_create_with_provider, name='payment_create_with_provider'),  # POST: Create payment with provider (Kuveyt API)
     path('payments/verify/', payment_verify, name='payment_verify'),  # POST: Verify payment (callback)
+    # Kuveyt 3D Secure callback endpoints
+    path('payments/kuveyt/callback/ok/', kuveyt_callback_ok, name='kuveyt_callback_ok'),  # POST: Kuveyt OkUrl callback
+    path('payments/kuveyt/callback/fail/', kuveyt_callback_fail, name='kuveyt_callback_fail'),  # POST: Kuveyt FailUrl callback
     
     # Müşteri yönetimi
     path('customers/', customer_list, name='customer_list'),  # GET: List

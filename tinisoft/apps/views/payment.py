@@ -313,7 +313,8 @@ def payment_create_with_provider(request):
                 provider=provider_name,
                 metadata={
                     'transaction_id': result['transaction_id'],
-                    'payment_url': result['payment_url'],
+                    'payment_url': result.get('payment_url'),
+                    'payment_html': result.get('payment_html'),  # Kuveyt için HTML dönebilir
                 }
             )
             
@@ -321,13 +322,20 @@ def payment_create_with_provider(request):
             payment.transaction_id = result['transaction_id']
             payment.save()
             
-            return Response({
+            response_data = {
                 'success': True,
                 'message': 'Ödeme oluşturuldu.',
                 'payment': PaymentSerializer(payment).data,
-                'payment_url': result['payment_url'],
                 'transaction_id': result['transaction_id'],
-            }, status=status.HTTP_201_CREATED)
+            }
+            
+            # Kuveyt gibi HTML dönen provider'lar için
+            if result.get('payment_html'):
+                response_data['payment_html'] = result['payment_html']
+            elif result.get('payment_url'):
+                response_data['payment_url'] = result['payment_url']
+            
+            return Response(response_data, status=status.HTTP_201_CREATED)
         else:
             return Response({
                 'success': False,
@@ -430,4 +438,108 @@ def payment_verify(request):
             'success': False,
             'message': 'Ödeme doğrulanırken bir hata oluştu.',
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])  # Kuveyt'ten POST gelecek
+def kuveyt_callback_ok(request):
+    """
+    Kuveyt 3D Secure OkUrl callback (başarılı kart doğrulama).
+    Banka bu endpoint'e POST ile AuthenticationResponse gönderir.
+    
+    POST: /api/payments/kuveyt/callback/ok/
+    """
+    import xml.etree.ElementTree as ET
+    from urllib.parse import unquote
+    
+    try:
+        # AuthenticationResponse alanını al (UrlEncoded gelir)
+        authentication_response = request.POST.get('AuthenticationResponse')
+        if not authentication_response:
+            logger.error("Kuveyt callback: AuthenticationResponse eksik")
+            return Response({
+                'success': False,
+                'message': 'AuthenticationResponse eksik',
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # UrlDecode et
+        decoded_xml = unquote(authentication_response)
+        logger.info(f"Kuveyt callback OK - Decoded XML: {decoded_xml[:500]}")
+        
+        # XML parse et
+        root = ET.fromstring(decoded_xml)
+        
+        # ResponseCode ve ResponseMessage kontrol et
+        response_code = root.find('Message/VERes/Status').text if root.find('Message/VERes/Status') is not None else None
+        md = root.find('Message/VERes/MD').text if root.find('Message/VERes/MD') is not None else None
+        order_id = root.find('Message/VERes/MerchantOrderId').text if root.find('Message/VERes/MerchantOrderId') is not None else None
+        
+        if response_code != 'Y' or not md:
+            logger.error(f"Kuveyt callback: Kart doğrulanamadı. ResponseCode={response_code}")
+            # Frontend'e yönlendir (hata sayfası)
+            return Response({
+                'success': False,
+                'message': 'Kart doğrulama başarısız',
+                'response_code': response_code,
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # MD'yi kaydet ve ProvisionGate'e istek at (Adım 2)
+        # Bu işlem payment_providers.py'da yapılacak
+        # Şimdilik başarılı mesaj döndür
+        
+        logger.info(f"Kuveyt callback OK: OrderId={order_id}, MD={md}")
+        
+        return Response({
+            'success': True,
+            'message': 'Kart doğrulama başarılı. Ödeme işleniyor...',
+            'order_id': order_id,
+            'md': md,
+        })
+    
+    except Exception as e:
+        logger.error(f"Kuveyt callback error: {str(e)}", exc_info=True)
+        return Response({
+            'success': False,
+            'message': 'Callback işlenirken hata oluştu.',
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def kuveyt_callback_fail(request):
+    """
+    Kuveyt 3D Secure FailUrl callback (başarısız kart doğrulama).
+    
+    POST: /api/payments/kuveyt/callback/fail/
+    """
+    import xml.etree.ElementTree as ET
+    from urllib.parse import unquote
+    
+    try:
+        authentication_response = request.POST.get('AuthenticationResponse')
+        if authentication_response:
+            decoded_xml = unquote(authentication_response)
+            logger.info(f"Kuveyt callback FAIL - Decoded XML: {decoded_xml[:500]}")
+            
+            root = ET.fromstring(decoded_xml)
+            response_code = root.find('Message/VERes/Status').text if root.find('Message/VERes/Status') is not None else None
+            error_message = root.find('Message/VERes/ErrorMessage').text if root.find('Message/VERes/ErrorMessage') is not None else 'Kart doğrulama başarısız'
+        else:
+            error_message = 'Kart doğrulama başarısız'
+            response_code = None
+        
+        logger.warning(f"Kuveyt callback FAIL: ResponseCode={response_code}, Error={error_message}")
+        
+        return Response({
+            'success': False,
+            'message': error_message,
+            'response_code': response_code,
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    except Exception as e:
+        logger.error(f"Kuveyt callback fail error: {str(e)}", exc_info=True)
+        return Response({
+            'success': False,
+            'message': 'Kart doğrulama başarısız',
+        }, status=status.HTTP_400_BAD_REQUEST)
 
