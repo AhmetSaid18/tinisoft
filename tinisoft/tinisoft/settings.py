@@ -138,6 +138,8 @@ CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[
     'http://localhost:3001',
     'https://tinisoft.com.tr',
     'https://www.tinisoft.com.tr',
+    'https://test.avrupamutfak.com',
+    'http://test.avrupamutfak.com',
 ])
 
 # Internationalization
@@ -228,6 +230,8 @@ CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[
     'https://app.tinisoft.com.tr',
     'http://tinisoft.com.tr',
     'http://www.tinisoft.com.tr',
+    'https://test.avrupamutfak.com',
+    'http://test.avrupamutfak.com',
 ])
 
 # Development için tüm origin'lere izin ver (DEBUG=True ise)
