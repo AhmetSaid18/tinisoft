@@ -283,6 +283,10 @@ CORS_ALLOW_METHODS = [
 # Preflight cache süresi (OPTIONS istekleri için)
 CORS_PREFLIGHT_MAX_AGE = 86400  # 24 saat
 
+# Integration Encryption Key (API key şifreleme için)
+# Production'da mutlaka değiştirilmeli!
+INTEGRATION_ENCRYPTION_KEY = env('INTEGRATION_ENCRYPTION_KEY', default='django-insecure-integration-key-change-in-production-12345678901234567890')
+
 # Celery Configuration
 CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='redis://redis:6379/0')
 CELERY_RESULT_BACKEND = env('CELERY_RESULT_BACKEND', default='redis://redis:6379/0')
@@ -347,5 +351,9 @@ LOGGING = {
 # Integration API Keys Encryption Key
 # Production'da mutlaka güçlü bir key kullanın!
 # Key oluşturmak için: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-INTEGRATION_ENCRYPTION_KEY = env('INTEGRATION_ENCRYPTION_KEY', default=None)
+# Development için default key (production'da environment variable'dan ayarlanmalı!)
+INTEGRATION_ENCRYPTION_KEY = env(
+    'INTEGRATION_ENCRYPTION_KEY', 
+    default='django-insecure-integration-key-change-in-production-12345678901234567890abcdefghijklmnopqrstuvwxyz'
+)
 
