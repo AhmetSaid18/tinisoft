@@ -118,8 +118,8 @@ class CreateOrderSerializer(serializers.Serializer):
     customer_first_name = serializers.CharField(max_length=100)
     customer_last_name = serializers.CharField(max_length=100)
     customer_phone = serializers.CharField(max_length=20, required=False)
-    shipping_address_id = serializers.UUIDField(required=False)
-    shipping_method_id = serializers.UUIDField(required=False)
+    shipping_address_id = serializers.UUIDField(required=False, allow_null=True)
+    shipping_method_id = serializers.UUIDField(required=False, allow_null=True)
     customer_note = serializers.CharField(required=False, allow_blank=True)
     billing_address = serializers.JSONField(required=False, default=dict)
 
