@@ -333,10 +333,58 @@ def product_list_public(request, tenant_slug=None):
         is_visible=True,
     )
     
-    # Kategori filtresi
-    category_slug = request.query_params.get('category')
-    if category_slug:
-        queryset = queryset.filter(categories__slug=category_slug, categories__is_active=True)
+    # Kategori filtresi (category_id veya category_slug ile)
+    category_id = request.query_params.get('category_id')
+    category_slug = request.query_params.get('category_slug') or request.query_params.get('category')
+    
+    if category_id or category_slug:
+        # Kategoriyi bul
+        category = None
+        if category_id:
+            try:
+                category = Category.objects.get(
+                    id=category_id,
+                    tenant=tenant,
+                    is_deleted=False,
+                    is_active=True
+                )
+            except Category.DoesNotExist:
+                pass
+        
+        if not category and category_slug:
+            try:
+                category = Category.objects.get(
+                    slug=category_slug,
+                    tenant=tenant,
+                    is_deleted=False,
+                    is_active=True
+                )
+            except Category.DoesNotExist:
+                pass
+        
+        if category:
+            # Alt kategorileri de dahil et (recursive)
+            def get_all_category_ids(cat):
+                """Kategori ve tüm alt kategorilerinin ID'lerini döndür"""
+                category_ids = [cat.id]
+                children = Category.objects.filter(
+                    parent=cat,
+                    tenant=tenant,
+                    is_deleted=False,
+                    is_active=True
+                )
+                for child in children:
+                    category_ids.extend(get_all_category_ids(child))
+                return category_ids
+            
+            # Kategori ve tüm alt kategorilerinin ID'lerini al
+            all_category_ids = get_all_category_ids(category)
+            
+            # Bu kategorilerdeki ürünleri filtrele
+            queryset = queryset.filter(
+                categories__id__in=all_category_ids,
+                categories__is_active=True
+            ).distinct()
     
     # Arama
     search = request.query_params.get('search')
