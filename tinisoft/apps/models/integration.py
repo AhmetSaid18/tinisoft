@@ -209,6 +209,7 @@ class IntegrationProvider(BaseModel):
             'api_secret': self.get_api_secret(),
             'api_token': self.get_api_token(),
             'endpoint': self.get_endpoint(),
+            'test_endpoint': self.test_endpoint,
             'test_mode': self.status == self.Status.TEST_MODE,
             **self.config
         }

@@ -65,6 +65,8 @@ class KuwaitPaymentProvider(PaymentProviderBase):
         self.api_key = self.config.get('api_key') or getattr(settings, 'KUWAIT_API_KEY', '')
         self.api_secret = self.config.get('api_secret') or getattr(settings, 'KUWAIT_API_SECRET', '')
         self.api_endpoint = self.config.get('endpoint') or getattr(settings, 'KUWAIT_API_ENDPOINT', 'https://api.kuveyt.com/payment')
+        self.test_endpoint = self.config.get('test_endpoint')
+        self.test_mode = self.config.get('test_mode', False)
     
     def create_payment(self, order, amount, customer_info):
         """
@@ -106,29 +108,59 @@ class KuwaitPaymentProvider(PaymentProviderBase):
             }
             
             # API çağrısı
-            response = requests.post(
-                f'{self.api_endpoint}/create',
-                json=payload,
-                headers=headers,
-                timeout=30
-            )
+            # Test modunda test_endpoint kullan
+            endpoint = self.test_endpoint if (self.test_mode and self.test_endpoint) else self.api_endpoint
             
-            if response.status_code == 200:
-                data = response.json()
-                return {
-                    'success': True,
-                    'payment_url': data.get('payment_url'),
-                    'transaction_id': data.get('transaction_id'),
-                    'error': None,
-                }
-            else:
-                error_msg = response.json().get('error', 'Ödeme oluşturulamadı.')
-                logger.error(f"Kuveyt API error: {error_msg}")
+            logger.info(f"Kuveyt payment request: endpoint={endpoint}, order={order.order_number}")
+            
+            try:
+                response = requests.post(
+                    f'{endpoint}/create',
+                    json=payload,
+                    headers=headers,
+                    timeout=30
+                )
+                
+                logger.info(f"Kuveyt API response: status={response.status_code}, body={response.text[:200]}")
+                
+                if response.status_code == 200:
+                    try:
+                        data = response.json()
+                        return {
+                            'success': True,
+                            'payment_url': data.get('payment_url'),
+                            'transaction_id': data.get('transaction_id'),
+                            'error': None,
+                        }
+                    except ValueError as e:
+                        logger.error(f"Kuveyt API JSON parse error: {str(e)}, response: {response.text[:500]}")
+                        return {
+                            'success': False,
+                            'payment_url': None,
+                            'transaction_id': None,
+                            'error': f'API response parse edilemedi: {str(e)}',
+                        }
+                else:
+                    try:
+                        error_data = response.json()
+                        error_msg = error_data.get('error', 'Ödeme oluşturulamadı.')
+                    except:
+                        error_msg = f'HTTP {response.status_code}: {response.text[:200]}'
+                    
+                    logger.error(f"Kuveyt API error: {error_msg}")
+                    return {
+                        'success': False,
+                        'payment_url': None,
+                        'transaction_id': None,
+                        'error': error_msg,
+                    }
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Kuveyt API request error: {str(e)}")
                 return {
                     'success': False,
                     'payment_url': None,
                     'transaction_id': None,
-                    'error': error_msg,
+                    'error': f'API isteği başarısız: {str(e)}',
                 }
         
         except Exception as e:
