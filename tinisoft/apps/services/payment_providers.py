@@ -218,9 +218,8 @@ class KuwaitPaymentProvider(PaymentProviderBase):
         
         # Debug için log (hassas bilgileri kısalt) - INFO seviyesinde
         logger.info(
-            f"Hash calculation (Request1): "
+            f"Hash calculation (Request1 - PDF formülü): "
             f"MerchantId={merchant_id_str}, "
-            f"CustomerId={customer_id_str} (not in hash), "
             f"OrderId={merchant_order_id}, "
             f"Amount={amount}, "
             f"OkUrl={ok_url}, "
