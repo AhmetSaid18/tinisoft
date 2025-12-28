@@ -496,142 +496,102 @@ class KuwaitPaymentProvider(PaymentProviderBase):
                     # HTML içinde XML response var mı kontrol et (hata durumunda)
                     # Kuveyt bazen hata durumunda HTML içinde XML response döndürür
                     # XML hem normal hem de URL-encoded olabilir (AuthenticationResponse value içinde)
+                    # ÖNEMLİ: Her zaman AuthenticationResponse'dan ResponseCode'u kontrol et
                     import re
                     from urllib.parse import unquote
                     
-                    # Önce normal XML pattern'i dene
-                    xml_match = re.search(r'<VPosTransactionResponseContract[^>]*>(.*?)</VPosTransactionResponseContract>', payment_html, re.DOTALL)
+                    # AuthenticationResponse'dan ResponseCode'u çıkarmaya çalış (her zaman kontrol et)
+                    response_code = None
+                    response_message = None
+                    xml_parse_successful = False
                     
-                    xml_content = None
-                    
-                    # Eğer bulunamazsa, URL-encoded olarak dene (AuthenticationResponse value içinde)
-                    if not xml_match:
-                        auth_response_match = re.search(r'name="AuthenticationResponse"\s+value="([^"]+)"', payment_html, re.DOTALL)
-                        if auth_response_match:
-                            try:
-                                encoded_xml = auth_response_match.group(1)
-                                decoded_xml = unquote(encoded_xml)
-                                logger.debug(f"Decoded AuthenticationResponse XML (first 500 chars): {decoded_xml[:500]}")
-                                xml_match = re.search(r'<VPosTransactionResponseContract[^>]*>(.*?)</VPosTransactionResponseContract>', decoded_xml, re.DOTALL)
-                                if xml_match:
-                                    xml_content = xml_match.group(0)
-                                    logger.info(f"Found XML in URL-encoded AuthenticationResponse")
-                                else:
-                                    # XML tag'i bulunamadı, belki tüm decoded_xml XML'dir
-                                    if decoded_xml.strip().startswith('<'):
-                                        xml_content = decoded_xml
-                                        logger.info(f"Using entire decoded XML as content")
-                            except Exception as e:
-                                logger.warning(f"Could not decode AuthenticationResponse: {str(e)}")
-                                xml_match = None
-                    
-                    if xml_match or xml_content:
+                    # Önce AuthenticationResponse'u bul (hem normal hem URL-encoded olabilir)
+                    auth_response_match = re.search(r'name="AuthenticationResponse"\s+value="([^"]+)"', payment_html, re.DOTALL)
+                    if auth_response_match:
                         try:
-                            # Eğer xml_content henüz set edilmediyse, xml_match'tan al
-                            if xml_content is None and xml_match:
-                                xml_content = xml_match.group(0)
+                            encoded_xml = auth_response_match.group(1)
+                            decoded_xml = unquote(encoded_xml)
+                            logger.debug(f"Decoded AuthenticationResponse XML (first 500 chars): {decoded_xml[:500]}")
                             
-                            if xml_content:
-                                root = ET.fromstring(xml_content)
-                                
-                                response_code = root.find('ResponseCode')
-                                response_code = response_code.text if response_code is not None else None
-                                
-                                response_message = root.find('ResponseMessage')
-                                response_message = response_message.text if response_message is not None else None
-                                
-                                if response_code and response_code != '00':
-                                    # Hata var - ResponseCode ve ResponseMessage'ı log'la
-                                    logger.error(
-                                        f"Kuveyt PayGate error in response: "
-                                        f"ResponseCode={response_code}, "
-                                        f"ResponseMessage={response_message}"
-                                    )
-                                    
-                                    # Özel hata mesajları
-                                    error_message = response_message or 'Bilinmeyen hata'
-                                    user_friendly_message = error_message
-                                    
-                                    if response_code == 'ApiUserNotDefined':
-                                        user_friendly_message = (
-                                            'Kuveyt Türk API kullanıcısı tanımlanmamış. '
-                                            'Lütfen Kuveyt Türk Sanal POS panelinde API rolünde kullanıcı oluşturun.'
-                                        )
-                                    elif 'ApiUser' in response_code or 'User' in response_code:
-                                        user_friendly_message = (
-                                            'Kuveyt Türk API kullanıcı bilgileri hatalı. '
-                                            'Lütfen API kullanıcı adı ve şifresini kontrol edin.'
-                                        )
-                                    
-                                    return {
-                                        'success': False,
-                                        'payment_html': None,
-                                        'transaction_id': order.order_number,
-                                        'error': user_friendly_message,
-                                        'error_code': response_code,
-                                        'error_details': {
-                                            'response_code': response_code,
-                                            'response_message': response_message,
-                                            'bank_error': True,
-                                        },
-                                    }
-                        except ET.ParseError as parse_error:
-                            logger.warning(f"Could not parse XML from HTML response: {str(parse_error)}")
-                            logger.debug(f"XML content that failed to parse: {xml_content[:500] if 'xml_content' in locals() else 'N/A'}")
-                        except Exception as parse_error:
-                            logger.warning(f"Unexpected error parsing XML from HTML response: {str(parse_error)}")
-                            logger.debug(f"XML content: {xml_content[:500] if 'xml_content' in locals() else 'N/A'}")
-                    
-                    # HTML'de hata var mı kontrol et (genel) - ama sadece XML parse başarısızsa
-                    # XML içinde "error" kelimesi olabilir ama bu normal, ResponseCode'u kontrol etmeliyiz
-                    # Eğer XML parse başarısız olduysa ve genel error kontrolü devreye girdiyse
-                    if ('error' in payment_html.lower() or 'hata' in payment_html.lower()):
-                        # HTML'in ilk 2000 karakterini log'la
-                        logger.warning(f"Kuveyt PayGate HTML contains 'error'/'hata' keyword. Checking if we can extract error details from URL-encoded XML...")
-                        # URL-encoded XML'den hata mesajını manuel olarak çıkarmayı dene
-                        auth_response_match = re.search(r'name="AuthenticationResponse"\s+value="([^"]+)"', payment_html, re.DOTALL)
-                        if auth_response_match:
+                            # Önce XML olarak parse etmeyi dene
                             try:
-                                encoded_xml = auth_response_match.group(1)
-                                decoded_xml = unquote(encoded_xml)
-                                # ResponseCode ve ResponseMessage'ı regex ile çıkar
+                                root = ET.fromstring(decoded_xml)
+                                response_code_elem = root.find('ResponseCode')
+                                response_message_elem = root.find('ResponseMessage')
+                                
+                                if response_code_elem is not None:
+                                    response_code = response_code_elem.text
+                                if response_message_elem is not None:
+                                    response_message = response_message_elem.text
+                                
+                                xml_parse_successful = True
+                                logger.info(f"Successfully parsed XML from AuthenticationResponse: ResponseCode={response_code}")
+                            except ET.ParseError as parse_error:
+                                # XML parse başarısız, regex ile dene
+                                logger.warning(f"Could not parse XML from AuthenticationResponse: {str(parse_error)}, trying regex extraction")
                                 response_code_match = re.search(r'<ResponseCode>(.*?)</ResponseCode>', decoded_xml, re.DOTALL)
                                 response_message_match = re.search(r'<ResponseMessage>(.*?)</ResponseMessage>', decoded_xml, re.DOTALL)
-                                if response_code_match and response_message_match:
+                                
+                                if response_code_match:
                                     response_code = response_code_match.group(1)
+                                if response_message_match:
                                     response_message = response_message_match.group(1)
-                                    logger.error(f"Kuveyt PayGate error (extracted from URL-encoded XML): ResponseCode={response_code}, ResponseMessage={response_message}")
-                                    # Türkçe karakterleri decode et
-                                    try:
-                                        response_message = response_message.encode('utf-8').decode('utf-8')
-                                    except:
-                                        pass
-                                    return {
-                                        'success': False,
-                                        'payment_html': None,
-                                        'transaction_id': order.order_number,
-                                        'error': response_message,
-                                        'error_code': response_code,
-                                        'error_details': {
-                                            'response_code': response_code,
-                                            'response_message': response_message,
-                                            'bank_error': True,
-                                        },
-                                    }
-                            except Exception as e:
-                                logger.warning(f"Could not extract error from URL-encoded XML: {str(e)}")
-                        # Eğer hata çıkarılamazsa, genel hata mesajı döndür
-                        logger.error(f"Kuveyt PayGate HTML error detected but could not parse details. Full HTML (first 2000 chars): {payment_html[:2000]}")
-                        return {
-                            'success': False,
-                            'payment_html': None,
-                            'transaction_id': order.order_number,
-                            'error': 'PayGate\'den hata döndü. Detaylar parse edilemedi.',
-                        }
+                                
+                                logger.info(f"Extracted ResponseCode using regex: {response_code}")
+                        except Exception as e:
+                            logger.warning(f"Could not decode/extract AuthenticationResponse: {str(e)}")
+                    
+                    # ResponseCode'u kontrol et (her zaman)
+                    if response_code:
+                        # ResponseCode'u decode et (URL encoding olabilir)
+                        response_code = unquote(str(response_code))
+                        if response_message:
+                            response_message = unquote(str(response_message).replace('+', ' '))
+                        
+                        # ResponseCode '00' ise başarılı, değilse hata
+                        if response_code != '00':
+                            # Hata var - ResponseCode ve ResponseMessage'ı log'la
+                            logger.error(
+                                f"Kuveyt PayGate error in response: "
+                                f"ResponseCode={response_code}, "
+                                f"ResponseMessage={response_message}"
+                            )
+                            
+                            # Özel hata mesajları
+                            error_message = response_message or 'Bilinmeyen hata'
+                            user_friendly_message = error_message
+                            
+                            if response_code == 'ApiUserNotDefined':
+                                user_friendly_message = (
+                                    'Kuveyt Türk API kullanıcısı tanımlanmamış. '
+                                    'Lütfen Kuveyt Türk Sanal POS panelinde API rolünde kullanıcı oluşturun.'
+                                )
+                            elif 'ApiUser' in response_code or 'User' in response_code:
+                                user_friendly_message = (
+                                    'Kuveyt Türk API kullanıcı bilgileri hatalı. '
+                                    'Lütfen API kullanıcı adı ve şifresini kontrol edin.'
+                                )
+                            
+                            return {
+                                'success': False,
+                                'payment_html': None,
+                                'transaction_id': order.order_number,
+                                'error': user_friendly_message,
+                                'error_code': response_code,
+                                'error_details': {
+                                    'response_code': response_code,
+                                    'response_message': response_message,
+                                    'bank_error': True,
+                                },
+                            }
+                    else:
+                        # ResponseCode bulunamadı, bu normal bir 3D Secure akışı olabilir
+                        # Ama HTML'de hata kelimesi varsa yine de kontrol et
+                        if 'error' in payment_html.lower() or 'hata' in payment_html.lower():
+                            logger.warning(f"Kuveyt PayGate HTML contains 'error'/'hata' keyword but no ResponseCode found")
                     
                     # HTML'deki form action URL'ini kontrol et ve düzelt (eğer yanlışsa)
                     # Kuveyt bazen yanlış action URL döndürebilir veya bizim gönderdiğimiz URL'i kullanmayabilir
-                    import re
                     # action="..." veya action='...' pattern'ini bul
                     action_pattern = r'action=["\']([^"\']+)["\']'
                     matches = re.findall(action_pattern, payment_html)
