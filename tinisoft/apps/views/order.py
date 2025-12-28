@@ -278,31 +278,84 @@ def order_list_create(request):
                         f"Tenant: {tenant.name} ({tenant.id})"
                     )
                     
+                    # Önce cart'ı tenant olmadan kontrol et (hangi tenant'a ait olduğunu görmek için)
+                    cart = None
+                    cart_exists_anywhere = False
+                    cart_tenant_mismatch = False
+                    cart_not_active = False
+                    
                     try:
-                        cart = Cart.objects.get(
-                            id=cart_id,
-                            tenant=tenant,
-                            is_active=True,
-                        )
-                        logger.info(
-                            f"[ORDERS] POST /api/orders/ | Cart found | "
-                            f"Cart ID: {cart.id} | "
-                            f"Cart active: {cart.is_active}"
-                        )
-                    except Cart.DoesNotExist as e:
+                        # Cart'ı ID ile bul (tenant kontrolü olmadan)
+                        temp_cart = Cart.objects.get(id=cart_id)
+                        cart_exists_anywhere = True
+                        
+                        # Tenant kontrolü
+                        if temp_cart.tenant != tenant:
+                            cart_tenant_mismatch = True
+                            logger.warning(
+                                f"[ORDERS] POST /api/orders/ | Cart belongs to different tenant | "
+                                f"Cart ID: {cart_id} | "
+                                f"Cart Tenant: {temp_cart.tenant.name} ({temp_cart.tenant.id}) | "
+                                f"Request Tenant: {tenant.name} ({tenant.id})"
+                            )
+                        else:
+                            # Tenant doğru, aktiflik kontrolü
+                            if not temp_cart.is_active:
+                                cart_not_active = True
+                                logger.warning(
+                                    f"[ORDERS] POST /api/orders/ | Cart is not active | "
+                                    f"Cart ID: {cart_id} | "
+                                    f"Cart active: {temp_cart.is_active}"
+                                )
+                            else:
+                                # Her şey tamam
+                                cart = temp_cart
+                                logger.info(
+                                    f"[ORDERS] POST /api/orders/ | Cart found | "
+                                    f"Cart ID: {cart.id} | "
+                                    f"Cart active: {cart.is_active}"
+                                )
+                    except Cart.DoesNotExist:
                         logger.warning(
-                            f"[ORDERS] POST /api/orders/ | 404 | "
-                            f"Cart not found | "
-                            f"Cart ID: {cart_id} | "
-                            f"Tenant: {tenant.name} | "
-                            f"User: {user_email}"
+                            f"[ORDERS] POST /api/orders/ | Cart does not exist | "
+                            f"Cart ID: {cart_id}"
                         )
-                        return Response({
+                    
+                    # Cart bulunamadıysa detaylı hata mesajı döndür
+                    if not cart:
+                        error_message = 'Sepet bulunamadı.'
+                        error_details = []
+                        
+                        if not cart_exists_anywhere:
+                            error_message = 'Sepet bulunamadı. Geçersiz sepet ID.'
+                            error_details.append('Cart ID does not exist')
+                        elif cart_tenant_mismatch:
+                            error_message = 'Sepet başka bir mağazaya ait. Lütfen doğru mağazadan sepet oluşturun.'
+                            error_details.append('Cart belongs to different tenant')
+                        elif cart_not_active:
+                            error_message = 'Sepet aktif değil. Lütfen yeni bir sepet oluşturun.'
+                            error_details.append('Cart is not active')
+                        
+                        logger.warning(
+                            f"[ORDERS] POST /api/orders/ | 400 | "
+                            f"Cart not available | "
+                            f"Cart ID: {cart_id} | "
+                            f"Details: {error_details} | "
+                            f"User: {user_email} | "
+                            f"Tenant: {tenant.name}"
+                        )
+                        
+                        response = Response({
                             'success': False,
-                            'message': 'Sepet bulunamadı veya aktif değil.',
-                            'error': f'Cart with ID {cart_id} not found or not active',
+                            'message': error_message,
+                            'error': 'Cart not available',
                             'error_type': 'CartNotFound',
-                        }, status=status.HTTP_404_NOT_FOUND)
+                            'error_details': error_details,
+                            'cart_id': str(cart_id),
+                        }, status=status.HTTP_400_BAD_REQUEST)
+                        
+                        logger.info(f"[ORDERS] POST /api/orders/ | Returning cart not found response with status {response.status_code}")
+                        return response
                     except Exception as cart_exception:
                         logger.error(
                             f"[ORDERS] POST /api/orders/ | 500 | "
