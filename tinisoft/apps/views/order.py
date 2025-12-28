@@ -215,7 +215,10 @@ def order_list_create(request):
                 is_valid = False
                 validation_errors = {}
                 try:
+                    logger.info(f"[ORDERS] POST /api/orders/ | Starting serializer validation...")
                     is_valid = serializer.is_valid()
+                    logger.info(f"[ORDERS] POST /api/orders/ | Serializer validation result: {is_valid}")
+                    
                     if not is_valid:
                         validation_errors = serializer.errors
                         logger.warning(
@@ -239,15 +242,34 @@ def order_list_create(request):
                         'error_type': type(validation_exception).__name__,
                     }, status=status.HTTP_400_BAD_REQUEST)
                 
+                logger.info(f"[ORDERS] POST /api/orders/ | Validation check complete, is_valid={is_valid}")
+                
                 if is_valid:
+                    logger.info(f"[ORDERS] POST /api/orders/ | Processing valid order data...")
                     data = serializer.validated_data
+                    logger.info(f"[ORDERS] POST /api/orders/ | Validated data keys: {list(data.keys()) if data else 'Empty'}")
                     
                     # Sepet kontrolü
                     cart_id = data.get('cart_id')
+                    logger.info(f"[ORDERS] POST /api/orders/ | Cart ID from validated data: {cart_id}")
+                    
+                    # Eğer validated_data'da yoksa, request_data'dan al
                     if not cart_id:
+                        cart_id = request_data.get('cart_id') if request_data else None
+                        logger.info(f"[ORDERS] POST /api/orders/ | Cart ID from request_data: {cart_id}")
+                    
+                    if not cart_id:
+                        logger.warning(
+                            f"[ORDERS] POST /api/orders/ | 400 | "
+                            f"Cart ID is missing | "
+                            f"User: {user_email} | "
+                            f"Tenant: {tenant.name}"
+                        )
                         return Response({
                             'success': False,
                             'message': 'Sepet ID gereklidir.',
+                            'error': 'cart_id field is required',
+                            'error_type': 'ValidationError',
                         }, status=status.HTTP_400_BAD_REQUEST)
                     
                     try:
@@ -350,12 +372,21 @@ def order_list_create(request):
                         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
                 else:
                     # Serializer validation errors - zaten yukarıda loglandı
-                    return Response({
+                    logger.warning(
+                        f"[ORDERS] POST /api/orders/ | 400 | "
+                        f"Returning validation error response | "
+                        f"Errors: {validation_errors} | "
+                        f"User: {user_email} | "
+                        f"Tenant: {tenant.name}"
+                    )
+                    response = Response({
                         'success': False,
                         'message': 'Sipariş oluşturulamadı. Lütfen gönderilen verileri kontrol edin.',
                         'errors': validation_errors,
                         'error_type': 'ValidationError',
                     }, status=status.HTTP_400_BAD_REQUEST)
+                    logger.info(f"[ORDERS] POST /api/orders/ | Returning response with status {response.status_code}")
+                    return response
             
             except Exception as e:
                 logger.error(
