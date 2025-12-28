@@ -322,27 +322,22 @@ class KuwaitPaymentProvider(PaymentProviderBase):
             # Biz backend callback URL'lerini kullanmalıyız, config'deki URL'leri görmezden gel
             # Doğru callback URL'leri her zaman backend endpoint'leri olmalı
             # Config'den gelen URL'leri override et
-            # NOT: Kuveyt Türk hash hesaplamasında URL'ler TRAILING SLASH OLMADAN kullanılmalı
-            # Ama XML'de trailing slash ile gönderilir
-            ok_url_for_hash = f'{api_base_url}/api/payments/kuveyt/callback/ok'
-            fail_url_for_hash = f'{api_base_url}/api/payments/kuveyt/callback/fail'
+            # NOT: Hash hesaplamasında ve XML'de AYNI URL'ler kullanılmalı (trailing slash ile)
+            ok_url = f'{api_base_url}/api/payments/kuveyt/callback/ok/'
+            fail_url = f'{api_base_url}/api/payments/kuveyt/callback/fail/'
             
-            # XML'de trailing slash ile gönder
-            ok_url_for_xml = ok_url_for_hash + '/'
-            fail_url_for_xml = fail_url_for_hash + '/'
-            
-            # Hash hesaplaması için trailing slash olmadan kullan
-            ok_url = ok_url_for_hash
-            fail_url = fail_url_for_hash
+            # Trailing slash olduğundan emin ol
+            if not ok_url.endswith('/'):
+                ok_url += '/'
+            if not fail_url.endswith('/'):
+                fail_url += '/'
             
             # Config'deki yanlış URL'leri override et (eğer varsa)
             # Config'den gelen return_url/cancel_url frontend URL'leri olabilir, onları kullanma
             logger.info(
                 f"Kuveyt PayGate callback URLs: "
-                f"OkUrl (for hash)={ok_url}, "
-                f"FailUrl (for hash)={fail_url} | "
-                f"OkUrl (for XML)={ok_url_for_xml}, "
-                f"FailUrl (for XML)={fail_url_for_xml} | "
+                f"OkUrl={ok_url}, "
+                f"FailUrl={fail_url} | "
                 f"Config return_url (ignored): {self.config.get('return_url', 'None')}, "
                 f"Config cancel_url (ignored): {self.config.get('cancel_url', 'None')}"
             )
@@ -376,8 +371,8 @@ class KuwaitPaymentProvider(PaymentProviderBase):
             xml_parts = ['<?xml version="1.0" encoding="UTF-8"?>']
             xml_parts.append('<KuveytTurkVPosMessage xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">')
             xml_parts.append('<APIVersion>TDV2.0.0</APIVersion>')
-            xml_parts.append(f'<OkUrl>{ok_url_for_xml}</OkUrl>')
-            xml_parts.append(f'<FailUrl>{fail_url_for_xml}</FailUrl>')
+            xml_parts.append(f'<OkUrl>{ok_url}</OkUrl>')
+            xml_parts.append(f'<FailUrl>{fail_url}</FailUrl>')
             xml_parts.append(f'<HashData>{hash_data}</HashData>')
             xml_parts.append(f'<MerchantId>{self.merchant_id}</MerchantId>')
             xml_parts.append(f'<CustomerId>{self.customer_id}</CustomerId>')
