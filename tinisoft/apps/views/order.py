@@ -272,17 +272,53 @@ def order_list_create(request):
                             'error_type': 'ValidationError',
                         }, status=status.HTTP_400_BAD_REQUEST)
                     
+                    logger.info(
+                        f"[ORDERS] POST /api/orders/ | Looking for cart | "
+                        f"Cart ID: {cart_id} | "
+                        f"Tenant: {tenant.name} ({tenant.id})"
+                    )
+                    
                     try:
                         cart = Cart.objects.get(
                             id=cart_id,
                             tenant=tenant,
                             is_active=True,
                         )
-                    except Cart.DoesNotExist:
+                        logger.info(
+                            f"[ORDERS] POST /api/orders/ | Cart found | "
+                            f"Cart ID: {cart.id} | "
+                            f"Cart active: {cart.is_active}"
+                        )
+                    except Cart.DoesNotExist as e:
+                        logger.warning(
+                            f"[ORDERS] POST /api/orders/ | 404 | "
+                            f"Cart not found | "
+                            f"Cart ID: {cart_id} | "
+                            f"Tenant: {tenant.name} | "
+                            f"User: {user_email}"
+                        )
                         return Response({
                             'success': False,
                             'message': 'Sepet bulunamadı veya aktif değil.',
+                            'error': f'Cart with ID {cart_id} not found or not active',
+                            'error_type': 'CartNotFound',
                         }, status=status.HTTP_404_NOT_FOUND)
+                    except Exception as cart_exception:
+                        logger.error(
+                            f"[ORDERS] POST /api/orders/ | 500 | "
+                            f"Error getting cart | "
+                            f"Cart ID: {cart_id} | "
+                            f"Error: {str(cart_exception)} | "
+                            f"User: {user_email} | "
+                            f"Tenant: {tenant.name}",
+                            exc_info=True
+                        )
+                        return Response({
+                            'success': False,
+                            'message': 'Sepet bilgisi alınırken bir hata oluştu.',
+                            'error': str(cart_exception),
+                            'error_type': type(cart_exception).__name__,
+                        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
                     
                     # Kargo adresi
                     shipping_address = None
@@ -314,8 +350,18 @@ def order_list_create(request):
                         # Müşteri profili oluştur/güncelle
                         try:
                             CustomerService.get_or_create_customer(tenant, customer_user)
-                        except:
+                        except Exception as customer_exception:
+                            logger.warning(
+                                f"[ORDERS] POST /api/orders/ | Customer service error (non-critical) | "
+                                f"Error: {str(customer_exception)}"
+                            )
                             pass
+                    
+                    logger.info(
+                        f"[ORDERS] POST /api/orders/ | Creating order from cart | "
+                        f"Cart ID: {cart.id} | "
+                        f"Customer: {data['customer_email']}"
+                    )
                     
                     try:
                         order = OrderService.create_order_from_cart(
