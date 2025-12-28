@@ -541,40 +541,40 @@ class KuwaitPaymentProvider(PaymentProviderBase):
                                 response_message = response_message.text if response_message is not None else None
                                 
                                 if response_code and response_code != '00':
-                                # Hata var - ResponseCode ve ResponseMessage'ı log'la
-                                logger.error(
-                                    f"Kuveyt PayGate error in response: "
-                                    f"ResponseCode={response_code}, "
-                                    f"ResponseMessage={response_message}"
-                                )
-                                
-                                # Özel hata mesajları
-                                error_message = response_message or 'Bilinmeyen hata'
-                                user_friendly_message = error_message
-                                
-                                if response_code == 'ApiUserNotDefined':
-                                    user_friendly_message = (
-                                        'Kuveyt Türk API kullanıcısı tanımlanmamış. '
-                                        'Lütfen Kuveyt Türk Sanal POS panelinde API rolünde kullanıcı oluşturun.'
+                                    # Hata var - ResponseCode ve ResponseMessage'ı log'la
+                                    logger.error(
+                                        f"Kuveyt PayGate error in response: "
+                                        f"ResponseCode={response_code}, "
+                                        f"ResponseMessage={response_message}"
                                     )
-                                elif 'ApiUser' in response_code or 'User' in response_code:
-                                    user_friendly_message = (
-                                        'Kuveyt Türk API kullanıcı bilgileri hatalı. '
-                                        'Lütfen API kullanıcı adı ve şifresini kontrol edin.'
-                                    )
-                                
-                                return {
-                                    'success': False,
-                                    'payment_html': None,
-                                    'transaction_id': order.order_number,
-                                    'error': user_friendly_message,
-                                    'error_code': response_code,
-                                    'error_details': {
-                                        'response_code': response_code,
-                                        'response_message': response_message,
-                                        'bank_error': True,
-                                    },
-                                }
+                                    
+                                    # Özel hata mesajları
+                                    error_message = response_message or 'Bilinmeyen hata'
+                                    user_friendly_message = error_message
+                                    
+                                    if response_code == 'ApiUserNotDefined':
+                                        user_friendly_message = (
+                                            'Kuveyt Türk API kullanıcısı tanımlanmamış. '
+                                            'Lütfen Kuveyt Türk Sanal POS panelinde API rolünde kullanıcı oluşturun.'
+                                        )
+                                    elif 'ApiUser' in response_code or 'User' in response_code:
+                                        user_friendly_message = (
+                                            'Kuveyt Türk API kullanıcı bilgileri hatalı. '
+                                            'Lütfen API kullanıcı adı ve şifresini kontrol edin.'
+                                        )
+                                    
+                                    return {
+                                        'success': False,
+                                        'payment_html': None,
+                                        'transaction_id': order.order_number,
+                                        'error': user_friendly_message,
+                                        'error_code': response_code,
+                                        'error_details': {
+                                            'response_code': response_code,
+                                            'response_message': response_message,
+                                            'bank_error': True,
+                                        },
+                                    }
                         except ET.ParseError as parse_error:
                             logger.warning(f"Could not parse XML from HTML response: {str(parse_error)}")
                             logger.debug(f"XML content that failed to parse: {xml_content[:500] if 'xml_content' in locals() else 'N/A'}")
