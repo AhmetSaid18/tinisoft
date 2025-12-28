@@ -160,6 +160,13 @@ def order_list_create(request):
             try:
                 # Müşteri siparişi oluşturabilir
                 logger.info(f"[ORDERS] POST /api/orders/ | Request data keys: {list(request.data.keys()) if request.data else 'Empty'}")
+                
+                # Request data'yı log'la (debug için)
+                try:
+                    logger.debug(f"[ORDERS] POST /api/orders/ | Request data: {request.data}")
+                except:
+                    pass  # Logging hatası önemli değil
+                
                 serializer = CreateOrderSerializer(data=request.data)
                 if serializer.is_valid():
                     data = serializer.validated_data
@@ -270,19 +277,21 @@ def order_list_create(request):
                             'error': str(e),
                             'error_type': type(e).__name__,
                         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-                
+                else:
                     # Serializer validation errors
                     logger.warning(
                         f"[ORDERS] POST /api/orders/ | 400 | "
                         f"Serializer validation failed | "
                         f"Errors: {list(serializer.errors.keys())} | "
+                        f"Error details: {serializer.errors} | "
                         f"User: {user_email} | "
                         f"Tenant: {tenant.name}"
                     )
                     return Response({
                         'success': False,
-                        'message': 'Sipariş oluşturulamadı.',
+                        'message': 'Sipariş oluşturulamadı. Lütfen gönderilen verileri kontrol edin.',
                         'errors': serializer.errors,
+                        'error_type': 'ValidationError',
                     }, status=status.HTTP_400_BAD_REQUEST)
             
             except Exception as e:
