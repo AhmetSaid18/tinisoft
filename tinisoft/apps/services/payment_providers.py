@@ -191,19 +191,62 @@ class KuwaitPaymentProvider(PaymentProviderBase):
         """
         Request1 (PayGate) için HashData hesapla.
         HashData = base64(sha1(MerchantId + MerchantOrderId + Amount + OkUrl + FailUrl + UserName + HashedPassword))
+        
+        ÖNEMLİ: Tüm değerler string olarak birleştirilmeli (integer değerler string'e çevrilmeli)
         """
         hp = self._hashed_password()
-        raw = f"{self.merchant_id}{merchant_order_id}{amount}{ok_url}{fail_url}{self.username}{hp}"
+        
+        # Tüm değerleri string'e çevir (merchant_id integer olabilir)
+        merchant_id_str = str(self.merchant_id) if self.merchant_id else ""
+        username_str = str(self.username) if self.username else ""
+        
+        # Hash hesaplamasında kullanılan değerleri birleştir
+        raw = f"{merchant_id_str}{merchant_order_id}{amount}{ok_url}{fail_url}{username_str}{hp}"
+        
+        # Debug için log (hassas bilgileri kısalt)
+        logger.debug(
+            f"Hash calculation (Request1): "
+            f"MerchantId={merchant_id_str}, "
+            f"OrderId={merchant_order_id}, "
+            f"Amount={amount}, "
+            f"OkUrl={ok_url}, "
+            f"FailUrl={fail_url}, "
+            f"UserName={username_str}, "
+            f"HashedPassword={hp[:10]}..."
+        )
+        logger.debug(f"Hash raw string length: {len(raw)}")
+        
         digest = hashlib.sha1(raw.encode(HASH_ENCODING)).digest()
-        return base64.b64encode(digest).decode("utf-8")
+        hash_result = base64.b64encode(digest).decode("utf-8")
+        
+        logger.debug(f"Calculated HashData: {hash_result}")
+        
+        return hash_result
     
     def _hash_request2(self, merchant_order_id: str, amount: str) -> str:
         """
         Request2 (ProvisionGate) için HashData hesapla.
         HashData = base64(sha1(MerchantId + MerchantOrderId + Amount + UserName + HashedPassword))
+        
+        ÖNEMLİ: Tüm değerler string olarak birleştirilmeli (integer değerler string'e çevrilmeli)
         """
         hp = self._hashed_password()
-        raw = f"{self.merchant_id}{merchant_order_id}{amount}{self.username}{hp}"
+        
+        # Tüm değerleri string'e çevir
+        merchant_id_str = str(self.merchant_id) if self.merchant_id else ""
+        username_str = str(self.username) if self.username else ""
+        
+        raw = f"{merchant_id_str}{merchant_order_id}{amount}{username_str}{hp}"
+        
+        logger.debug(
+            f"Hash calculation (Request2): "
+            f"MerchantId={merchant_id_str}, "
+            f"OrderId={merchant_order_id}, "
+            f"Amount={amount}, "
+            f"UserName={username_str}, "
+            f"HashedPassword={hp[:10]}..."
+        )
+        
         digest = hashlib.sha1(raw.encode(HASH_ENCODING)).digest()
         return base64.b64encode(digest).decode("utf-8")
     
@@ -278,6 +321,7 @@ class KuwaitPaymentProvider(PaymentProviderBase):
             # Biz backend callback URL'lerini kullanmalıyız, config'deki URL'leri görmezden gel
             # Doğru callback URL'leri her zaman backend endpoint'leri olmalı
             # Config'den gelen URL'leri override et
+            # NOT: Hash hesaplamasında ve XML'de AYNI URL'ler kullanılmalı
             ok_url = f'{api_base_url}/api/payments/kuveyt/callback/ok/'
             fail_url = f'{api_base_url}/api/payments/kuveyt/callback/fail/'
             
