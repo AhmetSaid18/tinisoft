@@ -227,13 +227,16 @@ class KuwaitPaymentProvider(PaymentProviderBase):
             f"HashedPassword={hp[:10]}..."
         )
         logger.info(f"Hash raw string length: {len(raw)}")
-        logger.info(f"Hash raw string (first 150 chars): {raw[:150]}...")
+        logger.info(f"Hash raw string (first 200 chars): {raw[:200]}...")
+        logger.info(f"Hash raw string (last 50 chars): ...{raw[-50:]}")
         
         # ISO-8859-9 encoding ile hash'le
         try:
             raw_bytes = raw.encode(HASH_ENCODING)
-        except UnicodeEncodeError:
+            logger.info(f"Encoded bytes length: {len(raw_bytes)}")
+        except UnicodeEncodeError as e:
             # Eğer encoding hatası olursa, UTF-8'e çevir ve sonra ISO-8859-9'e dönüştür
+            logger.warning(f"Encoding error: {e}, trying UTF-8 conversion")
             raw_utf8 = raw.encode('utf-8')
             raw_bytes = raw_utf8.decode('utf-8').encode(HASH_ENCODING)
         
@@ -241,6 +244,7 @@ class KuwaitPaymentProvider(PaymentProviderBase):
         hash_result = base64.b64encode(digest).decode("utf-8")
         
         logger.info(f"Calculated HashData: {hash_result}")
+        logger.info(f"Hash calculation complete - all values used correctly")
         
         return hash_result
     
@@ -398,9 +402,10 @@ class KuwaitPaymentProvider(PaymentProviderBase):
             xml_parts.append(f'<OkUrl>{ok_url}</OkUrl>')
             xml_parts.append(f'<FailUrl>{fail_url}</FailUrl>')
             xml_parts.append(f'<HashData>{hash_data}</HashData>')
-            xml_parts.append(f'<MerchantId>{self.merchant_id}</MerchantId>')
-            xml_parts.append(f'<CustomerId>{self.customer_id}</CustomerId>')
-            xml_parts.append(f'<UserName>{self.username}</UserName>')
+            # XML'de de string olarak gönder (hash hesaplaması ile tutarlılık için)
+            xml_parts.append(f'<MerchantId>{str(self.merchant_id)}</MerchantId>')
+            xml_parts.append(f'<CustomerId>{str(self.customer_id)}</CustomerId>')
+            xml_parts.append(f'<UserName>{str(self.username)}</UserName>')
             
             # DeviceData bloğu (TDV2.0.0 için zorunlu)
             xml_parts.append('<DeviceData>')
