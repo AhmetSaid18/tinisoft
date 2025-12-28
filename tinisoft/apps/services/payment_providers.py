@@ -532,16 +532,15 @@ class KuwaitPaymentProvider(PaymentProviderBase):
                                 xml_content = xml_match.group(0)
                             
                             if xml_content:
-                            
-                            root = ET.fromstring(xml_content)
-                            
-                            response_code = root.find('ResponseCode')
-                            response_code = response_code.text if response_code is not None else None
-                            
-                            response_message = root.find('ResponseMessage')
-                            response_message = response_message.text if response_message is not None else None
-                            
-                            if response_code and response_code != '00':
+                                root = ET.fromstring(xml_content)
+                                
+                                response_code = root.find('ResponseCode')
+                                response_code = response_code.text if response_code is not None else None
+                                
+                                response_message = root.find('ResponseMessage')
+                                response_message = response_message.text if response_message is not None else None
+                                
+                                if response_code and response_code != '00':
                                 # Hata var - ResponseCode ve ResponseMessage'ı log'la
                                 logger.error(
                                     f"Kuveyt PayGate error in response: "
