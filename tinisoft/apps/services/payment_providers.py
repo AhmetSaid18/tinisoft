@@ -495,11 +495,35 @@ class KuwaitPaymentProvider(PaymentProviderBase):
                     
                     # HTML içinde XML response var mı kontrol et (hata durumunda)
                     # Kuveyt bazen hata durumunda HTML içinde XML response döndürür
+                    # XML hem normal hem de URL-encoded olabilir (AuthenticationResponse value içinde)
                     import re
+                    from urllib.parse import unquote
+                    
+                    # Önce normal XML pattern'i dene
                     xml_match = re.search(r'<VPosTransactionResponseContract[^>]*>(.*?)</VPosTransactionResponseContract>', payment_html, re.DOTALL)
+                    
+                    xml_content = None
+                    
+                    # Eğer bulunamazsa, URL-encoded olarak dene (AuthenticationResponse value içinde)
+                    if not xml_match:
+                        auth_response_match = re.search(r'name="AuthenticationResponse"\s+value="([^"]+)"', payment_html, re.DOTALL)
+                        if auth_response_match:
+                            try:
+                                encoded_xml = auth_response_match.group(1)
+                                decoded_xml = unquote(encoded_xml)
+                                xml_match = re.search(r'<VPosTransactionResponseContract[^>]*>(.*?)</VPosTransactionResponseContract>', decoded_xml, re.DOTALL)
+                                if xml_match:
+                                    xml_content = xml_match.group(0)
+                            except Exception as e:
+                                logger.warning(f"Could not decode AuthenticationResponse: {str(e)}")
+                                xml_match = None
+                    
                     if xml_match:
                         try:
-                            xml_content = xml_match.group(0)
+                            # Eğer xml_content henüz set edilmediyse, xml_match'tan al
+                            if xml_content is None:
+                                xml_content = xml_match.group(0)
+                            
                             root = ET.fromstring(xml_content)
                             
                             response_code = root.find('ResponseCode')
@@ -543,19 +567,21 @@ class KuwaitPaymentProvider(PaymentProviderBase):
                                         'bank_error': True,
                                     },
                                 }
-                        except Exception as parse_error:
+                        except ET.ParseError as parse_error:
                             logger.warning(f"Could not parse XML from HTML response: {str(parse_error)}")
-                            # XML parse edilemezse devam et (normal HTML response olabilir)
+                            logger.debug(f"XML content that failed to parse: {xml_content[:500] if 'xml_content' in locals() else 'N/A'}")
+                        except Exception as parse_error:
+                            logger.warning(f"Unexpected error parsing XML from HTML response: {str(parse_error)}")
+                            logger.debug(f"XML content: {xml_content[:500] if 'xml_content' in locals() else 'N/A'}")
                     
-                    # HTML'de hata var mı kontrol et (genel)
-                    if 'error' in payment_html.lower() or 'hata' in payment_html.lower():
-                        logger.error(f"Kuveyt PayGate HTML error detected: {payment_html[:500]}")
-                        return {
-                            'success': False,
-                            'payment_html': None,
-                            'transaction_id': order.order_number,
-                            'error': 'PayGate\'den hata döndü. HTML response kontrol edilmeli.',
-                        }
+                    # HTML'de hata var mı kontrol et (genel) - ama sadece XML parse başarısızsa
+                    # XML içinde "error" kelimesi olabilir ama bu normal, ResponseCode'u kontrol etmeliyiz
+                    # Eğer XML parse başarısız olduysa ve genel error kontrolü devreye girdiyse
+                    if ('error' in payment_html.lower() or 'hata' in payment_html.lower()) and xml_content is None:
+                        # HTML'in ilk 2000 karakterini log'la
+                        logger.warning(f"Kuveyt PayGate HTML contains 'error'/'hata' keyword but XML could not be parsed. Full HTML (first 2000 chars): {payment_html[:2000]}")
+                        # Bu durumda hata döndürme, çünkü XML parse başarısız olmuş olabilir
+                        # HTML response'u döndürmeye devam et, belki başka bir şekilde işlenebilir
                     
                     # HTML'deki form action URL'ini kontrol et ve düzelt (eğer yanlışsa)
                     # Kuveyt bazen yanlış action URL döndürebilir veya bizim gönderdiğimiz URL'i kullanmayabilir
