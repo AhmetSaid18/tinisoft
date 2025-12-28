@@ -180,8 +180,10 @@ class KuwaitPaymentProvider(PaymentProviderBase):
     
     def _hashed_password(self) -> str:
         """
-        HashedPassword = base64(sha1(password))
-        PDF'e göre password direkt kullanılmaz, önce hash'lenir.
+        HashedPassword hesaplama (PDF Sayfa 19):
+        $HashedPassword = base64_encode(sha1($Password, "ISO-8859-9"));
+        
+        Python'da: base64(sha1(password.encode("ISO-8859-9")))
         """
         pwd = (self.password or "")
         digest = hashlib.sha1(pwd.encode(HASH_ENCODING)).digest()
@@ -189,14 +191,15 @@ class KuwaitPaymentProvider(PaymentProviderBase):
     
     def _hash_request1(self, merchant_order_id: str, amount: str, ok_url: str, fail_url: str) -> str:
         """
-        Request1 (PayGate) için HashData hesapla.
+        Request1 (PayGate) için HashData hesapla (PDF Sayfa 19).
         
-        Kuveyt Türk TDV2.0.0 için hash formülü:
-        HashData = base64(sha1(MerchantId + MerchantOrderId + Amount + OkUrl + FailUrl + UserName + HashedPassword))
+        Hash formülü (PDF'den):
+        $HashData = base64_encode(sha1($MerchantId.$MerchantOrderId.$Amount.$OkUrl.$FailUrl.$UserName.$HashedPassword, "ISO-8859-9"));
         
         ÖNEMLİ: 
         - Tüm değerler string olarak birleştirilmeli (integer değerler string'e çevrilmeli)
         - Encoding: ISO-8859-9
+        - OkUrl ve FailUrl'de TRAILING SLASH OLMAMALI (PDF örneklerinde yok)
         - HashedPassword = base64(sha1(Password, "ISO-8859-9"))
         """
         hp = self._hashed_password()
@@ -243,10 +246,15 @@ class KuwaitPaymentProvider(PaymentProviderBase):
     
     def _hash_request2(self, merchant_order_id: str, amount: str) -> str:
         """
-        Request2 (ProvisionGate) için HashData hesapla.
-        HashData = base64(sha1(MerchantId + MerchantOrderId + Amount + UserName + HashedPassword))
+        Request2 (ProvisionGate) için HashData hesapla (PDF Sayfa 19).
         
-        ÖNEMLİ: Tüm değerler string olarak birleştirilmeli (integer değerler string'e çevrilmeli)
+        Hash formülü (PDF'den - Request 2 için OkUrl ve FailUrl dahil edilmez):
+        $HashData = base64_encode(sha1($MerchantId.$MerchantOrderId.$Amount.$UserName.$HashedPassword, "ISO-8859-9"));
+        
+        ÖNEMLİ: 
+        - Tüm değerler string olarak birleştirilmeli (integer değerler string'e çevrilmeli)
+        - Encoding: ISO-8859-9
+        - OkUrl ve FailUrl hash'e DAHIL EDILMEZ (PDF Not: "Sayfa yönlendirmesi yapılmadığından")
         """
         hp = self._hashed_password()
         
