@@ -186,32 +186,34 @@ class KuwaitPaymentProvider(PaymentProviderBase):
         Python'da: base64(sha1(password.encode("ISO-8859-9")))
         """
         pwd = (self.password or "")
-        digest = hashlib.sha1(pwd.encode(HASH_ENCODING)).digest()
-        return base64.b64encode(digest).decode("utf-8")
+        # ISO-8859-9 encoding ile hash'le
+        pwd_bytes = pwd.encode(HASH_ENCODING)
+        digest = hashlib.sha1(pwd_bytes).digest()
+        hashed = base64.b64encode(digest).decode("utf-8")
+        logger.debug(f"HashedPassword calculated: {hashed[:10]}... (from password length: {len(pwd)})")
+        return hashed
     
     def _hash_request1(self, merchant_order_id: str, amount: str, ok_url: str, fail_url: str) -> str:
         """
         Request1 (PayGate) için HashData hesapla (PDF Sayfa 19).
         
-        Hash formülü (PDF'den):
+        Hash formülü (PDF'den - TAM OLARAK):
         $HashData = base64_encode(sha1($MerchantId.$MerchantOrderId.$Amount.$OkUrl.$FailUrl.$UserName.$HashedPassword, "ISO-8859-9"));
         
-        ÖNEMLİ: 
-        - Tüm değerler string olarak birleştirilmeli (integer değerler string'e çevrilmeli)
+        ÖNEMLİ (PDF'den):
+        - Tüm değerler string olarak birleştirilmeli
         - Encoding: ISO-8859-9
-        - OkUrl ve FailUrl'de TRAILING SLASH OLMAMALI (PDF örneklerinde yok)
-        - HashedPassword = base64(sha1(Password, "ISO-8859-9"))
+        - Sıra: MerchantId + MerchantOrderId + Amount + OkUrl + FailUrl + UserName + HashedPassword
+        - OkUrl ve FailUrl hash'e DAHIL EDILMELI (PDF'de açıkça yazıyor)
         """
         hp = self._hashed_password()
         
-        # Tüm değerleri string'e çevir (merchant_id ve customer_id integer olabilir)
+        # Tüm değerleri string'e çevir (PDF formülüne göre)
         merchant_id_str = str(self.merchant_id) if self.merchant_id else ""
-        customer_id_str = str(self.customer_id) if self.customer_id else ""
         username_str = str(self.username) if self.username else ""
         
-        # Hash hesaplamasında kullanılan değerleri birleştir
-        # NOT: Bazı versiyonlarda CustomerId de hash'e dahil edilir, ama standart formülde yok
-        # Önce standart formülü dene: MerchantId + MerchantOrderId + Amount + OkUrl + FailUrl + UserName + HashedPassword
+        # PDF formülüne göre tam sırayla birleştir:
+        # MerchantId + MerchantOrderId + Amount + OkUrl + FailUrl + UserName + HashedPassword
         raw = f"{merchant_id_str}{merchant_order_id}{amount}{ok_url}{fail_url}{username_str}{hp}"
         
         # Debug için log (hassas bilgileri kısalt) - INFO seviyesinde
@@ -377,7 +379,9 @@ class KuwaitPaymentProvider(PaymentProviderBase):
             order_currency = getattr(order, 'currency', 'TRY') or 'TRY'
             currency_code = self._get_currency_code(order_currency)
             
-            # HashData hesapla (HashedPassword ile - PDF uyumlu)
+            # HashData hesapla (PDF formülüne göre - TAM OLARAK)
+            # PDF'de açıkça yazıyor: MerchantId + MerchantOrderId + Amount + OkUrl + FailUrl + UserName + HashedPassword
+            # OkUrl ve FailUrl hash'e DAHIL EDILMELI (PDF'de zorunlu)
             hash_data = self._hash_request1(
                 merchant_order_id=order.order_number,
                 amount=formatted_amount,
@@ -396,6 +400,12 @@ class KuwaitPaymentProvider(PaymentProviderBase):
             gsm = ''.join([c for c in gsm if c.isdigit()])  # Sadece rakamlar
             
             # XML oluştur (Kuveyt Türk TDV2.0.0 formatı)
+            # XML'de gönderilecek URL'leri log'la (hash ile karşılaştırma için)
+            logger.info(f"XML OkUrl: {ok_url}")
+            logger.info(f"XML FailUrl: {fail_url}")
+            logger.info(f"Hash OkUrl: {ok_url} (same as XML)")
+            logger.info(f"Hash FailUrl: {fail_url} (same as XML)")
+            
             xml_parts = ['<?xml version="1.0" encoding="UTF-8"?>']
             xml_parts.append('<KuveytTurkVPosMessage xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">')
             xml_parts.append('<APIVersion>TDV2.0.0</APIVersion>')
