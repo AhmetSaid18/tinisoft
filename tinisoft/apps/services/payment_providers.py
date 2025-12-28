@@ -251,6 +251,7 @@ class KuwaitPaymentProvider(PaymentProviderBase):
             # ÖNEMLİ: Config'deki return_url/cancel_url genelde frontend URL'leri olur
             # Biz backend callback URL'lerini kullanmalıyız, config'deki URL'leri görmezden gel
             # Doğru callback URL'leri her zaman backend endpoint'leri olmalı
+            # Config'den gelen URL'leri override et
             ok_url = f'{api_base_url}/api/payments/kuveyt/callback/ok/'
             fail_url = f'{api_base_url}/api/payments/kuveyt/callback/fail/'
             
@@ -260,7 +261,15 @@ class KuwaitPaymentProvider(PaymentProviderBase):
             if not fail_url.endswith('/'):
                 fail_url += '/'
             
-            logger.info(f"Kuveyt PayGate callback URLs: OkUrl={ok_url}, FailUrl={fail_url}")
+            # Config'deki yanlış URL'leri override et (eğer varsa)
+            # Config'den gelen return_url/cancel_url frontend URL'leri olabilir, onları kullanma
+            logger.info(
+                f"Kuveyt PayGate callback URLs: "
+                f"OkUrl={ok_url}, "
+                f"FailUrl={fail_url} | "
+                f"Config return_url (ignored): {self.config.get('return_url', 'None')}, "
+                f"Config cancel_url (ignored): {self.config.get('cancel_url', 'None')}"
+            )
             
             # Amount formatı (100 katı, noktalama yok)
             formatted_amount = self._format_amount(amount)
@@ -348,11 +357,12 @@ class KuwaitPaymentProvider(PaymentProviderBase):
             }
             
             try:
+                # Timeout'u 60 saniyeye çıkar (Kuveyt bazen yavaş yanıt verebilir)
                 response = requests.post(
                     self.paygate_url,
                     data=xml_string.encode('utf-8'),
                     headers=headers,
-                    timeout=30
+                    timeout=60  # 30'dan 60'a çıkarıldı
                 )
                 
                 logger.info(f"Kuveyt PayGate response: status={response.status_code}, content-length={len(response.content)}")

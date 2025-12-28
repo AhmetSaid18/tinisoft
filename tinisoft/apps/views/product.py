@@ -254,7 +254,21 @@ def product_list_public(request, tenant_slug=None):
     5. Header: X-Tenant-ID
     6. Subdomain/Custom domain (otomatik)
     """
-    tenant = None
+    try:
+        tenant = None
+        tenant_slug_param = request.query_params.get('tenant_slug', 'Not provided')
+        tenant_id_param = request.query_params.get('tenant_id', 'Not provided')
+        tenant_slug_header = request.headers.get('X-Tenant-Slug', 'Not provided')
+        tenant_id_header = request.headers.get('X-Tenant-ID', 'Not provided')
+        
+        logger.info(
+            f"[PRODUCTS] GET /api/public/products/ | "
+            f"Path tenant_slug: {tenant_slug} | "
+            f"Query tenant_slug: {tenant_slug_param} | "
+            f"Query tenant_id: {tenant_id_param} | "
+            f"Header X-Tenant-Slug: {tenant_slug_header} | "
+            f"Header X-Tenant-ID: {tenant_id_header}"
+        )
     
     # 1. Path parameter'dan tenant_slug
     if tenant_slug:
@@ -319,14 +333,26 @@ def product_list_public(request, tenant_slug=None):
                     'message': f'Mağaza bulunamadı: {tenant_id_header}',
                 }, status=status.HTTP_404_NOT_FOUND)
     
-    if not tenant:
-        return Response({
-            'success': False,
-            'message': 'Tenant bulunamadı. Lütfen tenant_slug veya tenant_id parametresi gönderin.',
-            'hint': 'Örnek: /api/public/products/?tenant_slug=magaza-adi veya Header: X-Tenant-Slug: magaza-adi',
-        }, status=status.HTTP_400_BAD_REQUEST)
-    
-    queryset = Product.objects.filter(
+        if not tenant:
+            logger.warning(
+                f"[PRODUCTS] GET /api/public/products/ | 400 | "
+                f"Tenant not found | "
+                f"Path tenant_slug: {tenant_slug}, "
+                f"Query tenant_slug: {tenant_slug_param}, "
+                f"Query tenant_id: {tenant_id_param}, "
+                f"Header X-Tenant-Slug: {tenant_slug_header}, "
+                f"Header X-Tenant-ID: {tenant_id_header}"
+            )
+            return Response({
+                'success': False,
+                'message': 'Tenant bulunamadı. Lütfen tenant_slug veya tenant_id parametresi gönderin.',
+                'hint': 'Örnek: /api/public/products/?tenant_slug=magaza-adi veya Header: X-Tenant-Slug: magaza-adi',
+                'error': 'Tenant bilgisi eksik. Lütfen tenant_slug veya tenant_id parametresi gönderin.',
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        logger.info(f"[PRODUCTS] Tenant found: {tenant.name} ({tenant.slug})")
+        
+        queryset = Product.objects.filter(
         tenant=tenant,
         is_deleted=False,
         status='active',
@@ -429,12 +455,27 @@ def product_list_public(request, tenant_slug=None):
         logger.info(f"[PRODUCTS] GET /api/public/products/ | 200 | Count: {len(page)}/{paginator.page.paginator.count}")
         return response
     
-    serializer = ProductListSerializer(queryset, many=True, context={'request': request})
-    logger.info(f"[PRODUCTS] GET /api/public/products/ | 200 | Count: {queryset.count()}")
-    return Response({
-        'success': True,
-        'products': serializer.data,
-    })
+        serializer = ProductListSerializer(queryset, many=True, context={'request': request})
+        logger.info(f"[PRODUCTS] GET /api/public/products/ | 200 | Count: {queryset.count()} | Tenant: {tenant.slug}")
+        return Response({
+            'success': True,
+            'products': serializer.data,
+        })
+    
+    except Exception as e:
+        logger.error(
+            f"[PRODUCTS] GET /api/public/products/ | 500 | "
+            f"Error: {str(e)} | "
+            f"Error type: {type(e).__name__} | "
+            f"Path tenant_slug: {tenant_slug}",
+            exc_info=True
+        )
+        return Response({
+            'success': False,
+            'message': 'Ürün listesi alınırken bir hata oluştu.',
+            'error': str(e),
+            'error_type': type(e).__name__,
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['POST'])
