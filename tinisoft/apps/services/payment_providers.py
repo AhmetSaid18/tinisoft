@@ -72,12 +72,12 @@ class KuwaitPaymentProvider(PaymentProviderBase):
     - test_provision_endpoint: ProvisionGate URL (Test)
     """
     
-    # Currency Code mapping
+    # Currency Code mapping (Kuveyt Türk 4 haneli kodlar)
     CURRENCY_CODES = {
         'TRY': '0949',
         'TL': '0949',
         'USD': '0840',
-        'EUR': '0978',
+        'EUR': '0979',  # Hata mesajına göre 0979 (0978 değil)
         'GBP': '0826',
     }
     
@@ -300,8 +300,9 @@ class KuwaitPaymentProvider(PaymentProviderBase):
             # Amount formatı (100 katı, noktalama yok)
             formatted_amount = self._format_amount(amount)
             
-            # Currency code - TDV2.0.0 için 949 (0949 değil)
-            currency_code = '949'  # TRY
+            # Currency code - Order'dan al, 4 haneli format kullan (0949, 0840, 0979)
+            order_currency = getattr(order, 'currency', 'TRY') or 'TRY'
+            currency_code = self._get_currency_code(order_currency)
             
             # HashData hesapla (HashedPassword ile - PDF uyumlu)
             hash_data = self._hash_request1(
@@ -374,7 +375,7 @@ class KuwaitPaymentProvider(PaymentProviderBase):
             xml_parts.append('</KuveytTurkVPosMessage>')
             xml_string = '\n'.join(xml_parts)
             
-            logger.info(f"Kuveyt PayGate request: order={order.order_number}, amount={formatted_amount}, endpoint={self.paygate_url}")
+            logger.info(f"Kuveyt PayGate request: order={order.order_number}, amount={formatted_amount}, currency={order_currency} ({currency_code}), endpoint={self.paygate_url}")
             logger.debug(f"Kuveyt PayGate XML: {xml_string}")
             
             # PayGate'e POST isteği gönder
@@ -603,6 +604,17 @@ class KuwaitPaymentProvider(PaymentProviderBase):
                 amount=formatted_amount
             )
             
+            # Order'dan currency'yi al (merchant_order_id = order_number)
+            order_currency = 'TRY'  # Default
+            try:
+                from apps.models import Order
+                order = Order.objects.get(order_number=merchant_order_id)
+                order_currency = getattr(order, 'currency', 'TRY') or 'TRY'
+            except Order.DoesNotExist:
+                logger.warning(f"Order not found for provision: {merchant_order_id}, using default currency TRY")
+            
+            currency_code = self._get_currency_code(order_currency)
+            
             # XML oluştur (ProvisionGate - Request2)
             xml_parts = ['<?xml version="1.0" encoding="UTF-8"?>']
             xml_parts.append('<KuveytTurkVPosMessage xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">')
@@ -614,7 +626,7 @@ class KuwaitPaymentProvider(PaymentProviderBase):
             xml_parts.append('<TransactionType>Sale</TransactionType>')
             xml_parts.append('<InstallmentCount>0</InstallmentCount>')
             xml_parts.append(f'<Amount>{formatted_amount}</Amount>')
-            xml_parts.append('<CurrencyCode>949</CurrencyCode>')
+            xml_parts.append(f'<CurrencyCode>{currency_code}</CurrencyCode>')
             xml_parts.append(f'<MerchantOrderId>{merchant_order_id}</MerchantOrderId>')
             xml_parts.append('<TransactionSecurity>3</TransactionSecurity>')
             
