@@ -38,13 +38,6 @@ class Cart(BaseModel):
         help_text="Guest checkout için session ID"
     )
     
-    # Sepet durumu
-    is_active = models.BooleanField(
-        default=True,
-        db_index=True,
-        help_text="Aktif sepet mi? (sipariş verildikten sonra false olur)"
-    )
-    
     # Fiyat bilgileri (cache)
     subtotal = models.DecimalField(
         max_digits=10,
@@ -109,8 +102,8 @@ class Cart(BaseModel):
         db_table = 'carts'
         ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['tenant', 'customer', 'is_active']),
-            models.Index(fields=['tenant', 'session_id', 'is_active']),
+            models.Index(fields=['tenant', 'customer']),
+            models.Index(fields=['tenant', 'session_id']),
             models.Index(fields=['expires_at']),
         ]
     

@@ -278,11 +278,10 @@ def order_list_create(request):
                         f"Tenant: {tenant.name} ({tenant.id})"
                     )
                     
-                    # Önce cart'ı tenant olmadan kontrol et (hangi tenant'a ait olduğunu görmek için)
+                    # Cart'ı bul - sadece ID ve tenant kontrolü yap
                     cart = None
                     cart_exists_anywhere = False
                     cart_tenant_mismatch = False
-                    cart_not_active = False
                     
                     try:
                         # Cart'ı ID ile bul (tenant kontrolü olmadan)
@@ -299,22 +298,13 @@ def order_list_create(request):
                                 f"Request Tenant: {tenant.name} ({tenant.id})"
                             )
                         else:
-                            # Tenant doğru, aktiflik kontrolü
-                            if not temp_cart.is_active:
-                                cart_not_active = True
-                                logger.warning(
-                                    f"[ORDERS] POST /api/orders/ | Cart is not active | "
-                                    f"Cart ID: {cart_id} | "
-                                    f"Cart active: {temp_cart.is_active}"
-                                )
-                            else:
-                                # Her şey tamam
-                                cart = temp_cart
-                                logger.info(
-                                    f"[ORDERS] POST /api/orders/ | Cart found | "
-                                    f"Cart ID: {cart.id} | "
-                                    f"Cart active: {cart.is_active}"
-                                )
+                            # Tenant doğru, cart'ı kullan
+                            cart = temp_cart
+                            logger.info(
+                                f"[ORDERS] POST /api/orders/ | Cart found | "
+                                f"Cart ID: {cart.id} | "
+                                f"Tenant: {cart.tenant.name}"
+                            )
                     except Cart.DoesNotExist:
                         logger.warning(
                             f"[ORDERS] POST /api/orders/ | Cart does not exist | "
@@ -332,9 +322,6 @@ def order_list_create(request):
                         elif cart_tenant_mismatch:
                             error_message = 'Sepet başka bir mağazaya ait. Lütfen doğru mağazadan sepet oluşturun.'
                             error_details.append('Cart belongs to different tenant')
-                        elif cart_not_active:
-                            error_message = 'Sepet aktif değil. Lütfen yeni bir sepet oluşturun.'
-                            error_details.append('Cart is not active')
                         
                         logger.warning(
                             f"[ORDERS] POST /api/orders/ | 400 | "
