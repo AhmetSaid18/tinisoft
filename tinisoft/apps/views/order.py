@@ -356,22 +356,6 @@ def order_list_create(request):
                         
                         logger.info(f"[ORDERS] POST /api/orders/ | Returning cart not found response with status {response.status_code}")
                         return response
-                    except Exception as cart_exception:
-                        logger.error(
-                            f"[ORDERS] POST /api/orders/ | 500 | "
-                            f"Error getting cart | "
-                            f"Cart ID: {cart_id} | "
-                            f"Error: {str(cart_exception)} | "
-                            f"User: {user_email} | "
-                            f"Tenant: {tenant.name}",
-                            exc_info=True
-                        )
-                        return Response({
-                            'success': False,
-                            'message': 'Sepet bilgisi alınırken bir hata oluştu.',
-                            'error': str(cart_exception),
-                            'error_type': type(cart_exception).__name__,
-                        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
                     
                     # Kargo adresi
                     shipping_address = None
