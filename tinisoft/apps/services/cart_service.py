@@ -83,37 +83,28 @@ class CartService:
             raise ValueError("Sepet işlemleri için giriş yapmanız gerekiyor.")
         
         # Müşteri sepeti - DB'de tutulur
+        # En son oluşturulan sepeti al (silinmemiş olan)
         cart = Cart.objects.filter(
             tenant=tenant,
             customer=customer,
-            is_active=True
-        ).first()
+            is_deleted=False
+        ).order_by('-created_at').first()
         
         if not cart:
-            # Aktif sepet yoksa, pasif sepeti aktif yap veya yeni oluştur
-            cart = Cart.objects.filter(
+            # Yeni sepet oluştur
+            cart = Cart.objects.create(
                 tenant=tenant,
                 customer=customer,
-                is_active=False
-            ).order_by('-created_at').first()
-            
-            if cart:
-                # Pasif sepeti aktif yap
-                cart.is_active = True
-                cart.currency = currency
-                cart.expires_at = timezone.now() + timedelta(days=30)
-                cart.save()
-                logger.info(f"Cart reactivated for tenant {tenant.name}, customer {customer.email}")
-            else:
-                # Yeni sepet oluştur
-                cart = Cart.objects.create(
-                    tenant=tenant,
-                    customer=customer,
-                    is_active=True,
-                    currency=currency,
-                    expires_at=timezone.now() + timedelta(days=30),
-                )
-                logger.info(f"Cart created for tenant {tenant.name}, customer {customer.email}")
+                currency=currency,
+                expires_at=timezone.now() + timedelta(days=30),
+            )
+            logger.info(f"Cart created for tenant {tenant.name}, customer {customer.email}")
+        else:
+            # Mevcut sepeti güncelle (para birimi ve süre)
+            cart.currency = currency
+            cart.expires_at = timezone.now() + timedelta(days=30)
+            cart.save()
+            logger.info(f"Cart reactivated for tenant {tenant.name}, customer {customer.email}")
         
         return cart
     

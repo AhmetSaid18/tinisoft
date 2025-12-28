@@ -65,7 +65,6 @@ class CartSerializer(serializers.Serializer):
     id = serializers.CharField(read_only=True)
     customer_id = serializers.UUIDField(read_only=True, allow_null=True)
     session_id = serializers.CharField(read_only=True, allow_null=True)
-    is_active = serializers.BooleanField(read_only=True)
     subtotal = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     shipping_cost = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     tax_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
@@ -163,7 +162,6 @@ class CartSerializer(serializers.Serializer):
                 'id': instance.get('id'),
                 'customer_id': instance.get('customer_id'),
                 'session_id': instance.get('session_id'),
-                'is_active': instance.get('is_active', True),
                 'subtotal': instance.get('subtotal', '0.00'),
                 'shipping_cost': instance.get('shipping_cost', '0.00'),
                 'tax_amount': instance.get('tax_amount', '0.00'),
@@ -182,7 +180,6 @@ class CartSerializer(serializers.Serializer):
                 'id': str(instance.id),
                 'customer_id': str(instance.customer.id) if instance.customer else None,
                 'session_id': instance.session_id,
-                'is_active': instance.is_active,
                 'subtotal': str(instance.subtotal),
                 'shipping_cost': str(instance.shipping_cost),
                 'tax_amount': str(instance.tax_amount),
