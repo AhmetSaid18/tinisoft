@@ -553,30 +553,51 @@ def kuveyt_callback_ok(request):
             return html_redirect(f"{frontend_url}/checkout/fail?error=XML+parse+hatasi", "Ödeme başarısız")
         
         # Farklı XML yapılarını dene
-        # TDV2.0.0'da VERes veya direkt root'ta olabilir
+        # TDV2.0.0'da AuthenticationResponse XML formatı:
+        # - VPosTransactionResponseContract (root)
+        #   - MerchantOrderId
+        #   - MD
+        #   - ResponseCode
+        #   - ResponseMessage
+        #   - IsEnrolled (true/false)
         merchant_order_id = None
         md = None
         response_code = None
+        is_enrolled = None
         
-        # Önce VERes yapısını dene
-        veres = root.find('.//VERes')
-        if veres is not None:
-            merchant_order_id = veres.findtext('MerchantOrderId')
-            md = veres.findtext('MD')
-            response_code = veres.findtext('Status')
+        # Önce VPosTransactionResponseContract yapısını dene (TDV2.0.0 formatı)
+        vpos_response = root.find('VPosTransactionResponseContract')
+        if vpos_response is not None:
+            merchant_order_id = vpos_response.findtext('MerchantOrderId')
+            md = vpos_response.findtext('MD')
+            response_code = vpos_response.findtext('ResponseCode')
+            is_enrolled = vpos_response.findtext('IsEnrolled')
         
-        # Eğer bulunamadıysa direkt root'ta ara
+        # Eğer bulunamadıysa VERes yapısını dene (eski format)
+        if not merchant_order_id:
+            veres = root.find('.//VERes')
+            if veres is not None:
+                merchant_order_id = veres.findtext('MerchantOrderId')
+                if not md:
+                    md = veres.findtext('MD')
+                if not response_code:
+                    response_code = veres.findtext('Status')
+        
+        # Eğer hala bulunamadıysa direkt root'ta ara
         if not merchant_order_id:
             merchant_order_id = root.findtext('MerchantOrderId')
         if not md:
             md = root.findtext('MD')
         if not response_code:
             response_code = root.findtext('ResponseCode') or root.findtext('Status')
+        if not is_enrolled:
+            is_enrolled = root.findtext('IsEnrolled')
         
-        logger.info(f"Kuveyt callback parsed: MerchantOrderId={merchant_order_id}, ResponseCode={response_code}, MD exists={bool(md)}")
+        logger.info(f"Kuveyt callback parsed: MerchantOrderId={merchant_order_id}, ResponseCode={response_code}, MD exists={bool(md)}, IsEnrolled={is_enrolled}")
         
         if not merchant_order_id:
             logger.error("Kuveyt callback: MerchantOrderId bulunamadı")
+            logger.error(f"XML content (first 1000 chars): {decoded_xml[:1000]}")
             return html_redirect(f"{frontend_url}/checkout/fail?error=MerchantOrderId+bulunamadi", "Ödeme başarısız")
         
         # Tenant schema'yı MerchantOrderId'den set et
@@ -585,8 +606,12 @@ def kuveyt_callback_ok(request):
             logger.error(f"Kuveyt callback: Tenant bulunamadı for order {merchant_order_id}")
             return html_redirect(f"{frontend_url}/checkout/fail?error=Tenant+bulunamadi", "Ödeme başarısız")
         
-        # Kart doğrulama başarılı mı? (Status=Y veya ResponseCode'a göre)
-        is_verified = response_code in ('Y', '00', 'Approved')
+        # Kart doğrulama başarılı mı? (ResponseCode=00 veya IsEnrolled=true ve MD var)
+        # TDV2.0.0'da ResponseCode kontrolü önemli
+        is_verified = (
+            response_code in ('00', '000', 'Y', 'Approved') or
+            (is_enrolled == 'true' and md is not None)
+        )
         
         if not is_verified or not md:
             logger.error(f"Kuveyt callback: Kart doğrulanamadı. ResponseCode={response_code}, MD exists={bool(md)}")

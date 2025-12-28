@@ -352,6 +352,9 @@ class KuwaitPaymentProvider(PaymentProviderBase):
                     # PayGate HTML döner (3D Secure ekranı)
                     payment_html = response.text
                     
+                    # HTML içeriğini log'la (debug için)
+                    logger.info(f"Kuveyt PayGate HTML response (first 1000 chars): {payment_html[:1000]}")
+                    
                     # HTML'de hata var mı kontrol et
                     if 'error' in payment_html.lower() or 'hata' in payment_html.lower():
                         logger.error(f"Kuveyt PayGate HTML error detected: {payment_html[:500]}")
@@ -361,6 +364,15 @@ class KuwaitPaymentProvider(PaymentProviderBase):
                             'transaction_id': order.order_number,
                             'error': 'PayGate\'den hata döndü. HTML response kontrol edilmeli.',
                         }
+                    
+                    # HTML'deki form action URL'ini kontrol et ve düzelt (eğer yanlışsa)
+                    # Kuveyt bazen yanlış action URL döndürebilir
+                    import re
+                    # action="..." veya action='...' pattern'ini bul
+                    action_pattern = r'action=["\']([^"\']+)["\']'
+                    matches = re.findall(action_pattern, payment_html)
+                    if matches:
+                        logger.info(f"Kuveyt PayGate HTML form action URLs found: {matches}")
                     
                     return {
                         'success': True,
