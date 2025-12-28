@@ -43,10 +43,7 @@ class OrderService:
         Returns:
             Order: Oluşturulan sipariş
         """
-        # Sepet kontrolü
-        if not cart.is_active:
-            raise ValueError("Sepet aktif değil.")
-        
+        # Sepet kontrolü - sepet boş mu?
         cart_items = cart.items.filter(is_deleted=False)
         if not cart_items.exists():
             raise ValueError("Sepet boş.")
@@ -150,10 +147,6 @@ class OrderService:
                         reason='Sipariş',
                         created_by=customer_user,
                     )
-        
-        # Sepeti pasif yap
-        cart.is_active = False
-        cart.save()
         
         # Müşteri istatistiklerini güncelle
         if customer_user:
