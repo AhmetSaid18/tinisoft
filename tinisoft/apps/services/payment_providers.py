@@ -89,49 +89,40 @@ class KuwaitPaymentProvider(PaymentProviderBase):
         # Config JSON field'ında: merchant_id, customer_id
         # api_key -> username, api_secret -> password
         
-        # Customer ID (Müşteri Numarası)
-        self.customer_id = (
-            self.config.get('customer_id') or 
-            self.config.get('customerId') or 
-            self.config.get('CustomerId')
-        )
-        
-        # Merchant ID (Mağaza Numarası)
-        self.merchant_id = (
-            self.config.get('merchant_id') or 
-            self.config.get('merchantId') or 
-            self.config.get('MerchantId')
-        )
-        
-        # Username (API Kullanıcı Adı)
-        # Önce config JSON'dan direkt username kontrol et (daha net)
-        # Sonra api_key field'ından al (geriye dönük uyumluluk)
-        self.username = (
-            self.config.get('username') or 
-            self.config.get('userName') or 
-            self.config.get('UserName') or
-            self.config.get('api_key')  # Geriye dönük uyumluluk
-        )
-        
-        # Password (API Şifresi)
-        # Önce config JSON'dan direkt password kontrol et (daha net)
-        # Sonra api_secret field'ından al (geriye dönük uyumluluk)
-        self.password = (
-            self.config.get('password') or 
-            self.config.get('Password') or
-            self.config.get('api_secret')  # Geriye dönük uyumluluk
-        )
-        
-        # Test modunda ve config'de bilgi yoksa env'deki test bilgilerini kullan
+        # Test modunda her zaman default test bilgilerini kullan (config'deki değerleri ignore et)
+        # Çünkü test ortamında herkes aynı test bilgilerini kullanmalı
         if self.test_mode:
-            if not self.customer_id:
-                self.customer_id = getattr(settings, 'KUVEYT_TEST_CUSTOMER_ID', '400235')
-            if not self.merchant_id:
-                self.merchant_id = getattr(settings, 'KUVEYT_TEST_MERCHANT_ID', '496')
-            if not self.username:
-                self.username = getattr(settings, 'KUVEYT_TEST_USERNAME', 'apitest')
-            if not self.password:
-                self.password = getattr(settings, 'KUVEYT_TEST_PASSWORD', 'api123')
+            # Test modunda default test değerlerini kullan
+            self.customer_id = getattr(settings, 'KUVEYT_TEST_CUSTOMER_ID', '400235')
+            self.merchant_id = getattr(settings, 'KUVEYT_TEST_MERCHANT_ID', '496')
+            self.username = getattr(settings, 'KUVEYT_TEST_USERNAME', 'apitest')
+            self.password = getattr(settings, 'KUVEYT_TEST_PASSWORD', 'api123')
+        else:
+            # Canlı modda config'den al
+            self.customer_id = (
+                self.config.get('customer_id') or 
+                self.config.get('customerId') or 
+                self.config.get('CustomerId')
+            )
+            
+            self.merchant_id = (
+                self.config.get('merchant_id') or 
+                self.config.get('merchantId') or 
+                self.config.get('MerchantId')
+            )
+            
+            self.username = (
+                self.config.get('username') or 
+                self.config.get('userName') or 
+                self.config.get('UserName') or
+                self.config.get('api_key')  # Geriye dönük uyumluluk
+            )
+            
+            self.password = (
+                self.config.get('password') or 
+                self.config.get('Password') or
+                self.config.get('api_secret')  # Geriye dönük uyumluluk
+            )
         
         # Log config bilgilerini (hassas bilgileri gizle)
         logger.info(
