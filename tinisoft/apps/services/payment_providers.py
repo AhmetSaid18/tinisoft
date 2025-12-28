@@ -190,23 +190,32 @@ class KuwaitPaymentProvider(PaymentProviderBase):
     def _hash_request1(self, merchant_order_id: str, amount: str, ok_url: str, fail_url: str) -> str:
         """
         Request1 (PayGate) için HashData hesapla.
+        
+        Kuveyt Türk TDV2.0.0 için hash formülü:
         HashData = base64(sha1(MerchantId + MerchantOrderId + Amount + OkUrl + FailUrl + UserName + HashedPassword))
         
-        ÖNEMLİ: Tüm değerler string olarak birleştirilmeli (integer değerler string'e çevrilmeli)
+        ÖNEMLİ: 
+        - Tüm değerler string olarak birleştirilmeli (integer değerler string'e çevrilmeli)
+        - Encoding: ISO-8859-9
+        - HashedPassword = base64(sha1(Password, "ISO-8859-9"))
         """
         hp = self._hashed_password()
         
-        # Tüm değerleri string'e çevir (merchant_id integer olabilir)
+        # Tüm değerleri string'e çevir (merchant_id ve customer_id integer olabilir)
         merchant_id_str = str(self.merchant_id) if self.merchant_id else ""
+        customer_id_str = str(self.customer_id) if self.customer_id else ""
         username_str = str(self.username) if self.username else ""
         
         # Hash hesaplamasında kullanılan değerleri birleştir
+        # NOT: Bazı versiyonlarda CustomerId de hash'e dahil edilir, ama standart formülde yok
+        # Önce standart formülü dene: MerchantId + MerchantOrderId + Amount + OkUrl + FailUrl + UserName + HashedPassword
         raw = f"{merchant_id_str}{merchant_order_id}{amount}{ok_url}{fail_url}{username_str}{hp}"
         
         # Debug için log (hassas bilgileri kısalt) - INFO seviyesinde
         logger.info(
             f"Hash calculation (Request1): "
             f"MerchantId={merchant_id_str}, "
+            f"CustomerId={customer_id_str} (not in hash), "
             f"OrderId={merchant_order_id}, "
             f"Amount={amount}, "
             f"OkUrl={ok_url}, "
@@ -215,9 +224,17 @@ class KuwaitPaymentProvider(PaymentProviderBase):
             f"HashedPassword={hp[:10]}..."
         )
         logger.info(f"Hash raw string length: {len(raw)}")
-        logger.info(f"Hash raw string (first 100 chars): {raw[:100]}...")
+        logger.info(f"Hash raw string (first 150 chars): {raw[:150]}...")
         
-        digest = hashlib.sha1(raw.encode(HASH_ENCODING)).digest()
+        # ISO-8859-9 encoding ile hash'le
+        try:
+            raw_bytes = raw.encode(HASH_ENCODING)
+        except UnicodeEncodeError:
+            # Eğer encoding hatası olursa, UTF-8'e çevir ve sonra ISO-8859-9'e dönüştür
+            raw_utf8 = raw.encode('utf-8')
+            raw_bytes = raw_utf8.decode('utf-8').encode(HASH_ENCODING)
+        
+        digest = hashlib.sha1(raw_bytes).digest()
         hash_result = base64.b64encode(digest).decode("utf-8")
         
         logger.info(f"Calculated HashData: {hash_result}")
@@ -322,15 +339,14 @@ class KuwaitPaymentProvider(PaymentProviderBase):
             # Biz backend callback URL'lerini kullanmalıyız, config'deki URL'leri görmezden gel
             # Doğru callback URL'leri her zaman backend endpoint'leri olmalı
             # Config'den gelen URL'leri override et
-            # NOT: Hash hesaplamasında ve XML'de AYNI URL'ler kullanılmalı (trailing slash ile)
-            ok_url = f'{api_base_url}/api/payments/kuveyt/callback/ok/'
-            fail_url = f'{api_base_url}/api/payments/kuveyt/callback/fail/'
+            # NOT: PDF'e göre OkUrl ve FailUrl'de TRAILING SLASH OLMAMALI
+            # Örnek: http://localhost/php//ThreeDModetest/Approval.php (trailing slash yok)
+            ok_url = f'{api_base_url}/api/payments/kuveyt/callback/ok'
+            fail_url = f'{api_base_url}/api/payments/kuveyt/callback/fail'
             
-            # Trailing slash olduğundan emin ol
-            if not ok_url.endswith('/'):
-                ok_url += '/'
-            if not fail_url.endswith('/'):
-                fail_url += '/'
+            # Trailing slash'ı kaldır (eğer varsa)
+            ok_url = ok_url.rstrip('/')
+            fail_url = fail_url.rstrip('/')
             
             # Config'deki yanlış URL'leri override et (eğer varsa)
             # Config'den gelen return_url/cancel_url frontend URL'leri olabilir, onları kullanma
