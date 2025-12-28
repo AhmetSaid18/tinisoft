@@ -269,21 +269,21 @@ def order_list_create(request):
                             'message': 'Sipariş oluşturulurken bir hata oluştu.',
                             'error': str(e),
                             'error_type': type(e).__name__,
-                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
                 
-                # Serializer validation errors
-                logger.warning(
-                    f"[ORDERS] POST /api/orders/ | 400 | "
-                    f"Serializer validation failed | "
-                    f"Errors: {list(serializer.errors.keys())} | "
-                    f"User: {user_email} | "
-                    f"Tenant: {tenant.name}"
-                )
-                return Response({
-                    'success': False,
-                    'message': 'Sipariş oluşturulamadı.',
-                    'errors': serializer.errors,
-                }, status=status.HTTP_400_BAD_REQUEST)
+                    # Serializer validation errors
+                    logger.warning(
+                        f"[ORDERS] POST /api/orders/ | 400 | "
+                        f"Serializer validation failed | "
+                        f"Errors: {list(serializer.errors.keys())} | "
+                        f"User: {user_email} | "
+                        f"Tenant: {tenant.name}"
+                    )
+                    return Response({
+                        'success': False,
+                        'message': 'Sipariş oluşturulamadı.',
+                        'errors': serializer.errors,
+                    }, status=status.HTTP_400_BAD_REQUEST)
             
             except Exception as e:
                 logger.error(
@@ -299,21 +299,6 @@ def order_list_create(request):
                     'error': str(e),
                     'error_type': type(e).__name__,
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-        except Exception as e:
-            logger.error(
-                f"[ORDERS] POST /api/orders/ | 500 | "
-                f"Unexpected error: {str(e)} | "
-                f"User: {user_email} | "
-                f"Tenant: {tenant.name if tenant else 'None'}",
-                exc_info=True
-            )
-            return Response({
-                'success': False,
-                'message': 'Sipariş oluşturulurken beklenmeyen bir hata oluştu.',
-                'error': str(e),
-                'error_type': type(e).__name__,
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     except Exception as e:
         # En dış exception handler - beklenmeyen tüm hatalar
