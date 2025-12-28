@@ -248,9 +248,11 @@ class KuwaitPaymentProvider(PaymentProviderBase):
             if not api_base_url.startswith('http'):
                 api_base_url = f'https://{api_base_url}'
             
-            # Config'de özel URL varsa onu kullan, yoksa default callback URL'lerini kullan
-            ok_url = self.config.get('return_url') or f'{api_base_url}/api/payments/kuveyt/callback/ok/'
-            fail_url = self.config.get('cancel_url') or f'{api_base_url}/api/payments/kuveyt/callback/fail/'
+            # ÖNEMLİ: Config'deki return_url/cancel_url genelde frontend URL'leri olur
+            # Biz backend callback URL'lerini kullanmalıyız, config'deki URL'leri görmezden gel
+            # Doğru callback URL'leri her zaman backend endpoint'leri olmalı
+            ok_url = f'{api_base_url}/api/payments/kuveyt/callback/ok/'
+            fail_url = f'{api_base_url}/api/payments/kuveyt/callback/fail/'
             
             # Trailing slash olduğundan emin ol
             if not ok_url.endswith('/'):
@@ -389,11 +391,18 @@ class KuwaitPaymentProvider(PaymentProviderBase):
                                 # Doğru URL ile değiştir
                                 if '/cancel' in wrong_url:
                                     correct_url = fail_url
-                                else:
+                                elif '/return' in wrong_url:
                                     correct_url = ok_url
+                                else:
+                                    # Bilinmeyen durumda fail_url kullan
+                                    correct_url = fail_url
                                 
-                                # HTML'deki action URL'ini düzelt
-                                payment_html = payment_html.replace(wrong_url, correct_url)
+                                # HTML'deki action URL'ini düzelt (regex ile replace yap)
+                                payment_html = re.sub(
+                                    rf'action=["\']{re.escape(wrong_url)}["\']',
+                                    f'action="{correct_url}"',
+                                    payment_html
+                                )
                                 logger.info(f"Fixed HTML action URL: {wrong_url} -> {correct_url}")
                     
                     return {

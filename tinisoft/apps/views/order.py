@@ -33,75 +33,135 @@ def order_list_create(request):
     GET: /api/orders/
     POST: /api/orders/
     """
-    tenant = get_tenant_from_request(request)
-    if not tenant:
-        return Response({
-            'success': False,
-            'message': 'Tenant bulunamadı.',
-        }, status=status.HTTP_400_BAD_REQUEST)
-    
-    if request.method == 'GET':
-        # Permission kontrolü
-        # TenantUser sadece kendi siparişlerini görebilir
-        # TenantOwner/Admin tüm siparişleri görebilir
-        if request.user.is_tenant_user and request.user.tenant == tenant:
-            # Müşteri - sadece kendi siparişleri
-            queryset = Order.objects.filter(
-                tenant=tenant,
-                customer=request.user,
-                is_deleted=False
+    try:
+        # Request bilgilerini log'la
+        user_email = request.user.email if request.user.is_authenticated else 'Anonymous'
+        user_role = request.user.role if request.user.is_authenticated else 'None'
+        tenant_slug_header = request.headers.get('X-Tenant-Slug', 'Not provided')
+        tenant_id_header = request.headers.get('X-Tenant-ID', 'Not provided')
+        
+        logger.info(
+            f"[ORDERS] {request.method} /api/orders/ | "
+            f"User: {user_email} (Role: {user_role}) | "
+            f"Tenant-Slug: {tenant_slug_header} | "
+            f"Tenant-ID: {tenant_id_header} | "
+            f"Authenticated: {request.user.is_authenticated}"
+        )
+        
+        tenant = get_tenant_from_request(request)
+        if not tenant:
+            logger.warning(
+                f"[ORDERS] {request.method} /api/orders/ | 400 | "
+                f"Tenant not found | User: {user_email} | "
+                f"Headers: X-Tenant-Slug={tenant_slug_header}, X-Tenant-ID={tenant_id_header}"
             )
-        elif request.user.is_owner or (request.user.is_tenant_owner and request.user.tenant == tenant):
-            # Owner/TenantOwner - tüm siparişler
-            queryset = Order.objects.filter(tenant=tenant, is_deleted=False)
-        else:
             return Response({
                 'success': False,
-                'message': 'Bu işlem için yetkiniz yok.',
-            }, status=status.HTTP_403_FORBIDDEN)
+                'message': 'Tenant bulunamadı.',
+                'error': 'Tenant bilgisi eksik. Lütfen X-Tenant-ID veya X-Tenant-Slug header\'ı gönderin.',
+                'hint': 'Request headers\'da X-Tenant-ID veya X-Tenant-Slug olmalı, veya subdomain kullanılmalı.',
+            }, status=status.HTTP_400_BAD_REQUEST)
         
-        # Status filtresi
-        status_filter = request.query_params.get('status')
-        if status_filter:
-            queryset = queryset.filter(status=status_filter)
+        logger.info(f"[ORDERS] Tenant found: {tenant.name} ({tenant.slug})")
         
-        # Payment status filtresi
-        payment_status = request.query_params.get('payment_status')
-        if payment_status:
-            queryset = queryset.filter(payment_status=payment_status)
-        
-        # Müşteri email filtresi
-        customer_email = request.query_params.get('customer_email')
-        if customer_email:
-            queryset = queryset.filter(customer_email__icontains=customer_email)
-        
-        # Sipariş numarası filtresi
-        order_number = request.query_params.get('order_number')
-        if order_number:
-            queryset = queryset.filter(order_number__icontains=order_number)
-        
-        # Sıralama
-        ordering = request.query_params.get('ordering', '-created_at')
-        queryset = queryset.order_by(ordering)
-        
-        # Pagination
-        paginator = OrderPagination()
-        page = paginator.paginate_queryset(queryset, request)
-        
-        if page is not None:
-            serializer = OrderListSerializer(page, many=True)
-            return paginator.get_paginated_response(serializer.data)
-        
-        serializer = OrderListSerializer(queryset, many=True)
-        return Response({
-            'success': True,
-            'orders': serializer.data,
-        })
+        if request.method == 'GET':
+            try:
+                # Permission kontrolü
+                # TenantUser sadece kendi siparişlerini görebilir
+                # TenantOwner/Admin tüm siparişleri görebilir
+                if request.user.is_tenant_user and request.user.tenant == tenant:
+                    # Müşteri - sadece kendi siparişleri
+                    queryset = Order.objects.filter(
+                        tenant=tenant,
+                        customer=request.user,
+                        is_deleted=False
+                    )
+                    logger.info(f"[ORDERS] GET - TenantUser filtering own orders")
+                elif request.user.is_owner or (request.user.is_tenant_owner and request.user.tenant == tenant):
+                    # Owner/TenantOwner - tüm siparişler
+                    queryset = Order.objects.filter(tenant=tenant, is_deleted=False)
+                    logger.info(f"[ORDERS] GET - Owner/TenantOwner viewing all orders")
+                else:
+                    logger.warning(
+                        f"[ORDERS] GET /api/orders/ | 403 | "
+                        f"Permission denied | User: {user_email} (Role: {user_role}) | "
+                        f"Tenant: {tenant.name}"
+                    )
+                    return Response({
+                        'success': False,
+                        'message': 'Bu işlem için yetkiniz yok.',
+                        'error': f'User role ({user_role}) bu işlem için yeterli yetkiye sahip değil.',
+                    }, status=status.HTTP_403_FORBIDDEN)
+                
+                # Status filtresi
+                status_filter = request.query_params.get('status')
+                if status_filter:
+                    queryset = queryset.filter(status=status_filter)
+                
+                # Payment status filtresi
+                payment_status = request.query_params.get('payment_status')
+                if payment_status:
+                    queryset = queryset.filter(payment_status=payment_status)
+                
+                # Müşteri email filtresi
+                customer_email = request.query_params.get('customer_email')
+                if customer_email:
+                    queryset = queryset.filter(customer_email__icontains=customer_email)
+                
+                # Sipariş numarası filtresi
+                order_number = request.query_params.get('order_number')
+                if order_number:
+                    queryset = queryset.filter(order_number__icontains=order_number)
+                
+                # Sıralama
+                ordering = request.query_params.get('ordering', '-created_at')
+                queryset = queryset.order_by(ordering)
+                
+                # Pagination
+                paginator = OrderPagination()
+                page = paginator.paginate_queryset(queryset, request)
+                
+                if page is not None:
+                    serializer = OrderListSerializer(page, many=True)
+                    logger.info(
+                        f"[ORDERS] GET /api/orders/ | 200 | "
+                        f"Count: {len(page)}/{paginator.page.paginator.count} | "
+                        f"Tenant: {tenant.name}"
+                    )
+                    return paginator.get_paginated_response(serializer.data)
+                
+                serializer = OrderListSerializer(queryset, many=True)
+                logger.info(
+                    f"[ORDERS] GET /api/orders/ | 200 | "
+                    f"Count: {queryset.count()} | "
+                    f"Tenant: {tenant.name}"
+                )
+                return Response({
+                    'success': True,
+                    'orders': serializer.data,
+                })
+            
+            except Exception as e:
+                logger.error(
+                    f"[ORDERS] GET /api/orders/ | 500 | "
+                    f"Error: {str(e)} | "
+                    f"User: {user_email} | "
+                    f"Tenant: {tenant.name if tenant else 'None'}",
+                    exc_info=True
+                )
+                return Response({
+                    'success': False,
+                    'message': 'Sipariş listesi alınırken bir hata oluştu.',
+                    'error': str(e),
+                    'error_type': type(e).__name__,
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     elif request.method == 'POST':
-        # Müşteri siparişi oluşturabilir
-        serializer = CreateOrderSerializer(data=request.data)
-        if serializer.is_valid():
+        try:
+            # Müşteri siparişi oluşturabilir
+            logger.info(f"[ORDERS] POST /api/orders/ | Request data keys: {list(request.data.keys()) if request.data else 'Empty'}")
+            serializer = CreateOrderSerializer(data=request.data)
+            if serializer.is_valid():
             data = serializer.validated_data
             
             # Sepet kontrolü
@@ -172,22 +232,89 @@ def order_list_create(request):
                     request=request,
                 )
                 
+                logger.info(
+                    f"[ORDERS] POST /api/orders/ | 201 | "
+                    f"Order created: {order.order_number} | "
+                    f"User: {user_email} | "
+                    f"Tenant: {tenant.name}"
+                )
                 return Response({
                     'success': True,
                     'message': 'Sipariş oluşturuldu.',
                     'order': OrderDetailSerializer(order).data,
                 }, status=status.HTTP_201_CREATED)
             except ValueError as e:
+                logger.warning(
+                    f"[ORDERS] POST /api/orders/ | 400 | "
+                    f"Validation error: {str(e)} | "
+                    f"User: {user_email} | "
+                    f"Tenant: {tenant.name}"
+                )
                 return Response({
                     'success': False,
                     'message': str(e),
+                    'error': str(e),
+                    'error_type': 'ValidationError',
                 }, status=status.HTTP_400_BAD_REQUEST)
+            except Exception as e:
+                logger.error(
+                    f"[ORDERS] POST /api/orders/ | 500 | "
+                    f"Error: {str(e)} | "
+                    f"User: {user_email} | "
+                    f"Tenant: {tenant.name}",
+                    exc_info=True
+                )
+                return Response({
+                    'success': False,
+                    'message': 'Sipariş oluşturulurken bir hata oluştu.',
+                    'error': str(e),
+                    'error_type': type(e).__name__,
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
+            # Serializer validation errors
+            logger.warning(
+                f"[ORDERS] POST /api/orders/ | 400 | "
+                f"Serializer validation failed | "
+                f"Errors: {list(serializer.errors.keys())} | "
+                f"User: {user_email} | "
+                f"Tenant: {tenant.name}"
+            )
+            return Response({
+                'success': False,
+                'message': 'Sipariş oluşturulamadı.',
+                'errors': serializer.errors,
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        except Exception as e:
+            logger.error(
+                f"[ORDERS] POST /api/orders/ | 500 | "
+                f"Unexpected error: {str(e)} | "
+                f"User: {user_email} | "
+                f"Tenant: {tenant.name if tenant else 'None'}",
+                exc_info=True
+            )
+            return Response({
+                'success': False,
+                'message': 'Sipariş oluşturulurken beklenmeyen bir hata oluştu.',
+                'error': str(e),
+                'error_type': type(e).__name__,
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    except Exception as e:
+        # En dış exception handler - beklenmeyen tüm hatalar
+        logger.error(
+            f"[ORDERS] {request.method} /api/orders/ | 500 | "
+            f"Critical error: {str(e)} | "
+            f"User: {user_email if 'user_email' in locals() else 'Unknown'} | "
+            f"Authenticated: {request.user.is_authenticated if request.user else False}",
+            exc_info=True
+        )
         return Response({
             'success': False,
-            'message': 'Sipariş oluşturulamadı.',
-            'errors': serializer.errors,
-        }, status=status.HTTP_400_BAD_REQUEST)
+            'message': 'Bir hata oluştu.',
+            'error': str(e),
+            'error_type': type(e).__name__,
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['GET', 'PATCH'])
