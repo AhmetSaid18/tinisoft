@@ -269,70 +269,70 @@ def product_list_public(request, tenant_slug=None):
             f"Header X-Tenant-Slug: {tenant_slug_header} | "
             f"Header X-Tenant-ID: {tenant_id_header}"
         )
-    
-    # 1. Path parameter'dan tenant_slug
-    if tenant_slug:
-        try:
-            from apps.models import Tenant
-            tenant = Tenant.objects.get(slug=tenant_slug, is_deleted=False)
-        except Tenant.DoesNotExist:
-            return Response({
-                'success': False,
-                'message': f'Mağaza bulunamadı: {tenant_slug}',
-            }, status=status.HTTP_404_NOT_FOUND)
-    
-    # 2. Query parameter'dan tenant_slug
-    if not tenant:
-        tenant_slug_param = request.query_params.get('tenant_slug')
-        if tenant_slug_param:
+        
+        # 1. Path parameter'dan tenant_slug
+        if tenant_slug:
             try:
                 from apps.models import Tenant
-                tenant = Tenant.objects.get(slug=tenant_slug_param, is_deleted=False)
+                tenant = Tenant.objects.get(slug=tenant_slug, is_deleted=False)
             except Tenant.DoesNotExist:
                 return Response({
                     'success': False,
-                    'message': f'Mağaza bulunamadı: {tenant_slug_param}',
+                    'message': f'Mağaza bulunamadı: {tenant_slug}',
                 }, status=status.HTTP_404_NOT_FOUND)
-    
-    # 3. Query parameter'dan tenant_id
-    if not tenant:
-        tenant_id_param = request.query_params.get('tenant_id')
-        if tenant_id_param:
-            try:
-                from apps.models import Tenant
-                tenant = Tenant.objects.get(id=tenant_id_param, is_deleted=False)
-            except Tenant.DoesNotExist:
-                return Response({
-                    'success': False,
-                    'message': f'Mağaza bulunamadı: {tenant_id_param}',
-                }, status=status.HTTP_404_NOT_FOUND)
-    
-    # 4. Header'dan tenant_slug
-    if not tenant:
-        tenant_slug_header = request.headers.get('X-Tenant-Slug')
-        if tenant_slug_header:
-            try:
-                from apps.models import Tenant
-                tenant = Tenant.objects.get(slug=tenant_slug_header, is_deleted=False)
-            except Tenant.DoesNotExist:
-                return Response({
-                    'success': False,
-                    'message': f'Mağaza bulunamadı: {tenant_slug_header}',
-                }, status=status.HTTP_404_NOT_FOUND)
-    
-    # 5. Header'dan tenant_id
-    if not tenant:
-        tenant_id_header = request.headers.get('X-Tenant-ID')
-        if tenant_id_header:
-            try:
-                from apps.models import Tenant
-                tenant = Tenant.objects.get(id=tenant_id_header, is_deleted=False)
-            except Tenant.DoesNotExist:
-                return Response({
-                    'success': False,
-                    'message': f'Mağaza bulunamadı: {tenant_id_header}',
-                }, status=status.HTTP_404_NOT_FOUND)
-    
+        
+        # 2. Query parameter'dan tenant_slug
+        if not tenant:
+            tenant_slug_param = request.query_params.get('tenant_slug')
+            if tenant_slug_param:
+                try:
+                    from apps.models import Tenant
+                    tenant = Tenant.objects.get(slug=tenant_slug_param, is_deleted=False)
+                except Tenant.DoesNotExist:
+                    return Response({
+                        'success': False,
+                        'message': f'Mağaza bulunamadı: {tenant_slug_param}',
+                    }, status=status.HTTP_404_NOT_FOUND)
+        
+        # 3. Query parameter'dan tenant_id
+        if not tenant:
+            tenant_id_param = request.query_params.get('tenant_id')
+            if tenant_id_param:
+                try:
+                    from apps.models import Tenant
+                    tenant = Tenant.objects.get(id=tenant_id_param, is_deleted=False)
+                except Tenant.DoesNotExist:
+                    return Response({
+                        'success': False,
+                        'message': f'Mağaza bulunamadı: {tenant_id_param}',
+                    }, status=status.HTTP_404_NOT_FOUND)
+        
+        # 4. Header'dan tenant_slug
+        if not tenant:
+            tenant_slug_header = request.headers.get('X-Tenant-Slug')
+            if tenant_slug_header:
+                try:
+                    from apps.models import Tenant
+                    tenant = Tenant.objects.get(slug=tenant_slug_header, is_deleted=False)
+                except Tenant.DoesNotExist:
+                    return Response({
+                        'success': False,
+                        'message': f'Mağaza bulunamadı: {tenant_slug_header}',
+                    }, status=status.HTTP_404_NOT_FOUND)
+        
+        # 5. Header'dan tenant_id
+        if not tenant:
+            tenant_id_header = request.headers.get('X-Tenant-ID')
+            if tenant_id_header:
+                try:
+                    from apps.models import Tenant
+                    tenant = Tenant.objects.get(id=tenant_id_header, is_deleted=False)
+                except Tenant.DoesNotExist:
+                    return Response({
+                        'success': False,
+                        'message': f'Mağaza bulunamadı: {tenant_id_header}',
+                    }, status=status.HTTP_404_NOT_FOUND)
+        
         if not tenant:
             logger.warning(
                 f"[PRODUCTS] GET /api/public/products/ | 400 | "
@@ -353,108 +353,108 @@ def product_list_public(request, tenant_slug=None):
         logger.info(f"[PRODUCTS] Tenant found: {tenant.name} ({tenant.slug})")
         
         queryset = Product.objects.filter(
-        tenant=tenant,
-        is_deleted=False,
-        status='active',
-        is_visible=True,
-    )
-    
-    # Kategori filtresi (category_id veya category_slug ile)
-    category_id = request.query_params.get('category_id')
-    category_slug = request.query_params.get('category_slug') or request.query_params.get('category')
-    
-    if category_id or category_slug:
-        # Kategoriyi bul
-        category = None
-        if category_id:
-            try:
-                category = Category.objects.get(
-                    id=category_id,
-                    tenant=tenant,
-                    is_deleted=False,
-                    is_active=True
-                )
-            except Category.DoesNotExist:
-                pass
-        
-        if not category and category_slug:
-            try:
-                # .first() kullan - aynı slug'a sahip birden fazla kategori olabilir
-                category = Category.objects.filter(
-                    slug=category_slug,
-                    tenant=tenant,
-                    is_deleted=False,
-                    is_active=True
-                ).first()
-            except Exception:
-                # Herhangi bir hata durumunda None olsun
-                category = None
-        
-        if category:
-            # Alt kategorileri de dahil et (recursive)
-            def get_all_category_ids(cat):
-                """Kategori ve tüm alt kategorilerinin ID'lerini döndür"""
-                category_ids = [cat.id]
-                children = Category.objects.filter(
-                    parent=cat,
-                    tenant=tenant,
-                    is_deleted=False,
-                    is_active=True
-                )
-                for child in children:
-                    category_ids.extend(get_all_category_ids(child))
-                return category_ids
-            
-            # Kategori ve tüm alt kategorilerinin ID'lerini al
-            all_category_ids = get_all_category_ids(category)
-            
-            # Bu kategorilerdeki ürünleri filtrele
-            queryset = queryset.filter(
-                categories__id__in=all_category_ids,
-                categories__is_active=True
-            ).distinct()
-    
-    # Arama
-    search = request.query_params.get('search')
-    if search:
-        queryset = queryset.filter(
-            Q(name__icontains=search) |
-            Q(description__icontains=search)
+            tenant=tenant,
+            is_deleted=False,
+            status='active',
+            is_visible=True,
         )
-    
-    # Sıralama
-    ordering = request.query_params.get('ordering', '-created_at')
-    
-    # Geçerli ordering field'ları
-    valid_orderings = [
-        'created_at', '-created_at',
-        'updated_at', '-updated_at',
-        'name', '-name',
-        'price', '-price',
-        'sort_order', '-sort_order',
-        'view_count', '-view_count',
-        'sale_count', '-sale_count',
-        'is_featured', '-is_featured',
-    ]
-    
-    # Ordering parametresini kontrol et
-    if ordering not in valid_orderings:
-        # Geçersiz ordering ise default kullan
-        logger.warning(f"Invalid ordering parameter: {ordering}, using default: -created_at")
-        ordering = '-created_at'
-    
-    queryset = queryset.order_by(ordering)
-    
-    # Pagination
-    paginator = ProductPagination()
-    page = paginator.paginate_queryset(queryset, request)
-    
-    if page is not None:
-        serializer = ProductListSerializer(page, many=True, context={'request': request})
-        response = paginator.get_paginated_response(serializer.data)
-        logger.info(f"[PRODUCTS] GET /api/public/products/ | 200 | Count: {len(page)}/{paginator.page.paginator.count}")
-        return response
-    
+        
+        # Kategori filtresi (category_id veya category_slug ile)
+        category_id = request.query_params.get('category_id')
+        category_slug = request.query_params.get('category_slug') or request.query_params.get('category')
+        
+        if category_id or category_slug:
+            # Kategoriyi bul
+            category = None
+            if category_id:
+                try:
+                    category = Category.objects.get(
+                        id=category_id,
+                        tenant=tenant,
+                        is_deleted=False,
+                        is_active=True
+                    )
+                except Category.DoesNotExist:
+                    pass
+            
+            if not category and category_slug:
+                try:
+                    # .first() kullan - aynı slug'a sahip birden fazla kategori olabilir
+                    category = Category.objects.filter(
+                        slug=category_slug,
+                        tenant=tenant,
+                        is_deleted=False,
+                        is_active=True
+                    ).first()
+                except Exception:
+                    # Herhangi bir hata durumunda None olsun
+                    category = None
+            
+            if category:
+                # Alt kategorileri de dahil et (recursive)
+                def get_all_category_ids(cat):
+                    """Kategori ve tüm alt kategorilerinin ID'lerini döndür"""
+                    category_ids = [cat.id]
+                    children = Category.objects.filter(
+                        parent=cat,
+                        tenant=tenant,
+                        is_deleted=False,
+                        is_active=True
+                    )
+                    for child in children:
+                        category_ids.extend(get_all_category_ids(child))
+                    return category_ids
+                
+                # Kategori ve tüm alt kategorilerinin ID'lerini al
+                all_category_ids = get_all_category_ids(category)
+                
+                # Bu kategorilerdeki ürünleri filtrele
+                queryset = queryset.filter(
+                    categories__id__in=all_category_ids,
+                    categories__is_active=True
+                ).distinct()
+        
+        # Arama
+        search = request.query_params.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search) |
+                Q(description__icontains=search)
+            )
+        
+        # Sıralama
+        ordering = request.query_params.get('ordering', '-created_at')
+        
+        # Geçerli ordering field'ları
+        valid_orderings = [
+            'created_at', '-created_at',
+            'updated_at', '-updated_at',
+            'name', '-name',
+            'price', '-price',
+            'sort_order', '-sort_order',
+            'view_count', '-view_count',
+            'sale_count', '-sale_count',
+            'is_featured', '-is_featured',
+        ]
+        
+        # Ordering parametresini kontrol et
+        if ordering not in valid_orderings:
+            # Geçersiz ordering ise default kullan
+            logger.warning(f"Invalid ordering parameter: {ordering}, using default: -created_at")
+            ordering = '-created_at'
+        
+        queryset = queryset.order_by(ordering)
+        
+        # Pagination
+        paginator = ProductPagination()
+        page = paginator.paginate_queryset(queryset, request)
+        
+        if page is not None:
+            serializer = ProductListSerializer(page, many=True, context={'request': request})
+            response = paginator.get_paginated_response(serializer.data)
+            logger.info(f"[PRODUCTS] GET /api/public/products/ | 200 | Count: {len(page)}/{paginator.page.paginator.count} | Tenant: {tenant.slug}")
+            return response
+        
         serializer = ProductListSerializer(queryset, many=True, context={'request': request})
         logger.info(f"[PRODUCTS] GET /api/public/products/ | 200 | Count: {queryset.count()} | Tenant: {tenant.slug}")
         return Response({
