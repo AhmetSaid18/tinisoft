@@ -159,16 +159,87 @@ def order_list_create(request):
         elif request.method == 'POST':
             try:
                 # Müşteri siparişi oluşturabilir
-                logger.info(f"[ORDERS] POST /api/orders/ | Request data keys: {list(request.data.keys()) if request.data else 'Empty'}")
-                
-                # Request data'yı log'la (debug için)
+                # Request data'yı güvenli şekilde al
+                request_data = None
                 try:
-                    logger.debug(f"[ORDERS] POST /api/orders/ | Request data: {request.data}")
-                except:
-                    pass  # Logging hatası önemli değil
+                    request_data = request.data
+                    logger.info(f"[ORDERS] POST /api/orders/ | Request data keys: {list(request_data.keys()) if request_data else 'Empty'}")
+                    logger.debug(f"[ORDERS] POST /api/orders/ | Request data: {request_data}")
+                except Exception as data_exception:
+                    logger.error(
+                        f"[ORDERS] POST /api/orders/ | Error accessing request.data | "
+                        f"Error: {str(data_exception)} | "
+                        f"User: {user_email}",
+                        exc_info=True
+                    )
+                    return Response({
+                        'success': False,
+                        'message': 'Request verisi okunamadı.',
+                        'error': str(data_exception),
+                        'error_type': type(data_exception).__name__,
+                    }, status=status.HTTP_400_BAD_REQUEST)
                 
-                serializer = CreateOrderSerializer(data=request.data)
-                if serializer.is_valid():
+                # Serializer oluştur
+                serializer = None
+                try:
+                    serializer = CreateOrderSerializer(data=request_data)
+                except Exception as serializer_exception:
+                    logger.error(
+                        f"[ORDERS] POST /api/orders/ | Error creating serializer | "
+                        f"Error: {str(serializer_exception)} | "
+                        f"User: {user_email} | "
+                        f"Tenant: {tenant.name}",
+                        exc_info=True
+                    )
+                    return Response({
+                        'success': False,
+                        'message': 'Sipariş verisi işlenirken bir hata oluştu.',
+                        'error': str(serializer_exception),
+                        'error_type': type(serializer_exception).__name__,
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Serializer validation kontrolü
+                if serializer is None:
+                    logger.error(
+                        f"[ORDERS] POST /api/orders/ | Serializer is None | "
+                        f"User: {user_email} | "
+                        f"Tenant: {tenant.name}"
+                    )
+                    return Response({
+                        'success': False,
+                        'message': 'Sipariş verisi işlenirken bir hata oluştu.',
+                        'error': 'Serializer oluşturulamadı.',
+                        'error_type': 'SerializerError',
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
+                is_valid = False
+                validation_errors = {}
+                try:
+                    is_valid = serializer.is_valid()
+                    if not is_valid:
+                        validation_errors = serializer.errors
+                        logger.warning(
+                            f"[ORDERS] POST /api/orders/ | Serializer validation failed | "
+                            f"Errors: {validation_errors} | "
+                            f"User: {user_email} | "
+                            f"Tenant: {tenant.name}"
+                        )
+                except Exception as validation_exception:
+                    logger.error(
+                        f"[ORDERS] POST /api/orders/ | Serializer validation exception | "
+                        f"Error: {str(validation_exception)} | "
+                        f"User: {user_email} | "
+                        f"Tenant: {tenant.name}",
+                        exc_info=True
+                    )
+                    return Response({
+                        'success': False,
+                        'message': 'Sipariş verileri işlenirken bir hata oluştu.',
+                        'error': str(validation_exception),
+                        'error_type': type(validation_exception).__name__,
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
+                if is_valid:
                     data = serializer.validated_data
                     
                     # Sepet kontrolü
@@ -278,19 +349,11 @@ def order_list_create(request):
                             'error_type': type(e).__name__,
                         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
                 else:
-                    # Serializer validation errors
-                    logger.warning(
-                        f"[ORDERS] POST /api/orders/ | 400 | "
-                        f"Serializer validation failed | "
-                        f"Errors: {list(serializer.errors.keys())} | "
-                        f"Error details: {serializer.errors} | "
-                        f"User: {user_email} | "
-                        f"Tenant: {tenant.name}"
-                    )
+                    # Serializer validation errors - zaten yukarıda loglandı
                     return Response({
                         'success': False,
                         'message': 'Sipariş oluşturulamadı. Lütfen gönderilen verileri kontrol edin.',
-                        'errors': serializer.errors,
+                        'errors': validation_errors,
                         'error_type': 'ValidationError',
                     }, status=status.HTTP_400_BAD_REQUEST)
             
@@ -308,6 +371,21 @@ def order_list_create(request):
                     'error': str(e),
                     'error_type': type(e).__name__,
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        else:
+            # GET ve POST dışında bir method gelirse
+            logger.warning(
+                f"[ORDERS] {request.method} /api/orders/ | 405 | "
+                f"Method not allowed | User: {user_email} | "
+                f"Tenant: {tenant.name if tenant else 'None'}"
+            )
+            return Response({
+                'success': False,
+                'message': f'{request.method} method\'u bu endpoint için desteklenmiyor.',
+                'error': 'Method not allowed',
+                'error_type': 'MethodNotAllowed',
+                'allowed_methods': ['GET', 'POST'],
+            }, status=status.HTTP_405_METHOD_NOT_ALLOWED)
     
     except Exception as e:
         # En dış exception handler - beklenmeyen tüm hatalar
