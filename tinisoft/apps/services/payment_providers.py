@@ -205,41 +205,50 @@ class KuwaitPaymentProvider(PaymentProviderBase):
         - Encoding: ISO-8859-9
         - Sıra: MerchantId + MerchantOrderId + Amount + OkUrl + FailUrl + UserName + HashedPassword
         - OkUrl ve FailUrl hash'e DAHIL EDILMELI (PDF'de açıkça yazıyor)
+        - PHP'deki gibi string concatenation (.) kullanılmalı - hiçbir ekstra karakter veya boşluk olmamalı
         """
         hp = self._hashed_password()
         
         # Tüm değerleri string'e çevir (PDF formülüne göre)
-        merchant_id_str = str(self.merchant_id) if self.merchant_id else ""
-        username_str = str(self.username) if self.username else ""
+        # ÖNEMLİ: None değerleri boş string'e çevir, ama aslında bu değerler hiç None olmamalı
+        merchant_id_str = str(self.merchant_id) if self.merchant_id is not None else ""
+        username_str = str(self.username) if self.username is not None else ""
+        merchant_order_id_str = str(merchant_order_id) if merchant_order_id else ""
+        amount_str = str(amount) if amount else ""
+        ok_url_str = str(ok_url) if ok_url else ""
+        fail_url_str = str(fail_url) if fail_url else ""
         
-        # PDF formülüne göre tam sırayla birleştir:
+        # PDF formülüne göre tam sırayla birleştir (PHP'deki . operatörü gibi):
         # MerchantId + MerchantOrderId + Amount + OkUrl + FailUrl + UserName + HashedPassword
-        raw = f"{merchant_id_str}{merchant_order_id}{amount}{ok_url}{fail_url}{username_str}{hp}"
+        # ÖNEMLİ: F-string kullanma, direkt + operatörü kullan (PHP'deki . gibi)
+        raw = merchant_id_str + merchant_order_id_str + amount_str + ok_url_str + fail_url_str + username_str + hp
         
         # Debug için log (hassas bilgileri kısalt) - INFO seviyesinde
         logger.info(
             f"Hash calculation (Request1 - PDF formülü): "
             f"MerchantId={merchant_id_str}, "
-            f"OrderId={merchant_order_id}, "
-            f"Amount={amount}, "
-            f"OkUrl={ok_url}, "
-            f"FailUrl={fail_url}, "
+            f"OrderId={merchant_order_id_str}, "
+            f"Amount={amount_str}, "
+            f"OkUrl={ok_url_str}, "
+            f"FailUrl={fail_url_str}, "
             f"UserName={username_str}, "
             f"HashedPassword={hp[:10]}..."
         )
         logger.info(f"Hash raw string length: {len(raw)}")
-        logger.info(f"Hash raw string (first 200 chars): {raw[:200]}...")
-        logger.info(f"Hash raw string (last 50 chars): ...{raw[-50:]}")
+        logger.info(f"Hash raw string (first 200 chars): {raw[:200]}")
+        logger.info(f"Hash raw string (last 50 chars): {raw[-50:]}")
         
         # ISO-8859-9 encoding ile hash'le
+        # ÖNEMLİ: Raw string'i direkt ISO-8859-9 ile encode et
         try:
             raw_bytes = raw.encode(HASH_ENCODING)
             logger.info(f"Encoded bytes length: {len(raw_bytes)}")
         except UnicodeEncodeError as e:
-            # Eğer encoding hatası olursa, UTF-8'e çevir ve sonra ISO-8859-9'e dönüştür
-            logger.warning(f"Encoding error: {e}, trying UTF-8 conversion")
-            raw_utf8 = raw.encode('utf-8')
-            raw_bytes = raw_utf8.decode('utf-8').encode(HASH_ENCODING)
+            # Eğer encoding hatası olursa, karakterleri replace et veya ignore et
+            logger.warning(f"Encoding error: {e}, trying with error handling")
+            # ISO-8859-9'da olmayan karakterleri '?' ile replace et
+            raw_bytes = raw.encode(HASH_ENCODING, errors='replace')
+            logger.warning(f"Used error='replace' for encoding, result length: {len(raw_bytes)}")
         
         digest = hashlib.sha1(raw_bytes).digest()
         hash_result = base64.b64encode(digest).decode("utf-8")
