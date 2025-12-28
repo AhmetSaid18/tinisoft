@@ -85,37 +85,63 @@ class KuwaitPaymentProvider(PaymentProviderBase):
         super().__init__(tenant, config)
         self.test_mode = self.config.get('test_mode', False)
         
+        # Integration'dan gelen config'deki alanları kullan
+        # Config JSON field'ında: merchant_id, customer_id
+        # api_key -> username, api_secret -> password
+        
+        # Customer ID (Müşteri Numarası)
+        self.customer_id = (
+            self.config.get('customer_id') or 
+            self.config.get('customerId') or 
+            self.config.get('CustomerId')
+        )
+        
+        # Merchant ID (Mağaza Numarası)
+        self.merchant_id = (
+            self.config.get('merchant_id') or 
+            self.config.get('merchantId') or 
+            self.config.get('MerchantId')
+        )
+        
+        # Username (API Kullanıcı Adı)
+        # Önce config JSON'dan direkt username kontrol et (daha net)
+        # Sonra api_key field'ından al (geriye dönük uyumluluk)
+        self.username = (
+            self.config.get('username') or 
+            self.config.get('userName') or 
+            self.config.get('UserName') or
+            self.config.get('api_key')  # Geriye dönük uyumluluk
+        )
+        
+        # Password (API Şifresi)
+        # Önce config JSON'dan direkt password kontrol et (daha net)
+        # Sonra api_secret field'ından al (geriye dönük uyumluluk)
+        self.password = (
+            self.config.get('password') or 
+            self.config.get('Password') or
+            self.config.get('api_secret')  # Geriye dönük uyumluluk
+        )
+        
         # Test modunda ve config'de bilgi yoksa env'deki test bilgilerini kullan
         if self.test_mode:
-            # Test modunda env'deki test bilgilerini öncelik ver
-            self.customer_id = (
-                self.config.get('customer_id') or 
-                self.config.get('customerId') or 
-                getattr(settings, 'KUVEYT_TEST_CUSTOMER_ID', '400235')
-            )
-            self.merchant_id = (
-                self.config.get('merchant_id') or 
-                self.config.get('merchantId') or 
-                getattr(settings, 'KUVEYT_TEST_MERCHANT_ID', '496')
-            )
-            self.username = (
-                self.config.get('api_key') or 
-                self.config.get('username') or 
-                self.config.get('userName') or 
-                getattr(settings, 'KUVEYT_TEST_USERNAME', 'apitest')
-            )
-            self.password = (
-                self.config.get('api_secret') or 
-                self.config.get('password') or 
-                self.config.get('Password') or 
-                getattr(settings, 'KUVEYT_TEST_PASSWORD', 'api123')
-            )
-        else:
-            # Production modunda config'den al (zorunlu)
-            self.customer_id = self.config.get('customer_id') or self.config.get('customerId')
-            self.merchant_id = self.config.get('merchant_id') or self.config.get('merchantId')
-            self.username = self.config.get('api_key') or self.config.get('username') or self.config.get('userName')
-            self.password = self.config.get('api_secret') or self.config.get('password') or self.config.get('Password')
+            if not self.customer_id:
+                self.customer_id = getattr(settings, 'KUVEYT_TEST_CUSTOMER_ID', '400235')
+            if not self.merchant_id:
+                self.merchant_id = getattr(settings, 'KUVEYT_TEST_MERCHANT_ID', '496')
+            if not self.username:
+                self.username = getattr(settings, 'KUVEYT_TEST_USERNAME', 'apitest')
+            if not self.password:
+                self.password = getattr(settings, 'KUVEYT_TEST_PASSWORD', 'api123')
+        
+        # Log config bilgilerini (hassas bilgileri gizle)
+        logger.info(
+            f"Kuveyt PaymentProvider initialized | "
+            f"Tenant: {tenant.name} | "
+            f"Test Mode: {self.test_mode} | "
+            f"Customer ID: {self.customer_id} | "
+            f"Merchant ID: {self.merchant_id} | "
+            f"Username: {self.username[:3] + '***' if self.username else 'None'}"
+        )
         
         # PayGate endpoints
         # Test endpoint varsa ve doğru formatta ise kullan, yoksa default kullan
@@ -374,7 +400,61 @@ class KuwaitPaymentProvider(PaymentProviderBase):
                     # HTML içeriğini log'la (debug için)
                     logger.info(f"Kuveyt PayGate HTML response (first 1000 chars): {payment_html[:1000]}")
                     
-                    # HTML'de hata var mı kontrol et
+                    # HTML içinde XML response var mı kontrol et (hata durumunda)
+                    # Kuveyt bazen hata durumunda HTML içinde XML response döndürür
+                    import re
+                    xml_match = re.search(r'<VPosTransactionResponseContract[^>]*>(.*?)</VPosTransactionResponseContract>', payment_html, re.DOTALL)
+                    if xml_match:
+                        try:
+                            xml_content = xml_match.group(0)
+                            root = ET.fromstring(xml_content)
+                            
+                            response_code = root.find('ResponseCode')
+                            response_code = response_code.text if response_code is not None else None
+                            
+                            response_message = root.find('ResponseMessage')
+                            response_message = response_message.text if response_message is not None else None
+                            
+                            if response_code and response_code != '00':
+                                # Hata var - ResponseCode ve ResponseMessage'ı log'la
+                                logger.error(
+                                    f"Kuveyt PayGate error in response: "
+                                    f"ResponseCode={response_code}, "
+                                    f"ResponseMessage={response_message}"
+                                )
+                                
+                                # Özel hata mesajları
+                                error_message = response_message or 'Bilinmeyen hata'
+                                user_friendly_message = error_message
+                                
+                                if response_code == 'ApiUserNotDefined':
+                                    user_friendly_message = (
+                                        'Kuveyt Türk API kullanıcısı tanımlanmamış. '
+                                        'Lütfen Kuveyt Türk Sanal POS panelinde API rolünde kullanıcı oluşturun.'
+                                    )
+                                elif 'ApiUser' in response_code or 'User' in response_code:
+                                    user_friendly_message = (
+                                        'Kuveyt Türk API kullanıcı bilgileri hatalı. '
+                                        'Lütfen API kullanıcı adı ve şifresini kontrol edin.'
+                                    )
+                                
+                                return {
+                                    'success': False,
+                                    'payment_html': None,
+                                    'transaction_id': order.order_number,
+                                    'error': user_friendly_message,
+                                    'error_code': response_code,
+                                    'error_details': {
+                                        'response_code': response_code,
+                                        'response_message': response_message,
+                                        'bank_error': True,
+                                    },
+                                }
+                        except Exception as parse_error:
+                            logger.warning(f"Could not parse XML from HTML response: {str(parse_error)}")
+                            # XML parse edilemezse devam et (normal HTML response olabilir)
+                    
+                    # HTML'de hata var mı kontrol et (genel)
                     if 'error' in payment_html.lower() or 'hata' in payment_html.lower():
                         logger.error(f"Kuveyt PayGate HTML error detected: {payment_html[:500]}")
                         return {
