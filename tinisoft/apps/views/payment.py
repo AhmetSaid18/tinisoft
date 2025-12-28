@@ -5,15 +5,87 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
-from apps.models import Payment, Order
+from django.http import HttpResponse
+from django.db import connection
+from django.conf import settings
+from apps.models import Payment, Order, Tenant, IntegrationProvider
 from apps.serializers.payment import PaymentSerializer, CreatePaymentSerializer
 from apps.services.payment_service import PaymentService
 from apps.services.payment_providers import PaymentProviderFactory
 from apps.permissions import IsTenantOwnerOfObject
 from core.middleware import get_tenant_from_request
+from core.db_router import set_tenant_schema, clear_tenant_schema
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def force_tenant_schema_from_order_number(order_number: str):
+    """
+    MerchantOrderId'den tenant'ı bul ve schema'yı set et.
+    Order number formatı: ORD-{TENANT_SLUG}-{timestamp}-{random}
+    
+    Bank callback'lerinde tenant header gelmez, bu nedenle order number'dan
+    tenant bilgisini çıkarıp manuel olarak schema set etmemiz gerekir.
+    """
+    try:
+        parts = (order_number or "").split("-")
+        if len(parts) < 3 or parts[0].upper() != "ORD":
+            logger.warning(f"Invalid order number format: {order_number}")
+            return None
+        slug = parts[1].lower()
+    except Exception as e:
+        logger.error(f"Error parsing order number: {str(e)}")
+        return None
+    
+    # Slug ile tenant bul
+    tenant = Tenant.objects.filter(slug__iexact=slug, is_deleted=False).first()
+    if not tenant:
+        # Subdomain ile de dene
+        tenant = Tenant.objects.filter(subdomain__iexact=slug, is_deleted=False).first()
+    if not tenant:
+        logger.warning(f"Tenant not found for slug: {slug}")
+        return None
+    
+    # Schema'yı set et
+    schema = f"tenant_{tenant.subdomain}"
+    set_tenant_schema(schema)
+    with connection.cursor() as cursor:
+        cursor.execute(f'SET search_path TO "{schema}", public;')
+    
+    logger.info(f"Tenant schema set to {schema} from order number {order_number}")
+    return tenant
+
+
+def html_redirect(url: str, message: str = "Yönlendiriliyorsunuz..."):
+    """
+    Tarayıcıya HTML redirect döndür.
+    Bank POST callback'lerinde JSON döndürmek yerine HTML redirect döndürmek gerekir,
+    çünkü kullanıcı tarayıcısı bankadan POST ile gelir.
+    """
+    return HttpResponse(
+        f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8"/>
+            <meta http-equiv="refresh" content="0;url={url}" />
+            <title>{message}</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; text-align: center; padding-top: 50px; }}
+                .spinner {{ border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }}
+                @keyframes spin {{ 0% {{ transform: rotate(0deg); }} 100% {{ transform: rotate(360deg); }} }}
+            </style>
+        </head>
+        <body>
+            <div class="spinner"></div>
+            <p>{message}</p>
+            <script>window.location.href = "{url}";</script>
+        </body>
+        </html>
+        """,
+        content_type="text/html"
+    )
 
 
 @api_view(['GET', 'POST'])
@@ -447,61 +519,175 @@ def kuveyt_callback_ok(request):
     Kuveyt 3D Secure OkUrl callback (başarılı kart doğrulama).
     Banka bu endpoint'e POST ile AuthenticationResponse gönderir.
     
+    Flow:
+    1. AuthenticationResponse'u parse et
+    2. MerchantOrderId'den tenant schema'yı set et
+    3. MD ile ProvisionGate'e Request2 gönder
+    4. Ödeme durumunu güncelle
+    5. Frontend'e HTML redirect yap
+    
     POST: /api/payments/kuveyt/callback/ok/
     """
     import xml.etree.ElementTree as ET
     from urllib.parse import unquote
+    
+    # Frontend URL (redirect için)
+    frontend_url = getattr(settings, 'STORE_FRONTEND_URL', None) or getattr(settings, 'FRONTEND_URL', 'https://avrupamutfak.com')
     
     try:
         # AuthenticationResponse alanını al (UrlEncoded gelir)
         authentication_response = request.POST.get('AuthenticationResponse')
         if not authentication_response:
             logger.error("Kuveyt callback: AuthenticationResponse eksik")
-            return Response({
-                'success': False,
-                'message': 'AuthenticationResponse eksik',
-            }, status=status.HTTP_400_BAD_REQUEST)
+            return html_redirect(f"{frontend_url}/checkout/fail?error=AuthenticationResponse+eksik", "Ödeme başarısız")
         
         # UrlDecode et
         decoded_xml = unquote(authentication_response)
-        logger.info(f"Kuveyt callback OK - Decoded XML: {decoded_xml[:500]}")
+        logger.info(f"Kuveyt callback OK - Decoded XML (first 500 chars): {decoded_xml[:500]}")
         
         # XML parse et
-        root = ET.fromstring(decoded_xml)
+        try:
+            root = ET.fromstring(decoded_xml)
+        except ET.ParseError as e:
+            logger.error(f"Kuveyt callback XML parse error: {str(e)}")
+            return html_redirect(f"{frontend_url}/checkout/fail?error=XML+parse+hatasi", "Ödeme başarısız")
         
-        # ResponseCode ve ResponseMessage kontrol et
-        response_code = root.find('Message/VERes/Status').text if root.find('Message/VERes/Status') is not None else None
-        md = root.find('Message/VERes/MD').text if root.find('Message/VERes/MD') is not None else None
-        order_id = root.find('Message/VERes/MerchantOrderId').text if root.find('Message/VERes/MerchantOrderId') is not None else None
+        # Farklı XML yapılarını dene
+        # TDV2.0.0'da VERes veya direkt root'ta olabilir
+        merchant_order_id = None
+        md = None
+        response_code = None
         
-        if response_code != 'Y' or not md:
-            logger.error(f"Kuveyt callback: Kart doğrulanamadı. ResponseCode={response_code}")
-            # Frontend'e yönlendir (hata sayfası)
-            return Response({
-                'success': False,
-                'message': 'Kart doğrulama başarısız',
-                'response_code': response_code,
-            }, status=status.HTTP_400_BAD_REQUEST)
+        # Önce VERes yapısını dene
+        veres = root.find('.//VERes')
+        if veres is not None:
+            merchant_order_id = veres.findtext('MerchantOrderId')
+            md = veres.findtext('MD')
+            response_code = veres.findtext('Status')
         
-        # MD'yi kaydet ve ProvisionGate'e istek at (Adım 2)
-        # Bu işlem payment_providers.py'da yapılacak
-        # Şimdilik başarılı mesaj döndür
+        # Eğer bulunamadıysa direkt root'ta ara
+        if not merchant_order_id:
+            merchant_order_id = root.findtext('MerchantOrderId')
+        if not md:
+            md = root.findtext('MD')
+        if not response_code:
+            response_code = root.findtext('ResponseCode') or root.findtext('Status')
         
-        logger.info(f"Kuveyt callback OK: OrderId={order_id}, MD={md}")
+        logger.info(f"Kuveyt callback parsed: MerchantOrderId={merchant_order_id}, ResponseCode={response_code}, MD exists={bool(md)}")
         
-        return Response({
-            'success': True,
-            'message': 'Kart doğrulama başarılı. Ödeme işleniyor...',
-            'order_id': order_id,
-            'md': md,
-        })
+        if not merchant_order_id:
+            logger.error("Kuveyt callback: MerchantOrderId bulunamadı")
+            return html_redirect(f"{frontend_url}/checkout/fail?error=MerchantOrderId+bulunamadi", "Ödeme başarısız")
+        
+        # Tenant schema'yı MerchantOrderId'den set et
+        tenant = force_tenant_schema_from_order_number(merchant_order_id)
+        if not tenant:
+            logger.error(f"Kuveyt callback: Tenant bulunamadı for order {merchant_order_id}")
+            return html_redirect(f"{frontend_url}/checkout/fail?error=Tenant+bulunamadi", "Ödeme başarısız")
+        
+        # Kart doğrulama başarılı mı? (Status=Y veya ResponseCode'a göre)
+        is_verified = response_code in ('Y', '00', 'Approved')
+        
+        if not is_verified or not md:
+            logger.error(f"Kuveyt callback: Kart doğrulanamadı. ResponseCode={response_code}, MD exists={bool(md)}")
+            # Payment'ı fail yap
+            try:
+                payment = Payment.objects.filter(
+                    transaction_id=merchant_order_id,
+                    tenant=tenant,
+                    is_deleted=False
+                ).first()
+                if payment:
+                    PaymentService.fail_payment(payment, f"Kart doğrulama başarısız: {response_code}")
+            except Exception as e:
+                logger.error(f"Failed to update payment status: {str(e)}")
+            
+            return html_redirect(
+                f"{frontend_url}/checkout/fail?order={merchant_order_id}&error=Kart+dogrulama+basarisiz",
+                "Kart doğrulama başarısız"
+            )
+        
+        # Payment kaydını bul
+        payment = Payment.objects.filter(
+            transaction_id=merchant_order_id,
+            tenant=tenant,
+            is_deleted=False
+        ).first()
+        
+        if not payment:
+            logger.error(f"Kuveyt callback: Payment bulunamadı for {merchant_order_id}")
+            return html_redirect(f"{frontend_url}/checkout/fail?error=Payment+bulunamadi", "Ödeme başarısız")
+        
+        # Order'ı al
+        order = payment.order
+        if not order:
+            logger.error(f"Kuveyt callback: Order bulunamadı for payment {payment.id}")
+            return html_redirect(f"{frontend_url}/checkout/fail?error=Order+bulunamadi", "Ödeme başarısız")
+        
+        # Provider config'i al
+        try:
+            integration = IntegrationProvider.objects.get(
+                tenant=tenant,
+                provider_type='kuveyt',
+                status__in=[IntegrationProvider.Status.ACTIVE, IntegrationProvider.Status.TEST_MODE],
+                is_deleted=False
+            )
+            config = integration.get_provider_config()
+        except IntegrationProvider.DoesNotExist:
+            logger.error(f"Kuveyt callback: Integration bulunamadı for tenant {tenant.id}")
+            PaymentService.fail_payment(payment, "Kuveyt entegrasyonu bulunamadı")
+            return html_redirect(f"{frontend_url}/checkout/fail?error=Entegrasyon+bulunamadi", "Ödeme başarısız")
+        
+        # Provider'ı oluştur ve ProvisionGate'e istek at
+        provider = PaymentProviderFactory.get_provider(
+            tenant=tenant,
+            provider_name='kuveyt',
+            config=config
+        )
+        
+        logger.info(f"Kuveyt callback: Calling ProvisionGate for order {merchant_order_id}")
+        provision_result = provider.provision_payment(
+            merchant_order_id=merchant_order_id,
+            amount=order.total,
+            md=md
+        )
+        
+        if provision_result['success']:
+            # Ödeme başarılı - Payment'ı tamamla
+            payment = PaymentService.process_payment(
+                payment,
+                transaction_id=merchant_order_id,
+                payment_intent_id=provision_result.get('order_id')
+            )
+            
+            logger.info(f"Kuveyt callback SUCCESS: Order {merchant_order_id} completed")
+            
+            return html_redirect(
+                f"{frontend_url}/checkout/success?order={merchant_order_id}",
+                "Ödeme başarılı"
+            )
+        else:
+            # Ödeme başarısız - Payment'ı fail yap
+            error_msg = provision_result.get('error', 'ProvisionGate hatası')
+            PaymentService.fail_payment(
+                payment,
+                error_message=error_msg,
+                error_code=provision_result.get('response_code', '')
+            )
+            
+            logger.error(f"Kuveyt callback FAIL: Order {merchant_order_id} - {error_msg}")
+            
+            return html_redirect(
+                f"{frontend_url}/checkout/fail?order={merchant_order_id}&error={error_msg[:50].replace(' ', '+')}",
+                "Ödeme başarısız"
+            )
     
     except Exception as e:
         logger.error(f"Kuveyt callback error: {str(e)}", exc_info=True)
-        return Response({
-            'success': False,
-            'message': 'Callback işlenirken hata oluştu.',
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return html_redirect(
+            f"{frontend_url}/checkout/fail?error=Sistem+hatasi",
+            "Ödeme işlenirken hata oluştu"
+        )
 
 
 @api_view(['POST'])
@@ -515,31 +701,61 @@ def kuveyt_callback_fail(request):
     import xml.etree.ElementTree as ET
     from urllib.parse import unquote
     
+    # Frontend URL (redirect için)
+    frontend_url = getattr(settings, 'STORE_FRONTEND_URL', None) or getattr(settings, 'FRONTEND_URL', 'https://avrupamutfak.com')
+    
     try:
         authentication_response = request.POST.get('AuthenticationResponse')
+        error_message = 'Kart doğrulama başarısız'
+        merchant_order_id = None
+        
         if authentication_response:
             decoded_xml = unquote(authentication_response)
-            logger.info(f"Kuveyt callback FAIL - Decoded XML: {decoded_xml[:500]}")
+            logger.info(f"Kuveyt callback FAIL - Decoded XML (first 500 chars): {decoded_xml[:500]}")
             
-            root = ET.fromstring(decoded_xml)
-            response_code = root.find('Message/VERes/Status').text if root.find('Message/VERes/Status') is not None else None
-            error_message = root.find('Message/VERes/ErrorMessage').text if root.find('Message/VERes/ErrorMessage') is not None else 'Kart doğrulama başarısız'
-        else:
-            error_message = 'Kart doğrulama başarısız'
-            response_code = None
+            try:
+                root = ET.fromstring(decoded_xml)
+                
+                # MerchantOrderId'yi bul
+                veres = root.find('.//VERes')
+                if veres is not None:
+                    merchant_order_id = veres.findtext('MerchantOrderId')
+                    error_message = veres.findtext('ErrorMessage') or veres.findtext('ResponseMessage') or error_message
+                
+                if not merchant_order_id:
+                    merchant_order_id = root.findtext('MerchantOrderId')
+                if error_message == 'Kart doğrulama başarısız':
+                    error_message = root.findtext('ResponseMessage') or root.findtext('ErrorMessage') or error_message
+                    
+            except ET.ParseError:
+                pass
         
-        logger.warning(f"Kuveyt callback FAIL: ResponseCode={response_code}, Error={error_message}")
+        logger.warning(f"Kuveyt callback FAIL: MerchantOrderId={merchant_order_id}, Error={error_message}")
         
-        return Response({
-            'success': False,
-            'message': error_message,
-            'response_code': response_code,
-        }, status=status.HTTP_400_BAD_REQUEST)
+        # Tenant schema'yı set et ve payment'ı fail yap
+        if merchant_order_id:
+            tenant = force_tenant_schema_from_order_number(merchant_order_id)
+            if tenant:
+                try:
+                    payment = Payment.objects.filter(
+                        transaction_id=merchant_order_id,
+                        tenant=tenant,
+                        is_deleted=False
+                    ).first()
+                    if payment:
+                        PaymentService.fail_payment(payment, error_message)
+                except Exception as e:
+                    logger.error(f"Failed to update payment status: {str(e)}")
+        
+        return html_redirect(
+            f"{frontend_url}/checkout/fail?order={merchant_order_id or ''}&error={error_message[:50].replace(' ', '+')}",
+            "Ödeme başarısız"
+        )
     
     except Exception as e:
         logger.error(f"Kuveyt callback fail error: {str(e)}", exc_info=True)
-        return Response({
-            'success': False,
-            'message': 'Kart doğrulama başarısız',
-        }, status=status.HTTP_400_BAD_REQUEST)
+        return html_redirect(
+            f"{frontend_url}/checkout/fail?error=Sistem+hatasi",
+            "Kart doğrulama başarısız"
+        )
 

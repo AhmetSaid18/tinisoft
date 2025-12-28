@@ -154,9 +154,12 @@ urlpatterns = [
     path('payments/<uuid:payment_id>/', payment_detail, name='payment_detail'),  # GET, PATCH
     path('payments/create/', payment_create_with_provider, name='payment_create_with_provider'),  # POST: Create payment with provider (Kuveyt API)
     path('payments/verify/', payment_verify, name='payment_verify'),  # POST: Verify payment (callback)
+    path('payments/verify', payment_verify, name='payment_verify_no_slash'),  # POST: Verify payment (no trailing slash)
     # Kuveyt 3D Secure callback endpoints
     path('payments/kuveyt/callback/ok/', kuveyt_callback_ok, name='kuveyt_callback_ok'),  # POST: Kuveyt OkUrl callback
+    path('payments/kuveyt/callback/ok', kuveyt_callback_ok, name='kuveyt_callback_ok_no_slash'),  # POST: Kuveyt OkUrl callback (no trailing slash)
     path('payments/kuveyt/callback/fail/', kuveyt_callback_fail, name='kuveyt_callback_fail'),  # POST: Kuveyt FailUrl callback
+    path('payments/kuveyt/callback/fail', kuveyt_callback_fail, name='kuveyt_callback_fail_no_slash'),  # POST: Kuveyt FailUrl callback (no trailing slash)
     
     # Müşteri yönetimi
     path('customers/', customer_list, name='customer_list'),  # GET: List
