@@ -155,135 +155,150 @@ def order_list_create(request):
                     'error': str(e),
                     'error_type': type(e).__name__,
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
-    elif request.method == 'POST':
-        try:
-            # Müşteri siparişi oluşturabilir
-            logger.info(f"[ORDERS] POST /api/orders/ | Request data keys: {list(request.data.keys()) if request.data else 'Empty'}")
-            serializer = CreateOrderSerializer(data=request.data)
-            if serializer.is_valid():
-            data = serializer.validated_data
-            
-            # Sepet kontrolü
-            cart_id = data.get('cart_id')
-            if not cart_id:
-                return Response({
-                    'success': False,
-                    'message': 'Sepet ID gereklidir.',
-                }, status=status.HTTP_400_BAD_REQUEST)
-            
+        
+        elif request.method == 'POST':
             try:
-                cart = Cart.objects.get(
-                    id=cart_id,
-                    tenant=tenant,
-                    is_active=True,
-                )
-            except Cart.DoesNotExist:
-                return Response({
-                    'success': False,
-                    'message': 'Sepet bulunamadı veya aktif değil.',
-                }, status=status.HTTP_404_NOT_FOUND)
-            
-            # Kargo adresi
-            shipping_address = None
-            if data.get('shipping_address_id'):
-                try:
-                    shipping_address = ShippingAddress.objects.get(
-                        id=data['shipping_address_id'],
-                        tenant=tenant,
-                    )
-                except ShippingAddress.DoesNotExist:
-                    pass
-            
-            # Kargo yöntemi
-            shipping_method = None
-            if data.get('shipping_method_id'):
-                try:
-                    shipping_method = ShippingMethod.objects.get(
-                        id=data['shipping_method_id'],
-                        tenant=tenant,
-                        is_active=True,
-                    )
-                except ShippingMethod.DoesNotExist:
-                    pass
-            
-            # Müşteri user'ı
-            customer_user = None
-            if request.user.is_tenant_user and request.user.tenant == tenant:
-                customer_user = request.user
-                # Müşteri profili oluştur/güncelle
-                try:
-                    CustomerService.get_or_create_customer(tenant, customer_user)
-                except:
-                    pass
-            
-            try:
-                order = OrderService.create_order_from_cart(
-                    cart=cart,
-                    customer_email=data['customer_email'],
-                    customer_first_name=data['customer_first_name'],
-                    customer_last_name=data['customer_last_name'],
-                    customer_phone=data.get('customer_phone'),
-                    shipping_address=shipping_address,
-                    shipping_method=shipping_method,
-                    customer_note=data.get('customer_note', ''),
-                    billing_address=data.get('billing_address', {}),
-                    customer_user=customer_user,
-                    request=request,
-                )
+                # Müşteri siparişi oluşturabilir
+                logger.info(f"[ORDERS] POST /api/orders/ | Request data keys: {list(request.data.keys()) if request.data else 'Empty'}")
+                serializer = CreateOrderSerializer(data=request.data)
+                if serializer.is_valid():
+                    data = serializer.validated_data
+                    
+                    # Sepet kontrolü
+                    cart_id = data.get('cart_id')
+                    if not cart_id:
+                        return Response({
+                            'success': False,
+                            'message': 'Sepet ID gereklidir.',
+                        }, status=status.HTTP_400_BAD_REQUEST)
+                    
+                    try:
+                        cart = Cart.objects.get(
+                            id=cart_id,
+                            tenant=tenant,
+                            is_active=True,
+                        )
+                    except Cart.DoesNotExist:
+                        return Response({
+                            'success': False,
+                            'message': 'Sepet bulunamadı veya aktif değil.',
+                        }, status=status.HTTP_404_NOT_FOUND)
+                    
+                    # Kargo adresi
+                    shipping_address = None
+                    if data.get('shipping_address_id'):
+                        try:
+                            shipping_address = ShippingAddress.objects.get(
+                                id=data['shipping_address_id'],
+                                tenant=tenant,
+                            )
+                        except ShippingAddress.DoesNotExist:
+                            pass
+                    
+                    # Kargo yöntemi
+                    shipping_method = None
+                    if data.get('shipping_method_id'):
+                        try:
+                            shipping_method = ShippingMethod.objects.get(
+                                id=data['shipping_method_id'],
+                                tenant=tenant,
+                                is_active=True,
+                            )
+                        except ShippingMethod.DoesNotExist:
+                            pass
+                    
+                    # Müşteri user'ı
+                    customer_user = None
+                    if request.user.is_tenant_user and request.user.tenant == tenant:
+                        customer_user = request.user
+                        # Müşteri profili oluştur/güncelle
+                        try:
+                            CustomerService.get_or_create_customer(tenant, customer_user)
+                        except:
+                            pass
+                    
+                    try:
+                        order = OrderService.create_order_from_cart(
+                            cart=cart,
+                            customer_email=data['customer_email'],
+                            customer_first_name=data['customer_first_name'],
+                            customer_last_name=data['customer_last_name'],
+                            customer_phone=data.get('customer_phone'),
+                            shipping_address=shipping_address,
+                            shipping_method=shipping_method,
+                            customer_note=data.get('customer_note', ''),
+                            billing_address=data.get('billing_address', {}),
+                            customer_user=customer_user,
+                            request=request,
+                        )
+                        
+                        logger.info(
+                            f"[ORDERS] POST /api/orders/ | 201 | "
+                            f"Order created: {order.order_number} | "
+                            f"User: {user_email} | "
+                            f"Tenant: {tenant.name}"
+                        )
+                        return Response({
+                            'success': True,
+                            'message': 'Sipariş oluşturuldu.',
+                            'order': OrderDetailSerializer(order).data,
+                        }, status=status.HTTP_201_CREATED)
+                    except ValueError as e:
+                        logger.warning(
+                            f"[ORDERS] POST /api/orders/ | 400 | "
+                            f"Validation error: {str(e)} | "
+                            f"User: {user_email} | "
+                            f"Tenant: {tenant.name}"
+                        )
+                        return Response({
+                            'success': False,
+                            'message': str(e),
+                            'error': str(e),
+                            'error_type': 'ValidationError',
+                        }, status=status.HTTP_400_BAD_REQUEST)
+                    except Exception as e:
+                        logger.error(
+                            f"[ORDERS] POST /api/orders/ | 500 | "
+                            f"Error: {str(e)} | "
+                            f"User: {user_email} | "
+                            f"Tenant: {tenant.name}",
+                            exc_info=True
+                        )
+                        return Response({
+                            'success': False,
+                            'message': 'Sipariş oluşturulurken bir hata oluştu.',
+                            'error': str(e),
+                            'error_type': type(e).__name__,
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
                 
-                logger.info(
-                    f"[ORDERS] POST /api/orders/ | 201 | "
-                    f"Order created: {order.order_number} | "
-                    f"User: {user_email} | "
-                    f"Tenant: {tenant.name}"
-                )
-                return Response({
-                    'success': True,
-                    'message': 'Sipariş oluşturuldu.',
-                    'order': OrderDetailSerializer(order).data,
-                }, status=status.HTTP_201_CREATED)
-            except ValueError as e:
+                # Serializer validation errors
                 logger.warning(
                     f"[ORDERS] POST /api/orders/ | 400 | "
-                    f"Validation error: {str(e)} | "
+                    f"Serializer validation failed | "
+                    f"Errors: {list(serializer.errors.keys())} | "
                     f"User: {user_email} | "
                     f"Tenant: {tenant.name}"
                 )
                 return Response({
                     'success': False,
-                    'message': str(e),
-                    'error': str(e),
-                    'error_type': 'ValidationError',
+                    'message': 'Sipariş oluşturulamadı.',
+                    'errors': serializer.errors,
                 }, status=status.HTTP_400_BAD_REQUEST)
+            
             except Exception as e:
                 logger.error(
                     f"[ORDERS] POST /api/orders/ | 500 | "
-                    f"Error: {str(e)} | "
+                    f"Unexpected error: {str(e)} | "
                     f"User: {user_email} | "
-                    f"Tenant: {tenant.name}",
+                    f"Tenant: {tenant.name if tenant else 'None'}",
                     exc_info=True
                 )
                 return Response({
                     'success': False,
-                    'message': 'Sipariş oluşturulurken bir hata oluştu.',
+                    'message': 'Sipariş oluşturulurken beklenmeyen bir hata oluştu.',
                     'error': str(e),
                     'error_type': type(e).__name__,
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-            # Serializer validation errors
-            logger.warning(
-                f"[ORDERS] POST /api/orders/ | 400 | "
-                f"Serializer validation failed | "
-                f"Errors: {list(serializer.errors.keys())} | "
-                f"User: {user_email} | "
-                f"Tenant: {tenant.name}"
-            )
-            return Response({
-                'success': False,
-                'message': 'Sipariş oluşturulamadı.',
-                'errors': serializer.errors,
-            }, status=status.HTTP_400_BAD_REQUEST)
         
         except Exception as e:
             logger.error(
