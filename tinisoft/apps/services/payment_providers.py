@@ -242,16 +242,23 @@ class KuwaitPaymentProvider(PaymentProviderBase):
                     'error': 'Kuveyt API bilgileri eksik. CustomerId, MerchantId, UserName ve Password gerekli.',
                 }
             
-            # OkUrl ve FailUrl - trailing slash ŞART (301 redirect önlemek için)
-            base_url = self.config.get('public_api_base_url') or getattr(settings, 'FRONTEND_URL', 'https://api.tinisoft.com.tr')
-            ok_url = self.config.get('return_url') or f'{base_url}/api/payments/kuveyt/callback/ok/'
-            fail_url = self.config.get('cancel_url') or f'{base_url}/api/payments/kuveyt/callback/fail/'
+            # OkUrl ve FailUrl - API base URL kullan (callback endpoint'leri için)
+            # NOT: Frontend URL değil, API URL kullanılmalı çünkü Kuveyt backend'e POST yapacak
+            api_base_url = self.config.get('api_base_url') or getattr(settings, 'API_BASE_URL', 'https://api.tinisoft.com.tr')
+            if not api_base_url.startswith('http'):
+                api_base_url = f'https://{api_base_url}'
+            
+            # Config'de özel URL varsa onu kullan, yoksa default callback URL'lerini kullan
+            ok_url = self.config.get('return_url') or f'{api_base_url}/api/payments/kuveyt/callback/ok/'
+            fail_url = self.config.get('cancel_url') or f'{api_base_url}/api/payments/kuveyt/callback/fail/'
             
             # Trailing slash olduğundan emin ol
             if not ok_url.endswith('/'):
                 ok_url += '/'
             if not fail_url.endswith('/'):
                 fail_url += '/'
+            
+            logger.info(f"Kuveyt PayGate callback URLs: OkUrl={ok_url}, FailUrl={fail_url}")
             
             # Amount formatı (100 katı, noktalama yok)
             formatted_amount = self._format_amount(amount)
@@ -366,13 +373,28 @@ class KuwaitPaymentProvider(PaymentProviderBase):
                         }
                     
                     # HTML'deki form action URL'ini kontrol et ve düzelt (eğer yanlışsa)
-                    # Kuveyt bazen yanlış action URL döndürebilir
+                    # Kuveyt bazen yanlış action URL döndürebilir veya bizim gönderdiğimiz URL'i kullanmayabilir
                     import re
                     # action="..." veya action='...' pattern'ini bul
                     action_pattern = r'action=["\']([^"\']+)["\']'
                     matches = re.findall(action_pattern, payment_html)
                     if matches:
                         logger.info(f"Kuveyt PayGate HTML form action URLs found: {matches}")
+                        
+                        # Eğer action URL yanlışsa (örn: /payment/cancel/ gibi), doğru callback URL ile değiştir
+                        for wrong_url in matches:
+                            # Yanlış URL pattern'lerini tespit et
+                            if '/payment/cancel' in wrong_url or '/payment/return' in wrong_url:
+                                logger.warning(f"Kuveyt PayGate HTML contains wrong action URL: {wrong_url}")
+                                # Doğru URL ile değiştir
+                                if '/cancel' in wrong_url:
+                                    correct_url = fail_url
+                                else:
+                                    correct_url = ok_url
+                                
+                                # HTML'deki action URL'ini düzelt
+                                payment_html = payment_html.replace(wrong_url, correct_url)
+                                logger.info(f"Fixed HTML action URL: {wrong_url} -> {correct_url}")
                     
                     return {
                         'success': True,
