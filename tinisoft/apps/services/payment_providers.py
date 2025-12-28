@@ -511,18 +511,27 @@ class KuwaitPaymentProvider(PaymentProviderBase):
                             try:
                                 encoded_xml = auth_response_match.group(1)
                                 decoded_xml = unquote(encoded_xml)
+                                logger.debug(f"Decoded AuthenticationResponse XML (first 500 chars): {decoded_xml[:500]}")
                                 xml_match = re.search(r'<VPosTransactionResponseContract[^>]*>(.*?)</VPosTransactionResponseContract>', decoded_xml, re.DOTALL)
                                 if xml_match:
                                     xml_content = xml_match.group(0)
+                                    logger.info(f"Found XML in URL-encoded AuthenticationResponse")
+                                else:
+                                    # XML tag'i bulunamadı, belki tüm decoded_xml XML'dir
+                                    if decoded_xml.strip().startswith('<'):
+                                        xml_content = decoded_xml
+                                        logger.info(f"Using entire decoded XML as content")
                             except Exception as e:
                                 logger.warning(f"Could not decode AuthenticationResponse: {str(e)}")
                                 xml_match = None
                     
-                    if xml_match:
+                    if xml_match or xml_content:
                         try:
                             # Eğer xml_content henüz set edilmediyse, xml_match'tan al
-                            if xml_content is None:
+                            if xml_content is None and xml_match:
                                 xml_content = xml_match.group(0)
+                            
+                            if xml_content:
                             
                             root = ET.fromstring(xml_content)
                             
@@ -577,11 +586,49 @@ class KuwaitPaymentProvider(PaymentProviderBase):
                     # HTML'de hata var mı kontrol et (genel) - ama sadece XML parse başarısızsa
                     # XML içinde "error" kelimesi olabilir ama bu normal, ResponseCode'u kontrol etmeliyiz
                     # Eğer XML parse başarısız olduysa ve genel error kontrolü devreye girdiyse
-                    if ('error' in payment_html.lower() or 'hata' in payment_html.lower()) and xml_content is None:
+                    if ('error' in payment_html.lower() or 'hata' in payment_html.lower()):
                         # HTML'in ilk 2000 karakterini log'la
-                        logger.warning(f"Kuveyt PayGate HTML contains 'error'/'hata' keyword but XML could not be parsed. Full HTML (first 2000 chars): {payment_html[:2000]}")
-                        # Bu durumda hata döndürme, çünkü XML parse başarısız olmuş olabilir
-                        # HTML response'u döndürmeye devam et, belki başka bir şekilde işlenebilir
+                        logger.warning(f"Kuveyt PayGate HTML contains 'error'/'hata' keyword. Checking if we can extract error details from URL-encoded XML...")
+                        # URL-encoded XML'den hata mesajını manuel olarak çıkarmayı dene
+                        auth_response_match = re.search(r'name="AuthenticationResponse"\s+value="([^"]+)"', payment_html, re.DOTALL)
+                        if auth_response_match:
+                            try:
+                                encoded_xml = auth_response_match.group(1)
+                                decoded_xml = unquote(encoded_xml)
+                                # ResponseCode ve ResponseMessage'ı regex ile çıkar
+                                response_code_match = re.search(r'<ResponseCode>(.*?)</ResponseCode>', decoded_xml, re.DOTALL)
+                                response_message_match = re.search(r'<ResponseMessage>(.*?)</ResponseMessage>', decoded_xml, re.DOTALL)
+                                if response_code_match and response_message_match:
+                                    response_code = response_code_match.group(1)
+                                    response_message = response_message_match.group(1)
+                                    logger.error(f"Kuveyt PayGate error (extracted from URL-encoded XML): ResponseCode={response_code}, ResponseMessage={response_message}")
+                                    # Türkçe karakterleri decode et
+                                    try:
+                                        response_message = response_message.encode('utf-8').decode('utf-8')
+                                    except:
+                                        pass
+                                    return {
+                                        'success': False,
+                                        'payment_html': None,
+                                        'transaction_id': order.order_number,
+                                        'error': response_message,
+                                        'error_code': response_code,
+                                        'error_details': {
+                                            'response_code': response_code,
+                                            'response_message': response_message,
+                                            'bank_error': True,
+                                        },
+                                    }
+                            except Exception as e:
+                                logger.warning(f"Could not extract error from URL-encoded XML: {str(e)}")
+                        # Eğer hata çıkarılamazsa, genel hata mesajı döndür
+                        logger.error(f"Kuveyt PayGate HTML error detected but could not parse details. Full HTML (first 2000 chars): {payment_html[:2000]}")
+                        return {
+                            'success': False,
+                            'payment_html': None,
+                            'transaction_id': order.order_number,
+                            'error': 'PayGate\'den hata döndü. Detaylar parse edilemedi.',
+                        }
                     
                     # HTML'deki form action URL'ini kontrol et ve düzelt (eğer yanlışsa)
                     # Kuveyt bazen yanlış action URL döndürebilir veya bizim gönderdiğimiz URL'i kullanmayabilir
