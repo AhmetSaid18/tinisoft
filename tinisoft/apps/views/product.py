@@ -353,14 +353,16 @@ def product_list_public(request, tenant_slug=None):
         
         if not category and category_slug:
             try:
-                category = Category.objects.get(
+                # .first() kullan - aynı slug'a sahip birden fazla kategori olabilir
+                category = Category.objects.filter(
                     slug=category_slug,
                     tenant=tenant,
                     is_deleted=False,
                     is_active=True
-                )
-            except Category.DoesNotExist:
-                pass
+                ).first()
+            except Exception:
+                # Herhangi bir hata durumunda None olsun
+                category = None
         
         if category:
             # Alt kategorileri de dahil et (recursive)
