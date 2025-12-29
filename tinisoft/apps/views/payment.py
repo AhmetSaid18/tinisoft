@@ -2,9 +2,10 @@
 Payment views.
 """
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, renderer_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
+from rest_framework.renderers import JSONRenderer
 from django.http import HttpResponse
 from django.db import connection
 from django.conf import settings
@@ -543,8 +544,9 @@ def kuveyt_callback_ok(request):
             callback_url = f"{api_base_url}/api/payments/callback-handler?status=fail&error=AuthenticationResponse+eksik"
             return html_redirect(callback_url, "Ödeme işleniyor...")
         
-        # UrlDecode et
-        decoded_xml = unquote(authentication_response)
+        # UrlDecode et - unquote_plus kullan çünkü + karakterleri boşluğa çevrilmeli
+        # Önce + karakterlerini boşluğa çevir, sonra unquote yap
+        decoded_xml = unquote(authentication_response.replace('+', ' '))
         logger.info(f"Kuveyt callback OK - Decoded XML (first 500 chars): {decoded_xml[:500]}")
         
         # XML parse et
@@ -773,7 +775,8 @@ def kuveyt_callback_fail(request):
         merchant_order_id = None
         
         if authentication_response:
-            decoded_xml = unquote(authentication_response)
+            # UrlDecode et - + karakterlerini boşluğa çevir
+            decoded_xml = unquote(authentication_response.replace('+', ' '))
             logger.info(f"Kuveyt callback FAIL - Decoded XML (first 500 chars): {decoded_xml[:500]}")
             
             try:
@@ -839,6 +842,7 @@ def kuveyt_callback_fail(request):
 
 @api_view(['GET'])
 @permission_classes([AllowAny])  # Frontend'den erişilebilir olmalı
+@renderer_classes([JSONRenderer])  # JSON renderer zorla (template hatası önlemek için)
 def payment_callback_handler(request):
     """
     Payment callback handler - Frontend bu endpoint'ten payment durumunu alır.
