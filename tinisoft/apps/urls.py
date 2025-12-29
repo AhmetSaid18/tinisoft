@@ -38,6 +38,7 @@ from apps.views.bulk import (
 from apps.views.loyalty import loyalty_program, my_loyalty_points, loyalty_transactions
 from apps.views.review import review_list_create, review_detail, review_helpful
 from apps.views.wishlist import wishlist_list_create, wishlist_detail, wishlist_item_add_remove, wishlist_clear
+from apps.views.compare import compare_list, compare_add_product, compare_remove_product, compare_clear, compare_products_detail
 from apps.views.discount import (
     coupon_list_create, coupon_detail, coupon_validate, coupon_list_public,
     promotion_list_create, promotion_detail
@@ -202,6 +203,13 @@ urlpatterns = [
     path('wishlists/<uuid:wishlist_id>/', wishlist_detail, name='wishlist_detail'),  # GET, PATCH, DELETE
     path('wishlists/<uuid:wishlist_id>/items/', wishlist_item_add_remove, name='wishlist_item_add_remove'),  # POST: Add, DELETE: Remove
     path('wishlists/<uuid:wishlist_id>/clear/', wishlist_clear, name='wishlist_clear'),  # DELETE: Clear all items
+    
+    # Ürün Karşılaştırma (Compare)
+    path('compare/', compare_list, name='compare_list'),  # GET: Karşılaştırma listesini getir
+    path('compare/add/', compare_add_product, name='compare_add_product'),  # POST: Ürün ekle
+    path('compare/remove/<uuid:product_id>/', compare_remove_product, name='compare_remove_product'),  # DELETE: Ürün çıkar
+    path('compare/clear/', compare_clear, name='compare_clear'),  # DELETE: Listeyi temizle
+    path('compare/products/', compare_products_detail, name='compare_products_detail'),  # GET: Ürün detaylarını getir
     
     # İndirim ve Kuponlar
     path('coupons/', coupon_list_create, name='coupon_list_create'),  # GET: List, POST: Create

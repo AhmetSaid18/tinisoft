@@ -13,6 +13,7 @@ from .inventory import InventoryMovement
 from .discount import Coupon, Promotion
 from .review import ProductReview, ReviewHelpful
 from .wishlist import Wishlist, WishlistItem
+from .compare import ProductCompare, CompareItem
 from .attribute import ProductAttribute, ProductAttributeValue, ProductAttributeMapping
 from .abandoned_cart import AbandonedCart
 from .inventory_alert import InventoryAlert
@@ -50,6 +51,8 @@ __all__ = [
     'ReviewHelpful',
     'Wishlist',
     'WishlistItem',
+    'ProductCompare',
+    'CompareItem',
     'ProductAttribute',
     'ProductAttributeValue',
     'ProductAttributeMapping',
