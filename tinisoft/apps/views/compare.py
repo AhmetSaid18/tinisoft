@@ -30,11 +30,20 @@ def get_or_create_compare_list(request, tenant):
         )
     else:
         # Giriş yapmamış kullanıcı - session_id kullan
-        session_id = request.session.session_key
-        if not session_id:
-            # Session yoksa oluştur
-            request.session.create()
+        # Session middleware aktif değilse, unique bir ID oluştur
+        if hasattr(request, 'session') and request.session:
             session_id = request.session.session_key
+            if not session_id:
+                # Session yoksa oluştur
+                request.session.create()
+                session_id = request.session.session_key
+        else:
+            # Session middleware yoksa, request'ten unique ID oluştur
+            # IP + User-Agent kombinasyonu kullan
+            import hashlib
+            ip = request.META.get('REMOTE_ADDR', '')
+            user_agent = request.META.get('HTTP_USER_AGENT', '')
+            session_id = hashlib.md5(f"{ip}{user_agent}".encode()).hexdigest()
         
         compare_list, created = ProductCompare.objects.get_or_create(
             tenant=tenant,

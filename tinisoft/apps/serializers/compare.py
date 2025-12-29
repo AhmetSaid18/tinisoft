@@ -24,7 +24,7 @@ class CompareItemSerializer(serializers.ModelSerializer):
 
 class ProductCompareSerializer(serializers.ModelSerializer):
     """Product compare serializer."""
-    items = CompareItemSerializer(many=True, read_only=True)
+    items = serializers.SerializerMethodField()
     items_count = serializers.SerializerMethodField()
     
     class Meta:
@@ -34,6 +34,11 @@ class ProductCompareSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def get_items(self, obj):
+        """Aktif item'ları getir."""
+        items = obj.items.filter(is_deleted=False).order_by('position', 'created_at')
+        return CompareItemSerializer(items, many=True, context=self.context).data
     
     def get_items_count(self, obj):
         """Aktif item sayısı."""
