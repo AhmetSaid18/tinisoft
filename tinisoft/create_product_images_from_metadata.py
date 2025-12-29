@@ -113,17 +113,28 @@ def create_images_from_metadata_for_tenant(tenant_slug=None, tenant_id=None, dry
         
         stats['products_with_metadata_images'] += 1
         
-        logger.info(f"\n[{idx}/{total_products}] Ürün: {product.name} (slug: {product.slug})")
-        logger.info(f"  Metadata image_paths: {len(image_paths)} adet")
+        # İlk 5 ürün için detaylı log, sonra sadece özet
+        detailed_log = (idx <= 5)
+        
+        if detailed_log:
+            logger.info(f"\n[{idx}/{total_products}] Ürün: {product.name} (slug: {product.slug})")
+            logger.info(f"  Metadata image_paths: {len(image_paths)} adet")
+            for i, path in enumerate(image_paths[:5], 1):  # İlk 5'ini göster
+                logger.info(f"    [{i}] {path}")
         
         # Mevcut ProductImage kayıtlarını kontrol et (URL'den dosya adına göre)
         existing_images = product.images.filter(is_deleted=False)
         existing_filenames = set()
+        existing_urls = []
         for img in existing_images:
             filename = os.path.basename(img.image_url)
             existing_filenames.add(filename.lower())  # Case-insensitive
+            existing_urls.append(img.image_url)
         
-        logger.info(f"  Mevcut ProductImage kayıtları: {existing_images.count()} adet")
+        if detailed_log:
+            logger.info(f"  Mevcut ProductImage kayıtları: {existing_images.count()} adet")
+            for i, url in enumerate(existing_urls[:3], 1):  # İlk 3'ünü göster
+                logger.info(f"    [{i}] {url}")
         
         # Her image_path için ProductImage oluştur
         for img_idx, image_path in enumerate(image_paths):
@@ -132,19 +143,22 @@ def create_images_from_metadata_for_tenant(tenant_slug=None, tenant_id=None, dry
             
             # Bu resim zaten ProductImage'da var mı?
             if filename.lower() in existing_filenames:
-                logger.info(f"    [{img_idx+1}/{len(image_paths)}] ✓ Zaten var: {filename}")
+                if detailed_log:
+                    logger.info(f"    [{img_idx+1}/{len(image_paths)}] ✓ Zaten var: {filename}")
                 stats['images_already_exist'] += 1
                 continue
             
             # R2 URL'i oluştur
             r2_url = build_r2_url(tenant.slug, image_path)
             
-            logger.info(f"    [{img_idx+1}/{len(image_paths)}] {filename}")
-            logger.info(f"      Metadata path: {image_path}")
-            logger.info(f"      R2 URL: {r2_url}")
+            if detailed_log:
+                logger.info(f"    [{img_idx+1}/{len(image_paths)}] {filename}")
+                logger.info(f"      Metadata path: {image_path}")
+                logger.info(f"      R2 URL: {r2_url}")
             
             if dry_run:
-                logger.info(f"      [DRY RUN] ProductImage oluşturulacak")
+                if detailed_log:
+                    logger.info(f"      [DRY RUN] ProductImage oluşturulacak")
                 stats['images_created'] += 1
                 continue
             
@@ -164,7 +178,8 @@ def create_images_from_metadata_for_tenant(tenant_slug=None, tenant_id=None, dry
                     is_primary=is_primary
                 )
                 
-                logger.info(f"      ✓ ProductImage oluşturuldu (ID: {product_image.id}, position: {position}, primary: {is_primary})")
+                if detailed_log:
+                    logger.info(f"      ✓ ProductImage oluşturuldu (ID: {product_image.id}, position: {position}, primary: {is_primary})")
                 stats['images_created'] += 1
                 
                 # existing_filenames'e ekle (aynı ürün içinde tekrar kontrol etmemek için)
@@ -172,7 +187,14 @@ def create_images_from_metadata_for_tenant(tenant_slug=None, tenant_id=None, dry
                 
             except Exception as e:
                 logger.error(f"      ✗ Hata: {str(e)}")
+                if detailed_log:
+                    import traceback
+                    logger.error(traceback.format_exc())
                 stats['errors'] += 1
+        
+        # Her 100 üründe bir özet göster
+        if idx % 100 == 0:
+            logger.info(f"\n[İlerleme] {idx}/{total_products} ürün işlendi | Oluşturulan: {stats['images_created']} | Zaten var: {stats['images_already_exist']}")
     
     logger.info("\n" + "="*60)
     logger.info("ÖZET:")
