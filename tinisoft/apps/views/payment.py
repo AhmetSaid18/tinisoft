@@ -2,10 +2,9 @@
 Payment views.
 """
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes, renderer_classes
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
-from rest_framework.renderers import JSONRenderer
 from django.http import HttpResponse
 from django.db import connection
 from django.conf import settings
@@ -21,6 +20,71 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def extract_tenant_slug_from_order_number(order_number: str):
+    """
+    Order number'dan tenant slug'ını çıkar.
+    Order number formatı: ORD-{TENANT_SLUG}-{timestamp}-{random}
+    
+    Returns:
+        str: Tenant slug veya None
+    """
+    try:
+        parts = (order_number or "").split("-")
+        if len(parts) < 3 or parts[0].upper() != "ORD":
+            return None
+        return parts[1].lower()
+    except Exception:
+        return None
+
+
+def get_tenant_frontend_url(tenant=None, tenant_slug=None):
+    """
+    Tenant'ın frontend URL'ini al.
+    
+    Args:
+        tenant: Tenant instance (opsiyonel)
+        tenant_slug: Tenant slug (opsiyonel, tenant yoksa kullanılır)
+    
+    Returns:
+        str: Frontend URL (örn: https://avrupamutfak.tinisoft.com.tr)
+    """
+    # Tenant varsa primary domain'ini al
+    if tenant:
+        try:
+            # Domain modelinden primary domain'i al
+            from apps.models import Domain
+            primary_domain = Domain.objects.filter(
+                tenant=tenant,
+                is_primary=True,
+                is_deleted=False,
+                verification_status='verified'
+            ).first()
+            
+            if primary_domain:
+                return f"https://{primary_domain.domain_name}"
+        except Exception as e:
+            logger.warning(f"Error getting primary domain for tenant {tenant.id}: {str(e)}")
+        
+        # Fallback: Tenant slug'dan URL oluştur
+        if tenant.slug:
+            return f"https://{tenant.slug}.tinisoft.com.tr"
+        elif tenant.subdomain:
+            return f"https://{tenant.subdomain}.tinisoft.com.tr"
+    
+    # Tenant yoksa slug'dan URL oluştur
+    if tenant_slug:
+        return f"https://{tenant_slug}.tinisoft.com.tr"
+    
+    # Son fallback: API base URL'den domain çıkar
+    api_base_url = getattr(settings, 'API_BASE_URL', 'https://api.tinisoft.com.tr')
+    # api.tinisoft.com.tr -> tinisoft.com.tr
+    if 'api.' in api_base_url:
+        base_domain = api_base_url.replace('api.', '')
+        return base_domain
+    
+    return 'https://tinisoft.com.tr'  # En son fallback
+
+
 def force_tenant_schema_from_order_number(order_number: str):
     """
     MerchantOrderId'den tenant'ı bul ve schema'yı set et.
@@ -29,23 +93,18 @@ def force_tenant_schema_from_order_number(order_number: str):
     Bank callback'lerinde tenant header gelmez, bu nedenle order number'dan
     tenant bilgisini çıkarıp manuel olarak schema set etmemiz gerekir.
     """
-    try:
-        parts = (order_number or "").split("-")
-        if len(parts) < 3 or parts[0].upper() != "ORD":
-            logger.warning(f"Invalid order number format: {order_number}")
-            return None
-        slug = parts[1].lower()
-    except Exception as e:
-        logger.error(f"Error parsing order number: {str(e)}")
+    tenant_slug = extract_tenant_slug_from_order_number(order_number)
+    if not tenant_slug:
+        logger.warning(f"Invalid order number format: {order_number}")
         return None
     
     # Slug ile tenant bul
-    tenant = Tenant.objects.filter(slug__iexact=slug, is_deleted=False).first()
+    tenant = Tenant.objects.filter(slug__iexact=tenant_slug, is_deleted=False).first()
     if not tenant:
         # Subdomain ile de dene
-        tenant = Tenant.objects.filter(subdomain__iexact=slug, is_deleted=False).first()
+        tenant = Tenant.objects.filter(subdomain__iexact=tenant_slug, is_deleted=False).first()
     if not tenant:
-        logger.warning(f"Tenant not found for slug: {slug}")
+        logger.warning(f"Tenant not found for slug: {tenant_slug}")
         return None
     
     # Schema'yı set et
@@ -842,17 +901,20 @@ def kuveyt_callback_fail(request):
 
 @api_view(['GET'])
 @permission_classes([AllowAny])  # Frontend'den erişilebilir olmalı
-@renderer_classes([JSONRenderer])  # JSON renderer zorla (template hatası önlemek için)
 def payment_callback_handler(request):
     """
     Payment callback handler - Frontend bu endpoint'ten payment durumunu alır.
     
     Backend callback'lerden sonra bu endpoint'e redirect yapar.
-    Frontend bu endpoint'ten payment durumunu alıp kendi redirect'ini yapar.
+    HTML döndürür ve JavaScript ile otomatik redirect yapar.
+    JSON istenirse Accept: application/json header'ı ile JSON döndürür.
     
     GET: /api/payments/callback-handler?order={order_number}&status={success|fail}&error={error_message}
     
-    Response:
+    Response (HTML - default):
+    HTML sayfa + JavaScript redirect
+    
+    Response (JSON - Accept: application/json):
     {
         "success": bool,
         "order_number": str,
@@ -866,23 +928,43 @@ def payment_callback_handler(request):
     error_message = request.query_params.get('error', '')
     
     if not order_number:
-        return Response({
+        error_data = {
             'success': False,
             'message': 'Order number gereklidir.',
             'error': 'Order number bulunamadı'
-        }, status=status.HTTP_400_BAD_REQUEST)
+        }
+        # JSON isteniyorsa JSON döndür
+        if request.headers.get('Accept', '').startswith('application/json'):
+            return Response(error_data, status=status.HTTP_400_BAD_REQUEST)
+        # HTML döndür - generic fallback URL
+        fallback_url = get_tenant_frontend_url()
+        return html_redirect(
+            f'{fallback_url}/checkout/fail?error=Order+number+bulunamadi',
+            "Ödeme işleniyor..."
+        )
     
     # Tenant schema'yı order number'dan set et
     tenant = force_tenant_schema_from_order_number(order_number)
+    tenant_slug = extract_tenant_slug_from_order_number(order_number)
+    
     if not tenant:
         logger.warning(f"Payment callback handler: Tenant bulunamadı for order {order_number}")
-        return Response({
+        error_data = {
             'success': False,
             'order_number': order_number,
             'payment_status': 'failed',
             'error': 'Tenant bulunamadı',
             'redirect_url': None
-        }, status=status.HTTP_200_OK)  # 200 döndür ki frontend redirect yapabilsin
+        }
+        # JSON isteniyorsa JSON döndür
+        if request.headers.get('Accept', '').startswith('application/json'):
+            return Response(error_data, status=status.HTTP_200_OK)
+        # HTML döndür - tenant slug'dan URL oluştur
+        fallback_url = get_tenant_frontend_url(tenant_slug=tenant_slug)
+        return html_redirect(
+            f'{fallback_url}/checkout/fail?order={order_number}&error=Tenant+bulunamadi',
+            "Ödeme işleniyor..."
+        )
     
     # Payment'ı bul
     try:
@@ -894,20 +976,29 @@ def payment_callback_handler(request):
         
         if not payment:
             logger.warning(f"Payment callback handler: Payment bulunamadı for order {order_number}")
-            return Response({
+            error_data = {
                 'success': False,
                 'order_number': order_number,
                 'payment_status': 'failed',
                 'error': 'Payment bulunamadı',
                 'redirect_url': None
-            }, status=status.HTTP_200_OK)
+            }
+            # JSON isteniyorsa JSON döndür
+            if request.headers.get('Accept', '').startswith('application/json'):
+                return Response(error_data, status=status.HTTP_200_OK)
+            # HTML döndür - tenant'tan URL al
+            frontend_url = get_tenant_frontend_url(tenant=tenant, tenant_slug=tenant_slug)
+            return html_redirect(
+                f'{frontend_url}/checkout/fail?order={order_number}&error=Payment+bulunamadi',
+                "Ödeme işleniyor..."
+            )
         
         # Payment durumunu al
         payment_status = payment.status
         is_success = payment_status == Payment.PaymentStatus.COMPLETED
         
         # Frontend URL'ini tenant'tan al
-        frontend_url = tenant.get_primary_frontend_url()
+        frontend_url = get_tenant_frontend_url(tenant=tenant, tenant_slug=tenant_slug)
         
         # Redirect URL'i oluştur (frontend kendi redirect'ini yapacak)
         if is_success:
@@ -922,7 +1013,8 @@ def payment_callback_handler(request):
             f"Redirect URL: {redirect_url}"
         )
         
-        return Response({
+        # Response data
+        response_data = {
             'success': is_success,
             'order_number': order_number,
             'payment_status': payment_status,
@@ -930,18 +1022,137 @@ def payment_callback_handler(request):
             'payment_number': payment.payment_number,
             'amount': str(payment.amount),
             'currency': payment.currency,
-            'redirect_url': redirect_url,  # Frontend bu URL'e redirect yapabilir
+            'redirect_url': redirect_url,
             'error': payment.error_message if not is_success else None,
             'error_code': payment.error_code if not is_success else None,
-        }, status=status.HTTP_200_OK)
+        }
+        
+        # JSON isteniyorsa JSON döndür
+        if request.headers.get('Accept', '').startswith('application/json'):
+            return Response(response_data, status=status.HTTP_200_OK)
+        
+        # HTML döndür (default) - JavaScript ile redirect yap
+        import json as json_lib
+        json_data = json_lib.dumps(response_data, ensure_ascii=False)
+        
+        return HttpResponse(
+            f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8"/>
+                <meta http-equiv="refresh" content="0;url={redirect_url}" />
+                <title>Ödeme İşleniyor...</title>
+                <style>
+                    body {{
+                        font-family: Arial, sans-serif;
+                        text-align: center;
+                        padding-top: 50px;
+                        background: #f5f5f5;
+                    }}
+                    .container {{
+                        max-width: 500px;
+                        margin: 0 auto;
+                        background: white;
+                        padding: 30px;
+                        border-radius: 8px;
+                        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                    }}
+                    .spinner {{
+                        border: 4px solid #f3f3f3;
+                        border-top: 4px solid #3498db;
+                        border-radius: 50%;
+                        width: 40px;
+                        height: 40px;
+                        animation: spin 1s linear infinite;
+                        margin: 20px auto;
+                    }}
+                    @keyframes spin {{
+                        0% {{ transform: rotate(0deg); }}
+                        100% {{ transform: rotate(360deg); }}
+                    }}
+                    .message {{
+                        color: {'#27ae60' if is_success else '#e74c3c'};
+                        font-size: 18px;
+                        margin: 20px 0;
+                    }}
+                    .data {{
+                        display: none;
+                        font-size: 12px;
+                        color: #666;
+                        margin-top: 20px;
+                        text-align: left;
+                    }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="spinner"></div>
+                    <div class="message">
+                        {'Ödeme başarılı! Yönlendiriliyorsunuz...' if is_success else 'Ödeme işleniyor...'}
+                    </div>
+                    <p>Eğer otomatik yönlendirme çalışmazsa, <a href="{redirect_url}">buraya tıklayın</a>.</p>
+                    <div class="data" id="payment-data">{json_data}</div>
+                </div>
+                <script>
+                    // Otomatik redirect
+                    window.location.href = "{redirect_url}";
+                    
+                    // Fallback: 3 saniye sonra redirect
+                    setTimeout(function() {{
+                        window.location.href = "{redirect_url}";
+                    }}, 3000);
+                </script>
+            </body>
+            </html>
+            """,
+            content_type="text/html"
+        )
         
     except Exception as e:
         logger.error(f"Payment callback handler error: {str(e)}", exc_info=True)
-        return Response({
+        # Exception handler'da tenant ve tenant_slug'ı tekrar al
+        tenant_slug_from_order = extract_tenant_slug_from_order_number(order_number) if order_number else None
+        
+        error_response_data = {
             'success': False,
             'order_number': order_number,
             'payment_status': 'failed',
             'error': f'Sistem hatası: {str(e)}',
             'redirect_url': None
-        }, status=status.HTTP_200_OK)  # 200 döndür ki frontend redirect yapabilsin
+        }
+        
+        # JSON isteniyorsa JSON döndür
+        if request.headers.get('Accept', '').startswith('application/json'):
+            return Response(error_response_data, status=status.HTTP_200_OK)
+        
+        # HTML döndür - tenant slug'dan URL oluştur
+        import json as json_lib
+        json_data = json_lib.dumps(error_response_data, ensure_ascii=False)
+        frontend_url = get_tenant_frontend_url(tenant=None, tenant_slug=tenant_slug_from_order)
+        redirect_url = f"{frontend_url}/checkout/fail?order={order_number}&error=Sistem+hatasi"
+        
+        return HttpResponse(
+            f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8"/>
+                <meta http-equiv="refresh" content="0;url={redirect_url}" />
+                <title>Ödeme Hatası</title>
+                <style>
+                    body {{ font-family: Arial, sans-serif; text-align: center; padding-top: 50px; }}
+                    .spinner {{ border: 4px solid #f3f3f3; border-top: 4px solid #e74c3c; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }}
+                    @keyframes spin {{ 0% {{ transform: rotate(0deg); }} 100% {{ transform: rotate(360deg); }} }}
+                </style>
+            </head>
+            <body>
+                <div class="spinner"></div>
+                <p>Ödeme işlenirken bir hata oluştu. Yönlendiriliyorsunuz...</p>
+                <script>window.location.href = "{redirect_url}";</script>
+            </body>
+            </html>
+            """,
+            content_type="text/html"
+        )
 
