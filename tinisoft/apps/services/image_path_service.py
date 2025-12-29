@@ -168,8 +168,29 @@ class ImagePathService:
             if not image_paths:
                 continue
             
+            # Mevcut resimleri kontrol et (dosya adına göre)
+            existing_images = product.images.filter(is_deleted=False)
+            existing_filenames = set()
+            for img in existing_images:
+                # URL'den dosya adını çıkar
+                img_filename = os.path.basename(img.image_url)
+                existing_filenames.add(img_filename.lower())  # Case-insensitive karşılaştırma
+            
             # Her resim yolunu işle
             for idx, image_path in enumerate(image_paths[:MAX_IMAGES_PER_PRODUCT]):
+                # Dosya adını çıkar
+                image_filename = os.path.basename(image_path)
+                
+                # Bu resim zaten yüklenmiş mi kontrol et
+                if image_filename.lower() in existing_filenames:
+                    results['results'].append({
+                        'product_slug': product.slug,
+                        'image_path': image_path,
+                        'status': 'already_exists',
+                        'message': 'Resim zaten yüklenmiş'
+                    })
+                    continue
+                
                 # Local'de bul
                 local_path = ImagePathService.find_local_image(image_path, base_directories)
                 

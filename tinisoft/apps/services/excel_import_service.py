@@ -201,7 +201,7 @@ class ExcelImportService:
         'imageurl9': 'image_url_9',
         'imageurl10': 'image_url_10',
         
-        # ImageName kolonları (local path)
+        # ImageName kolonları (local path) - farklı formatlar için alternatifler
         'imagename1': 'image_name_1',
         'imagename2': 'image_name_2',
         'imagename3': 'image_name_3',
@@ -212,6 +212,27 @@ class ExcelImportService:
         'imagename8': 'image_name_8',
         'imagename9': 'image_name_9',
         'imagename10': 'image_name_10',
+        # Alternatif formatlar (boşluklu, tireli, vb.)
+        'imagename 1': 'image_name_1',
+        'imagename 2': 'image_name_2',
+        'imagename 3': 'image_name_3',
+        'imagename 4': 'image_name_4',
+        'imagename 5': 'image_name_5',
+        'imagename 6': 'image_name_6',
+        'imagename 7': 'image_name_7',
+        'imagename 8': 'image_name_8',
+        'imagename 9': 'image_name_9',
+        'imagename 10': 'image_name_10',
+        'image name 1': 'image_name_1',
+        'image name 2': 'image_name_2',
+        'image name 3': 'image_name_3',
+        'image name 4': 'image_name_4',
+        'image name 5': 'image_name_5',
+        'image name 6': 'image_name_6',
+        'image name 7': 'image_name_7',
+        'image name 8': 'image_name_8',
+        'image name 9': 'image_name_9',
+        'image name 10': 'image_name_10',
         'gorsel': 'image_url',
         'görsel': 'image_url',
         'image_url': 'image_url',
@@ -441,8 +462,9 @@ class ExcelImportService:
             # Kolon isimlerini logla (debug için)
             logger.info(f"Excel columns found: {list(df.columns)}")
             
-            # Kolon isimlerini normalize et (küçük harf, boşlukları temizle)
-            df.columns = df.columns.str.lower().str.strip()
+            # Kolon isimlerini normalize et (küçük harf, boşlukları ve özel karakterleri temizle)
+            # Örnek: "Image Name 1" -> "imagename1", "Image-Name-1" -> "imagename1"
+            df.columns = df.columns.str.lower().str.strip().str.replace(' ', '', regex=False).str.replace('-', '', regex=False).str.replace('_', '', regex=False)
             
             # Normalize edilmiş kolon isimlerini logla
             logger.info(f"Normalized Excel columns: {list(df.columns)}")

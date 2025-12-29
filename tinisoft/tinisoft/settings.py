@@ -228,6 +228,17 @@ REST_FRAMEWORK = {
 # JWT Settings
 JWT_EXPIRATION_HOURS = env.int('JWT_EXPIRATION_HOURS', default=24)  # Token geçerlilik süresi (saat)
 
+# API Base URL (Backend domain - Kuveyt callback için)
+# Kuveyt'e gönderilecek OkUrl ve FailUrl'ler bu domain'i kullanır
+# Örnek: https://api.tinisoft.com.tr
+API_BASE_URL = env('API_BASE_URL', default='https://api.tinisoft.com.tr')
+
+# Frontend URL (Store frontend domain - callback sonrası redirect için)
+# Kuveyt callback işlendikten sonra kullanıcı bu domain'e yönlendirilir
+# Örnek: https://avrupamutfak.com veya tenant-specific domain
+FRONTEND_URL = env('FRONTEND_URL', default='https://avrupamutfak.com')
+STORE_FRONTEND_URL = env('STORE_FRONTEND_URL', default=None)  # Tenant-specific frontend URL (opsiyonel)
+
 # CORS
 # Production domain'leri de ekle
 CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[

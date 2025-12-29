@@ -152,6 +152,24 @@ class Tenant(BaseModel):
             return f"https://{self.custom_domain}"
         return f"https://{self.subdomain}.domains.tinisoft.com.tr"
     
+    def get_primary_frontend_url(self):
+        """
+        Primary domain'den frontend URL'ini döndür.
+        Eğer primary domain yoksa, get_frontend_url() kullanır.
+        """
+        # Primary domain'i bul
+        primary_domain = self.domains.filter(
+            is_primary=True,
+            verification_status='verified',
+            is_deleted=False
+        ).first()
+        
+        if primary_domain:
+            return f"https://{primary_domain.domain_name}"
+        
+        # Primary domain yoksa fallback
+        return self.get_frontend_url()
+    
     # Frontend Template
     template = models.CharField(
         max_length=100,

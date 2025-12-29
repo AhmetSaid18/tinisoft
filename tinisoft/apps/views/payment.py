@@ -531,15 +531,17 @@ def kuveyt_callback_ok(request):
     import xml.etree.ElementTree as ET
     from urllib.parse import unquote
     
-    # Frontend URL (redirect için)
-    frontend_url = getattr(settings, 'STORE_FRONTEND_URL', None) or getattr(settings, 'FRONTEND_URL', 'https://avrupamutfak.com')
-    
     try:
         # AuthenticationResponse alanını al (UrlEncoded gelir)
         authentication_response = request.POST.get('AuthenticationResponse')
         if not authentication_response:
             logger.error("Kuveyt callback: AuthenticationResponse eksik")
-            return html_redirect(f"{frontend_url}/checkout/fail?error=AuthenticationResponse+eksik", "Ödeme başarısız")
+            # Backend'in kendi endpoint'ine redirect yap
+            api_base_url = getattr(settings, 'API_BASE_URL', 'https://api.tinisoft.com.tr')
+            if not api_base_url.startswith('http'):
+                api_base_url = f'https://{api_base_url}'
+            callback_url = f"{api_base_url}/api/payments/callback-handler?status=fail&error=AuthenticationResponse+eksik"
+            return html_redirect(callback_url, "Ödeme işleniyor...")
         
         # UrlDecode et
         decoded_xml = unquote(authentication_response)
@@ -550,7 +552,12 @@ def kuveyt_callback_ok(request):
             root = ET.fromstring(decoded_xml)
         except ET.ParseError as e:
             logger.error(f"Kuveyt callback XML parse error: {str(e)}")
-            return html_redirect(f"{frontend_url}/checkout/fail?error=XML+parse+hatasi", "Ödeme başarısız")
+            # Backend'in kendi endpoint'ine redirect yap
+            api_base_url = getattr(settings, 'API_BASE_URL', 'https://api.tinisoft.com.tr')
+            if not api_base_url.startswith('http'):
+                api_base_url = f'https://{api_base_url}'
+            callback_url = f"{api_base_url}/api/payments/callback-handler?status=fail&error=XML+parse+hatasi"
+            return html_redirect(callback_url, "Ödeme işleniyor...")
         
         # Farklı XML yapılarını dene
         # TDV2.0.0'da AuthenticationResponse XML formatı:
@@ -598,13 +605,27 @@ def kuveyt_callback_ok(request):
         if not merchant_order_id:
             logger.error("Kuveyt callback: MerchantOrderId bulunamadı")
             logger.error(f"XML content (first 1000 chars): {decoded_xml[:1000]}")
-            return html_redirect(f"{frontend_url}/checkout/fail?error=MerchantOrderId+bulunamadi", "Ödeme başarısız")
+            # Backend'in kendi endpoint'ine redirect yap
+            api_base_url = getattr(settings, 'API_BASE_URL', 'https://api.tinisoft.com.tr')
+            if not api_base_url.startswith('http'):
+                api_base_url = f'https://{api_base_url}'
+            callback_url = f"{api_base_url}/api/payments/callback-handler?status=fail&error=MerchantOrderId+bulunamadi"
+            return html_redirect(callback_url, "Ödeme işleniyor...")
         
         # Tenant schema'yı MerchantOrderId'den set et
         tenant = force_tenant_schema_from_order_number(merchant_order_id)
         if not tenant:
             logger.error(f"Kuveyt callback: Tenant bulunamadı for order {merchant_order_id}")
-            return html_redirect(f"{frontend_url}/checkout/fail?error=Tenant+bulunamadi", "Ödeme başarısız")
+            # Backend'in kendi endpoint'ine redirect yap
+            api_base_url = getattr(settings, 'API_BASE_URL', 'https://api.tinisoft.com.tr')
+            if not api_base_url.startswith('http'):
+                api_base_url = f'https://{api_base_url}'
+            callback_url = f"{api_base_url}/api/payments/callback-handler?order={merchant_order_id}&status=fail&error=Tenant+bulunamadi"
+            return html_redirect(callback_url, "Ödeme işleniyor...")
+        
+        # Tenant'ın primary frontend URL'ini al (her tenant kendi domain'ine sahip)
+        frontend_url = tenant.get_primary_frontend_url()
+        logger.info(f"Kuveyt callback: Using tenant frontend URL: {frontend_url} for tenant {tenant.name}")
         
         # Kart doğrulama başarılı mı? (ResponseCode=00 veya IsEnrolled=true ve MD var)
         # TDV2.0.0'da ResponseCode kontrolü önemli
@@ -627,10 +648,12 @@ def kuveyt_callback_ok(request):
             except Exception as e:
                 logger.error(f"Failed to update payment status: {str(e)}")
             
-            return html_redirect(
-                f"{frontend_url}/checkout/fail?order={merchant_order_id}&error=Kart+dogrulama+basarisiz",
-                "Kart doğrulama başarısız"
-            )
+            # Backend'in kendi endpoint'ine redirect yap
+            api_base_url = getattr(settings, 'API_BASE_URL', 'https://api.tinisoft.com.tr')
+            if not api_base_url.startswith('http'):
+                api_base_url = f'https://{api_base_url}'
+            callback_url = f"{api_base_url}/api/payments/callback-handler?order={merchant_order_id}&status=fail&error=Kart+dogrulama+basarisiz"
+            return html_redirect(callback_url, "Ödeme işleniyor...")
         
         # Payment kaydını bul
         payment = Payment.objects.filter(
@@ -641,13 +664,21 @@ def kuveyt_callback_ok(request):
         
         if not payment:
             logger.error(f"Kuveyt callback: Payment bulunamadı for {merchant_order_id}")
-            return html_redirect(f"{frontend_url}/checkout/fail?error=Payment+bulunamadi", "Ödeme başarısız")
+            api_base_url = getattr(settings, 'API_BASE_URL', 'https://api.tinisoft.com.tr')
+            if not api_base_url.startswith('http'):
+                api_base_url = f'https://{api_base_url}'
+            callback_url = f"{api_base_url}/api/payments/callback-handler?order={merchant_order_id}&status=fail&error=Payment+bulunamadi"
+            return html_redirect(callback_url, "Ödeme işleniyor...")
         
         # Order'ı al
         order = payment.order
         if not order:
             logger.error(f"Kuveyt callback: Order bulunamadı for payment {payment.id}")
-            return html_redirect(f"{frontend_url}/checkout/fail?error=Order+bulunamadi", "Ödeme başarısız")
+            api_base_url = getattr(settings, 'API_BASE_URL', 'https://api.tinisoft.com.tr')
+            if not api_base_url.startswith('http'):
+                api_base_url = f'https://{api_base_url}'
+            callback_url = f"{api_base_url}/api/payments/callback-handler?order={merchant_order_id}&status=fail&error=Order+bulunamadi"
+            return html_redirect(callback_url, "Ödeme işleniyor...")
         
         # Provider config'i al
         try:
@@ -661,7 +692,11 @@ def kuveyt_callback_ok(request):
         except IntegrationProvider.DoesNotExist:
             logger.error(f"Kuveyt callback: Integration bulunamadı for tenant {tenant.id}")
             PaymentService.fail_payment(payment, "Kuveyt entegrasyonu bulunamadı")
-            return html_redirect(f"{frontend_url}/checkout/fail?error=Entegrasyon+bulunamadi", "Ödeme başarısız")
+            api_base_url = getattr(settings, 'API_BASE_URL', 'https://api.tinisoft.com.tr')
+            if not api_base_url.startswith('http'):
+                api_base_url = f'https://{api_base_url}'
+            callback_url = f"{api_base_url}/api/payments/callback-handler?order={merchant_order_id}&status=fail&error=Entegrasyon+bulunamadi"
+            return html_redirect(callback_url, "Ödeme işleniyor...")
         
         # Provider'ı oluştur ve ProvisionGate'e istek at
         provider = PaymentProviderFactory.get_provider(
@@ -677,6 +712,11 @@ def kuveyt_callback_ok(request):
             md=md
         )
         
+        # Backend API base URL (kendi endpoint'ine redirect için)
+        api_base_url = getattr(settings, 'API_BASE_URL', 'https://api.tinisoft.com.tr')
+        if not api_base_url.startswith('http'):
+            api_base_url = f'https://{api_base_url}'
+        
         if provision_result['success']:
             # Ödeme başarılı - Payment'ı tamamla
             payment = PaymentService.process_payment(
@@ -687,10 +727,9 @@ def kuveyt_callback_ok(request):
             
             logger.info(f"Kuveyt callback SUCCESS: Order {merchant_order_id} completed")
             
-            return html_redirect(
-                f"{frontend_url}/checkout/success?order={merchant_order_id}",
-                "Ödeme başarılı"
-            )
+            # Backend'in kendi endpoint'ine redirect yap (frontend oradan durumu alacak)
+            callback_url = f"{api_base_url}/api/payments/callback-handler?order={merchant_order_id}&status=success"
+            return html_redirect(callback_url, "Ödeme işleniyor...")
         else:
             # Ödeme başarısız - Payment'ı fail yap
             error_msg = provision_result.get('error', 'ProvisionGate hatası')
@@ -702,17 +741,19 @@ def kuveyt_callback_ok(request):
             
             logger.error(f"Kuveyt callback FAIL: Order {merchant_order_id} - {error_msg}")
             
-            return html_redirect(
-                f"{frontend_url}/checkout/fail?order={merchant_order_id}&error={error_msg[:50].replace(' ', '+')}",
-                "Ödeme başarısız"
-            )
+            # Backend'in kendi endpoint'ine redirect yap (frontend oradan durumu alacak)
+            error_param = error_msg[:50].replace(' ', '+').replace('&', '%26')
+            callback_url = f"{api_base_url}/api/payments/callback-handler?order={merchant_order_id}&status=fail&error={error_param}"
+            return html_redirect(callback_url, "Ödeme işleniyor...")
     
     except Exception as e:
         logger.error(f"Kuveyt callback error: {str(e)}", exc_info=True)
-        return html_redirect(
-            f"{frontend_url}/checkout/fail?error=Sistem+hatasi",
-            "Ödeme işlenirken hata oluştu"
-        )
+        # Backend'in kendi endpoint'ine redirect yap
+        api_base_url = getattr(settings, 'API_BASE_URL', 'https://api.tinisoft.com.tr')
+        if not api_base_url.startswith('http'):
+            api_base_url = f'https://{api_base_url}'
+        callback_url = f"{api_base_url}/api/payments/callback-handler?status=fail&error=Sistem+hatasi"
+        return html_redirect(callback_url, "Ödeme işleniyor...")
 
 
 @api_view(['POST'])
@@ -725,9 +766,6 @@ def kuveyt_callback_fail(request):
     """
     import xml.etree.ElementTree as ET
     from urllib.parse import unquote
-    
-    # Frontend URL (redirect için)
-    frontend_url = getattr(settings, 'STORE_FRONTEND_URL', None) or getattr(settings, 'FRONTEND_URL', 'https://avrupamutfak.com')
     
     try:
         authentication_response = request.POST.get('AuthenticationResponse')
@@ -758,9 +796,13 @@ def kuveyt_callback_fail(request):
         logger.warning(f"Kuveyt callback FAIL: MerchantOrderId={merchant_order_id}, Error={error_message}")
         
         # Tenant schema'yı set et ve payment'ı fail yap
+        frontend_url = None
         if merchant_order_id:
             tenant = force_tenant_schema_from_order_number(merchant_order_id)
             if tenant:
+                # Tenant'ın primary frontend URL'ini al
+                frontend_url = tenant.get_primary_frontend_url()
+                logger.info(f"Kuveyt callback FAIL: Using tenant frontend URL: {frontend_url} for tenant {tenant.name}")
                 try:
                     payment = Payment.objects.filter(
                         transaction_id=merchant_order_id,
@@ -772,15 +814,130 @@ def kuveyt_callback_fail(request):
                 except Exception as e:
                     logger.error(f"Failed to update payment status: {str(e)}")
         
-        return html_redirect(
-            f"{frontend_url}/checkout/fail?order={merchant_order_id or ''}&error={error_message[:50].replace(' ', '+')}",
-            "Ödeme başarısız"
-        )
+        # Backend'in kendi endpoint'ine redirect yap
+        api_base_url = getattr(settings, 'API_BASE_URL', 'https://api.tinisoft.com.tr')
+        if not api_base_url.startswith('http'):
+            api_base_url = f'https://{api_base_url}'
+        
+        error_param = error_message[:50].replace(' ', '+').replace('&', '%26') if error_message else ''
+        if merchant_order_id:
+            callback_url = f"{api_base_url}/api/payments/callback-handler?order={merchant_order_id}&status=fail&error={error_param}"
+        else:
+            callback_url = f"{api_base_url}/api/payments/callback-handler?status=fail&error={error_param}"
+        
+        return html_redirect(callback_url, "Ödeme işleniyor...")
     
     except Exception as e:
         logger.error(f"Kuveyt callback fail error: {str(e)}", exc_info=True)
-        return html_redirect(
-            f"{frontend_url}/checkout/fail?error=Sistem+hatasi",
-            "Kart doğrulama başarısız"
+        # Backend'in kendi endpoint'ine redirect yap
+        api_base_url = getattr(settings, 'API_BASE_URL', 'https://api.tinisoft.com.tr')
+        if not api_base_url.startswith('http'):
+            api_base_url = f'https://{api_base_url}'
+        callback_url = f"{api_base_url}/api/payments/callback-handler?status=fail&error=Sistem+hatasi"
+        return html_redirect(callback_url, "Ödeme işleniyor...")
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])  # Frontend'den erişilebilir olmalı
+def payment_callback_handler(request):
+    """
+    Payment callback handler - Frontend bu endpoint'ten payment durumunu alır.
+    
+    Backend callback'lerden sonra bu endpoint'e redirect yapar.
+    Frontend bu endpoint'ten payment durumunu alıp kendi redirect'ini yapar.
+    
+    GET: /api/payments/callback-handler?order={order_number}&status={success|fail}&error={error_message}
+    
+    Response:
+    {
+        "success": bool,
+        "order_number": str,
+        "payment_status": str,  # "completed", "failed", "pending"
+        "redirect_url": str,  # Frontend'in kendi redirect URL'i (opsiyonel)
+        "error": str (if failed)
+    }
+    """
+    order_number = request.query_params.get('order')
+    status_param = request.query_params.get('status', 'fail')  # success veya fail
+    error_message = request.query_params.get('error', '')
+    
+    if not order_number:
+        return Response({
+            'success': False,
+            'message': 'Order number gereklidir.',
+            'error': 'Order number bulunamadı'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Tenant schema'yı order number'dan set et
+    tenant = force_tenant_schema_from_order_number(order_number)
+    if not tenant:
+        logger.warning(f"Payment callback handler: Tenant bulunamadı for order {order_number}")
+        return Response({
+            'success': False,
+            'order_number': order_number,
+            'payment_status': 'failed',
+            'error': 'Tenant bulunamadı',
+            'redirect_url': None
+        }, status=status.HTTP_200_OK)  # 200 döndür ki frontend redirect yapabilsin
+    
+    # Payment'ı bul
+    try:
+        payment = Payment.objects.filter(
+            transaction_id=order_number,
+            tenant=tenant,
+            is_deleted=False
+        ).first()
+        
+        if not payment:
+            logger.warning(f"Payment callback handler: Payment bulunamadı for order {order_number}")
+            return Response({
+                'success': False,
+                'order_number': order_number,
+                'payment_status': 'failed',
+                'error': 'Payment bulunamadı',
+                'redirect_url': None
+            }, status=status.HTTP_200_OK)
+        
+        # Payment durumunu al
+        payment_status = payment.status
+        is_success = payment_status == Payment.PaymentStatus.COMPLETED
+        
+        # Frontend URL'ini tenant'tan al
+        frontend_url = tenant.get_primary_frontend_url()
+        
+        # Redirect URL'i oluştur (frontend kendi redirect'ini yapacak)
+        if is_success:
+            redirect_url = f"{frontend_url}/checkout/success?order={order_number}"
+        else:
+            error_param = f"&error={error_message}" if error_message else ""
+            redirect_url = f"{frontend_url}/checkout/fail?order={order_number}{error_param}"
+        
+        logger.info(
+            f"Payment callback handler: Order {order_number}, "
+            f"Status: {payment_status}, "
+            f"Redirect URL: {redirect_url}"
         )
+        
+        return Response({
+            'success': is_success,
+            'order_number': order_number,
+            'payment_status': payment_status,
+            'payment_id': str(payment.id),
+            'payment_number': payment.payment_number,
+            'amount': str(payment.amount),
+            'currency': payment.currency,
+            'redirect_url': redirect_url,  # Frontend bu URL'e redirect yapabilir
+            'error': payment.error_message if not is_success else None,
+            'error_code': payment.error_code if not is_success else None,
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        logger.error(f"Payment callback handler error: {str(e)}", exc_info=True)
+        return Response({
+            'success': False,
+            'order_number': order_number,
+            'payment_status': 'failed',
+            'error': f'Sistem hatası: {str(e)}',
+            'redirect_url': None
+        }, status=status.HTTP_200_OK)  # 200 döndür ki frontend redirect yapabilsin
 

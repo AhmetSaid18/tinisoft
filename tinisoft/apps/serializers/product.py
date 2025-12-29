@@ -309,7 +309,7 @@ class ProductListSerializer(serializers.ModelSerializer):
 
 class ProductDetailSerializer(serializers.ModelSerializer):
     """Product detail serializer (full)."""
-    images = ProductImageSerializer(many=True, read_only=True)
+    images = serializers.SerializerMethodField()
     options = ProductOptionSerializer(many=True, read_only=True)
     variants = ProductVariantSerializer(many=True, read_only=True)
     categories = CategorySerializer(many=True, read_only=True)
@@ -397,6 +397,11 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         if category_ids is not None:
             instance.categories.set(category_ids)
         return instance
+    
+    def get_images(self, obj):
+        """Silinmemiş görselleri döndür."""
+        images = obj.images.filter(is_deleted=False).order_by('position', 'created_at')
+        return ProductImageSerializer(images, many=True).data
     
     def get_display_price(self, obj):
         """Kullanıcının seçtiği para birimine göre fiyat göster."""
