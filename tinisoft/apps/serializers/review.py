@@ -60,20 +60,26 @@ class ProductReviewSerializer(serializers.ModelSerializer):
 
 
 class ProductReviewCreateSerializer(serializers.ModelSerializer):
-    """Product review create serializer (public)."""
+    """Product review create serializer (authenticated tenant user)."""
     
     class Meta:
         model = ProductReview
         fields = [
-            'customer_name', 'customer_email',
             'rating', 'title', 'comment', 'images',
         ]
+        # customer_name ve customer_email view'da otomatik alınır (authenticated user'dan)
     
     def validate_rating(self, value):
         """Rating 1-5 arası olmalı."""
         if value < 1 or value > 5:
             raise serializers.ValidationError("Puan 1-5 arası olmalıdır.")
         return value
+    
+    def validate_comment(self, value):
+        """Comment zorunlu."""
+        if not value or not value.strip():
+            raise serializers.ValidationError("Yorum metni gereklidir.")
+        return value.strip()
 
 
 class ProductReviewUpdateSerializer(serializers.ModelSerializer):

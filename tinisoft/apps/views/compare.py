@@ -21,38 +21,56 @@ def get_or_create_compare_list(request, tenant):
     Kullanıcı için karşılaştırma listesini getir veya oluştur.
     Giriş yapmışsa customer'a göre, yoksa session_id'ye göre.
     """
-    if request.user.is_authenticated and request.user.is_tenant_user:
-        # Giriş yapmış kullanıcı
-        compare_list, created = ProductCompare.objects.get_or_create(
-            tenant=tenant,
-            customer=request.user,
-            defaults={'max_items': 4}
-        )
-    else:
-        # Giriş yapmamış kullanıcı - session_id kullan
-        # Session middleware aktif değilse, unique bir ID oluştur
-        if hasattr(request, 'session') and request.session:
-            session_id = request.session.session_key
-            if not session_id:
-                # Session yoksa oluştur
-                request.session.create()
-                session_id = request.session.session_key
+    try:
+        if request.user.is_authenticated and request.user.is_tenant_user:
+            # Giriş yapmış kullanıcı
+            compare_list, created = ProductCompare.objects.get_or_create(
+                tenant=tenant,
+                customer=request.user,
+                defaults={'max_items': 4}
+            )
+            if created:
+                logger.info(f"Compare list created for authenticated user: {request.user.email}")
+            else:
+                logger.debug(f"Compare list found for authenticated user: {request.user.email}")
         else:
-            # Session middleware yoksa, request'ten unique ID oluştur
-            # IP + User-Agent kombinasyonu kullan
-            import hashlib
-            ip = request.META.get('REMOTE_ADDR', '')
-            user_agent = request.META.get('HTTP_USER_AGENT', '')
-            session_id = hashlib.md5(f"{ip}{user_agent}".encode()).hexdigest()
+            # Giriş yapmamış kullanıcı - session_id kullan
+            # Session middleware aktif değilse, unique bir ID oluştur
+            session_id = None
+            if hasattr(request, 'session') and request.session:
+                session_id = request.session.session_key
+                if not session_id:
+                    # Session yoksa oluştur
+                    request.session.create()
+                    session_id = request.session.session_key
+                    logger.debug(f"Session created: {session_id}")
+            else:
+                # Session middleware yoksa, request'ten unique ID oluştur
+                # IP + User-Agent kombinasyonu kullan
+                import hashlib
+                ip = request.META.get('REMOTE_ADDR', '')
+                user_agent = request.META.get('HTTP_USER_AGENT', '')
+                session_id = hashlib.md5(f"{ip}{user_agent}".encode()).hexdigest()
+                logger.debug(f"Session ID generated from IP+UA: {session_id[:8]}...")
+            
+            if not session_id:
+                raise ValueError("Session ID oluşturulamadı.")
+            
+            compare_list, created = ProductCompare.objects.get_or_create(
+                tenant=tenant,
+                session_id=session_id,
+                customer__isnull=True,
+                defaults={'max_items': 4}
+            )
+            if created:
+                logger.info(f"Compare list created for session: {session_id[:8]}...")
+            else:
+                logger.debug(f"Compare list found for session: {session_id[:8]}...")
         
-        compare_list, created = ProductCompare.objects.get_or_create(
-            tenant=tenant,
-            session_id=session_id,
-            customer__isnull=True,
-            defaults={'max_items': 4}
-        )
-    
-    return compare_list
+        return compare_list
+    except Exception as e:
+        logger.error(f"get_or_create_compare_list error: {str(e)}", exc_info=True)
+        raise
 
 
 @api_view(['GET'])
@@ -73,16 +91,22 @@ def compare_list(request):
     try:
         compare_list = get_or_create_compare_list(request, tenant)
         serializer = ProductCompareSerializer(compare_list, context={'request': request})
+        
+        # Debug log
+        items_count = compare_list.items.filter(is_deleted=False).count()
+        logger.debug(f"Compare list retrieved: tenant={tenant.slug}, items={items_count}, user_auth={request.user.is_authenticated}")
+        
         return Response({
             'success': True,
             'compare': serializer.data,
         })
     except Exception as e:
-        logger.error(f"Compare list error: {str(e)}")
+        logger.error(f"Compare list error: {str(e)}", exc_info=True)
         return Response({
             'success': False,
             'message': 'Karşılaştırma listesi alınamadı.',
             'error': str(e),
+            'error_type': type(e).__name__,
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -148,13 +172,13 @@ def compare_add_product(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-@api_view(['DELETE'])
+@api_view(['DELETE', 'POST'])
 @permission_classes([AllowAny])
 def compare_remove_product(request, product_id):
     """
     Karşılaştırma listesinden ürün çıkar.
     
-    DELETE: /api/compare/remove/{product_id}/
+    DELETE veya POST: /api/compare/remove/{product_id}/
     """
     tenant = get_tenant_from_request(request)
     if not tenant:
@@ -197,13 +221,13 @@ def compare_remove_product(request, product_id):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-@api_view(['DELETE'])
+@api_view(['DELETE', 'POST'])
 @permission_classes([AllowAny])
 def compare_clear(request):
     """
     Karşılaştırma listesini temizle (tüm ürünleri çıkar).
     
-    DELETE: /api/compare/clear/
+    DELETE veya POST: /api/compare/clear/
     """
     tenant = get_tenant_from_request(request)
     if not tenant:
