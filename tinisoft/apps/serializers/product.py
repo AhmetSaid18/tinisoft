@@ -144,6 +144,7 @@ class ProductVariantSerializer(serializers.ModelSerializer):
 class ProductListSerializer(serializers.ModelSerializer):
     """Product list serializer (lightweight)."""
     primary_image = serializers.SerializerMethodField()
+    images = serializers.SerializerMethodField()
     category_names = serializers.SerializerMethodField()
     min_price = serializers.SerializerMethodField()
     max_price = serializers.SerializerMethodField()
@@ -165,7 +166,7 @@ class ProductListSerializer(serializers.ModelSerializer):
             'display_price', 'display_compare_at_price',
             'display_min_price', 'display_max_price',
             'sku', 'inventory_quantity', 'inventoryQuantity', 'track_inventory',
-            'primary_image', 'category_names', 'min_price', 'max_price',
+            'primary_image', 'images', 'category_names', 'min_price', 'max_price',
             'has_variants', 'is_featured', 'is_new', 'is_bestseller',
             'status', 'is_visible', 'isActive', 'view_count', 'sale_count',
             'created_at',
@@ -178,6 +179,11 @@ class ProductListSerializer(serializers.ModelSerializer):
         if not image:
             image = obj.images.filter(is_deleted=False).first()
         return image.image_url if image else None
+    
+    def get_images(self, obj):
+        """Tüm görselleri döndür (sıralı)."""
+        images = obj.images.filter(is_deleted=False).order_by('position', 'created_at')
+        return ProductImageSerializer(images, many=True).data
     
     def get_category_names(self, obj):
         """Kategori isimlerini döndür."""
