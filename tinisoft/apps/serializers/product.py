@@ -309,7 +309,7 @@ class ProductListSerializer(serializers.ModelSerializer):
 
 class ProductDetailSerializer(serializers.ModelSerializer):
     """Product detail serializer (full)."""
-    images = serializers.SerializerMethodField()
+    images = ProductImageSerializer(many=True, required=False)
     options = ProductOptionSerializer(many=True, read_only=True)
     variants = ProductVariantSerializer(many=True, read_only=True)
     categories = CategorySerializer(many=True, read_only=True)
@@ -352,6 +352,14 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'view_count', 'sale_count', 'price_with_vat', 'display_price', 'display_compare_at_price']
     
+    def to_representation(self, instance):
+        """Representation'ı override et - images'ı doğru sırala."""
+        data = super().to_representation(instance)
+        # Images'ı silinmemiş ve sıralı olarak göster
+        images = instance.images.filter(is_deleted=False).order_by('position', 'created_at')
+        data['images'] = ProductImageSerializer(images, many=True).data
+        return data
+    
     def validate(self, attrs):
         """Frontend'den gelen field'ları backend field'larına map et."""
         # isActive -> status mapping
@@ -391,17 +399,38 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         """Ürün güncelle."""
         category_ids = validated_data.pop('category_ids', None)
+        images_data = validated_data.pop('images', None)
+        
+        # Ürün field'larını güncelle
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
+        
+        # Kategorileri güncelle
         if category_ids is not None:
             instance.categories.set(category_ids)
+        
+        # Görselleri güncelle (eğer gönderilmişse)
+        if images_data is not None:
+            # Mevcut görselleri güncelle veya yeni ekle
+            for image_data in images_data:
+                image_id = image_data.get('id')
+                if image_id:
+                    # Mevcut görseli güncelle
+                    try:
+                        product_image = instance.images.get(id=image_id, is_deleted=False)
+                        # is_primary değişiyorsa, diğer görsellerin is_primary'ini False yap
+                        if image_data.get('is_primary', False):
+                            instance.images.filter(is_deleted=False).exclude(id=image_id).update(is_primary=False)
+                        # Görseli güncelle
+                        for key, value in image_data.items():
+                            if key != 'id' and hasattr(product_image, key):
+                                setattr(product_image, key, value)
+                        product_image.save()
+                    except ProductImage.DoesNotExist:
+                        pass  # Görsel bulunamadı, atla
+        
         return instance
-    
-    def get_images(self, obj):
-        """Silinmemiş görselleri döndür."""
-        images = obj.images.filter(is_deleted=False).order_by('position', 'created_at')
-        return ProductImageSerializer(images, many=True).data
     
     def get_display_price(self, obj):
         """Kullanıcının seçtiği para birimine göre fiyat göster."""
