@@ -3,8 +3,9 @@ Authentication views.
 """
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.exceptions import PermissionDenied
 from apps.serializers.auth import (
     RegisterSerializer,
     LoginSerializer,
@@ -12,6 +13,7 @@ from apps.serializers.auth import (
     TenantSerializer,
 )
 from apps.services.auth_service import AuthService
+from apps.models import Tenant
 import logging
 
 logger = logging.getLogger(__name__)
@@ -137,4 +139,80 @@ def login(request):
         'error_code': 'VALIDATION_ERROR',
         'errors': serializer.errors,
     }, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PATCH'])
+@permission_classes([IsAuthenticated])
+def tenant_detail(request):
+    """
+    Tenant bilgilerini getir (GET) veya güncelle (PATCH).
+    
+    GET: /api/tenant/
+    PATCH: /api/tenant/
+    
+    Request body (PATCH):
+    {
+        "custom_domain": "example.com",  # Custom domain güncelle (doğrulama gerektirmez)
+        "name": "Mağaza Adı",  # Opsiyonel
+        "template": "modern"  # Opsiyonel
+    }
+    
+    Owner: Kendi tenant'ını görebilir/güncelleyebilir.
+    TenantOwner: Kendi tenant'ını görebilir/güncelleyebilir.
+    """
+    # Tenant'ı bul
+    if request.user.is_owner:
+        # Owner ise owned_tenants'dan ilkini al (genelde bir tane olur)
+        tenant = request.user.owned_tenants.filter(is_deleted=False).first()
+        if not tenant:
+            return Response({
+                'success': False,
+                'message': 'Tenant bulunamadı.',
+                'error_code': 'TENANT_NOT_FOUND',
+            }, status=status.HTTP_404_NOT_FOUND)
+    elif request.user.is_tenant_owner:
+        tenant = request.user.tenant
+        if not tenant:
+            return Response({
+                'success': False,
+                'message': 'Tenant bilginiz bulunamadı.',
+                'error_code': 'TENANT_NOT_FOUND',
+            }, status=status.HTTP_404_NOT_FOUND)
+    else:
+        return Response({
+            'success': False,
+            'message': 'Bu işlem için yetkiniz yok.',
+            'error_code': 'PERMISSION_DENIED',
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    if request.method == 'GET':
+        serializer = TenantSerializer(tenant)
+        return Response({
+            'success': True,
+            'tenant': serializer.data,
+        }, status=status.HTTP_200_OK)
+    
+    elif request.method == 'PATCH':
+        serializer = TenantSerializer(
+            tenant,
+            data=request.data,
+            partial=True
+        )
+        
+        if serializer.is_valid():
+            serializer.save()
+            
+            logger.info(f"Tenant updated: {tenant.slug} by user {request.user.email}")
+            
+            return Response({
+                'success': True,
+                'message': 'Tenant bilgileri güncellendi.',
+                'tenant': serializer.data,
+            }, status=status.HTTP_200_OK)
+        
+        return Response({
+            'success': False,
+            'message': 'Tenant güncellenemedi.',
+            'errors': serializer.errors,
+        }, status=status.HTTP_400_BAD_REQUEST)
 

@@ -155,19 +155,35 @@ class Tenant(BaseModel):
     def get_primary_frontend_url(self):
         """
         Primary domain'den frontend URL'ini döndür.
-        Eğer primary domain yoksa, get_frontend_url() kullanır.
+        Öncelik sırası:
+        1. Tenant'ın custom_domain field'ı (doğrulama gerektirmez)
+        2. Primary domain (Domain modelinden, doğrulama gerektirmez)
+        3. Fallback: subdomain URL
+        
+        Not: Doğrulama kontrolü yapılmaz, domain kendisindeyse zaten yayın olacak.
         """
-        # Primary domain'i bul
+        # Önce Tenant'ın custom_domain field'ını kontrol et
+        if self.custom_domain:
+            return f"https://{self.custom_domain}"
+        
+        # Sonra Domain modelinden primary domain'i bul (verification_status kontrolü yok)
         primary_domain = self.domains.filter(
             is_primary=True,
-            verification_status='verified',
             is_deleted=False
         ).first()
         
         if primary_domain:
             return f"https://{primary_domain.domain_name}"
         
-        # Primary domain yoksa fallback
+        # Primary domain yoksa herhangi bir domain'i kullan
+        any_domain = self.domains.filter(
+            is_deleted=False
+        ).order_by('-is_primary', '-is_custom', '-created_at').first()
+        
+        if any_domain:
+            return f"https://{any_domain.domain_name}"
+        
+        # Fallback: subdomain URL
         return self.get_frontend_url()
     
     # Frontend Template

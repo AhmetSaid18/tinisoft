@@ -40,39 +40,59 @@ def extract_tenant_slug_from_order_number(order_number: str):
 def get_tenant_frontend_url(tenant=None, tenant_slug=None):
     """
     Tenant'ın frontend URL'ini al.
+    Tenant'ın get_primary_frontend_url() metodunu kullanır.
+    
+    Öncelik sırası (Tenant.get_primary_frontend_url() içinde):
+    1. Tenant'ın custom_domain field'ı (doğrulama gerektirmez)
+    2. Primary domain (Domain modelinden, doğrulama gerektirmez)
+    3. Herhangi bir domain
+    4. Fallback: subdomain URL
     
     Args:
         tenant: Tenant instance (opsiyonel)
         tenant_slug: Tenant slug (opsiyonel, tenant yoksa kullanılır)
     
     Returns:
-        str: Frontend URL (örn: https://avrupamutfak.tinisoft.com.tr)
+        str: Frontend URL (örn: https://avrupamutfak.com veya https://avrupamutfak.tinisoft.com.tr)
     """
-    # Tenant varsa primary domain'ini al
+    from core.db_router import clear_tenant_schema
+    
+    # Tenant varsa direkt get_primary_frontend_url() kullan
     if tenant:
         try:
-            # Domain modelinden primary domain'i al
-            from apps.models import Domain
-            primary_domain = Domain.objects.filter(
-                tenant=tenant,
-                is_primary=True,
-                is_deleted=False,
-                verification_status='verified'
+            url = tenant.get_primary_frontend_url()
+            logger.info(f"Using frontend URL: {url} for tenant {tenant.slug}")
+            return url
+        except Exception as e:
+            logger.warning(f"Error getting frontend URL for tenant {tenant.id}: {str(e)}")
+            # Fallback: Tenant slug'dan subdomain URL oluştur
+            if tenant.slug:
+                return f"https://{tenant.slug}.tinisoft.com.tr"
+            elif tenant.subdomain:
+                return f"https://{tenant.subdomain}.tinisoft.com.tr"
+    
+    # Tenant yoksa slug'dan tenant bul ve URL al
+    if tenant_slug:
+        try:
+            # Public schema'da bu slug'a ait tenant'ı bul
+            clear_tenant_schema()
+            with connection.cursor() as cursor:
+                cursor.execute('SET search_path TO public;')
+            
+            tenant_obj = Tenant.objects.filter(
+                slug__iexact=tenant_slug,
+                is_deleted=False
             ).first()
             
-            if primary_domain:
-                return f"https://{primary_domain.domain_name}"
+            if tenant_obj:
+                url = tenant_obj.get_primary_frontend_url()
+                logger.info(f"Using frontend URL: {url} for tenant slug {tenant_slug}")
+                return url
         except Exception as e:
-            logger.warning(f"Error getting primary domain for tenant {tenant.id}: {str(e)}")
+            logger.warning(f"Error getting frontend URL for tenant slug {tenant_slug}: {str(e)}")
         
-        # Fallback: Tenant slug'dan URL oluştur
-        if tenant.slug:
-            return f"https://{tenant.slug}.tinisoft.com.tr"
-        elif tenant.subdomain:
-            return f"https://{tenant.subdomain}.tinisoft.com.tr"
-    
-    # Tenant yoksa slug'dan URL oluştur
-    if tenant_slug:
+        # Fallback: Slug'dan subdomain URL oluştur
+        logger.info(f"Using fallback subdomain URL for tenant slug {tenant_slug}")
         return f"https://{tenant_slug}.tinisoft.com.tr"
     
     # Son fallback: API base URL'den domain çıkar
@@ -93,12 +113,19 @@ def force_tenant_schema_from_order_number(order_number: str):
     Bank callback'lerinde tenant header gelmez, bu nedenle order number'dan
     tenant bilgisini çıkarıp manuel olarak schema set etmemiz gerekir.
     """
+    from core.db_router import clear_tenant_schema
+    
     tenant_slug = extract_tenant_slug_from_order_number(order_number)
     if not tenant_slug:
         logger.warning(f"Invalid order number format: {order_number}")
         return None
     
-    # Slug ile tenant bul
+    # Tenant public schema'da, önce public schema'ya geç
+    clear_tenant_schema()
+    with connection.cursor() as cursor:
+        cursor.execute('SET search_path TO public;')
+    
+    # Slug ile tenant bul (public schema'da)
     tenant = Tenant.objects.filter(slug__iexact=tenant_slug, is_deleted=False).first()
     if not tenant:
         # Subdomain ile de dene
@@ -107,7 +134,7 @@ def force_tenant_schema_from_order_number(order_number: str):
         logger.warning(f"Tenant not found for slug: {tenant_slug}")
         return None
     
-    # Schema'yı set et
+    # Schema'yı set et (tenant-specific schema'ya geç)
     schema = f"tenant_{tenant.subdomain}"
     set_tenant_schema(schema)
     with connection.cursor() as cursor:
