@@ -36,7 +36,7 @@ from apps.views.bulk import (
     bulk_update_order_status, bulk_export_products
 )
 from apps.views.loyalty import loyalty_program, my_loyalty_points, loyalty_transactions
-from apps.views.review import review_list, review_create, review_detail, review_helpful
+from apps.views.review import review_list, review_create, review_list_all, review_detail, review_helpful
 from apps.views.wishlist import wishlist_list_create, wishlist_detail, wishlist_item_add_remove, wishlist_clear
 from apps.views.compare import compare_list, compare_add_product, compare_remove_product, compare_clear, compare_products_detail
 from apps.views.discount import (
@@ -194,7 +194,8 @@ urlpatterns = [
     path('loyalty/transactions/', loyalty_transactions, name='loyalty_transactions'),  # GET: İşlem geçmişi
     
     # Ürün yorumları
-    path('products/<uuid:product_id>/reviews/', review_list, name='review_list'),  # GET: List (public)
+    path('reviews/', review_list_all, name='review_list_all'),  # GET: Tüm yorumları listele (Tenant Owner)
+    path('products/<uuid:product_id>/reviews/', review_list, name='review_list'),  # GET: List (public, product bazlı)
     path('products/<uuid:product_id>/reviews/create/', review_create, name='review_create'),  # POST: Create (authenticated, purchase required)
     path('reviews/<uuid:review_id>/', review_detail, name='review_detail'),  # GET, PATCH, DELETE
     path('reviews/<uuid:review_id>/helpful/', review_helpful, name='review_helpful'),  # POST: Like/Dislike

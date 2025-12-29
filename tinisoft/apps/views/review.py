@@ -203,6 +203,98 @@ def review_create(request, product_id=None):
     }, status=status.HTTP_400_BAD_REQUEST)
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def review_list_all(request):
+    """
+    Tüm yorumları listele (Tenant Owner için).
+    
+    GET: /api/reviews/
+    Query params:
+        - status: pending, approved, rejected (filtreleme)
+        - rating: 1-5 (filtreleme)
+        - product_id: uuid (belirli ürün için)
+        - customer_email: string (müşteri email'e göre)
+        - ordering: -created_at (sıralama)
+        - page: sayfa numarası
+        - page_size: sayfa boyutu
+    """
+    tenant = get_tenant_from_request(request)
+    if not tenant:
+        return Response({
+            'success': False,
+            'message': 'Tenant bulunamadı.',
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Sadece admin veya tenant owner
+    if not (request.user.is_owner or (request.user.is_tenant_owner and request.user.tenant == tenant)):
+        return Response({
+            'success': False,
+            'message': 'Bu işlem için yetkiniz yok.',
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    # Tüm yorumları getir
+    queryset = ProductReview.objects.filter(
+        tenant=tenant,
+        is_deleted=False
+    )
+    
+    # Status filtresi
+    status_filter = request.query_params.get('status')
+    if status_filter:
+        queryset = queryset.filter(status=status_filter)
+    
+    # Rating filtresi
+    rating = request.query_params.get('rating')
+    if rating:
+        queryset = queryset.filter(rating=rating)
+    
+    # Ürün filtresi
+    product_id = request.query_params.get('product_id')
+    if product_id:
+        queryset = queryset.filter(product_id=product_id)
+    
+    # Müşteri email filtresi
+    customer_email = request.query_params.get('customer_email')
+    if customer_email:
+        queryset = queryset.filter(customer_email__icontains=customer_email)
+    
+    # Sıralama
+    ordering = request.query_params.get('ordering', '-created_at')
+    queryset = queryset.order_by(ordering)
+    
+    # Pagination
+    paginator = ReviewPagination()
+    page = paginator.paginate_queryset(queryset, request)
+    
+    if page is not None:
+        serializer = ProductReviewSerializer(page, many=True, context={'request': request})
+        return paginator.get_paginated_response({
+            'success': True,
+            'reviews': serializer.data,
+            'summary': {
+                'total_reviews': queryset.count(),
+                'pending_count': queryset.filter(status='pending').count(),
+                'approved_count': queryset.filter(status='approved').count(),
+                'rejected_count': queryset.filter(status='rejected').count(),
+                'average_rating': queryset.aggregate(Avg('rating'))['rating__avg'] or 0,
+            }
+        })
+    
+    serializer = ProductReviewSerializer(queryset, many=True, context={'request': request})
+    return Response({
+        'success': True,
+        'reviews': serializer.data,
+        'summary': {
+            'total_reviews': queryset.count(),
+            'pending_count': queryset.filter(status='pending').count(),
+            'approved_count': queryset.filter(status='approved').count(),
+            'rejected_count': queryset.filter(status='rejected').count(),
+            'average_rating': queryset.aggregate(Avg('rating'))['rating__avg'] or 0,
+        }
+    })
+
+
 @api_view(['GET', 'PATCH', 'DELETE'])
 @permission_classes([IsAuthenticated])
 def review_detail(request, review_id):
