@@ -326,7 +326,8 @@ class ArasCargoService:
         
         # Field mapping: shipment_data -> SetOrder XML fields
         field_mapping = {
-            'orderNumber': 'IntegrationCode',  # Sipariş numarası (M.Ö.K)
+            'orderNumber': 'IntegrationCode',  # Sipariş numarası (M.Ö.K) - MAX 32 karakter
+            'invoiceNumber': 'InvoiceNumber',  # Fatura numarası - MAX 20 karakter
             'receiverName': 'ReceiverName',
             'receiverAddress': 'ReceiverAddress',
             'receiverPhone': 'ReceiverPhone1',
@@ -823,8 +824,13 @@ class ArasCargoService:
             # Eğer order_number çok kısaysa, order ID'nin son kısmını kullan
             integration_code = str(order.id)[:32] if len(str(order.id)) <= 32 else str(order.id)[-32:]
         
+        # InvoiceNumber: En fazla 20 karakter olmalı (Aras Kargo kısıtlaması)
+        # Eğer invoice number yoksa, IntegrationCode'un ilk 20 karakterini kullan
+        invoice_number = integration_code[:20] if integration_code else str(order.id)[:20]
+        
         shipment_data = {
             'orderNumber': integration_code,  # IntegrationCode olarak map edilecek - Müşteri özel kodu (M.Ö.K) - MAX 32 karakter
+            'invoiceNumber': invoice_number,  # InvoiceNumber - Müşteri Fatura Numarası - MAX 20 karakter
             'receiverName': f"{shipping_address.get('first_name', '').strip()} {shipping_address.get('last_name', '').strip()}".strip()[:100],  # ReceiverName
             'receiverPhone': shipping_address.get('phone', '').strip()[:32],  # ReceiverPhone1
             'receiverAddress': shipping_address.get('address_line_1', '').strip()[:250],  # ReceiverAddress - ZORUNLU
