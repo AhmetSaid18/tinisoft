@@ -76,7 +76,9 @@ class ArasCargoService:
             # SetOrder password: setorder.password > api_secret
             password = setorder_config.get('password') or integration.get_api_secret() or ''
             
-            logger.debug(f"SetOrder credentials - username: {username[:10]}..., password: {'*' * len(password) if password else 'EMPTY'}")
+            logger.info(f"SetOrder credentials - username: {username}, password: {'*' * len(password) if password else 'EMPTY'}")
+            logger.info(f"SetOrder config - setorder_config: {setorder_config}")
+            logger.info(f"SetOrder config - api_key from integration: {integration.get_api_key()[:20] if integration.get_api_key() else 'EMPTY'}...")
             
             return {
                 'user_name': username,  # SetOrder için user_name (Order içinde UserName)

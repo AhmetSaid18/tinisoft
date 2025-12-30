@@ -175,10 +175,29 @@ class IntegrationProviderUpdateSerializer(serializers.ModelSerializer):
         api_key = validated_data.pop('api_key', None)
         api_secret = validated_data.pop('api_secret', None)
         api_token = validated_data.pop('api_token', None)
+        config_data = validated_data.pop('config', None)
         
         # Normal field'ları güncelle
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
+        
+        # Config'i merge et (yeni değerler varsa güncelle)
+        if config_data is not None:
+            # Mevcut config'i al
+            current_config = instance.config or {}
+            # Yeni config ile merge et (deep merge)
+            if isinstance(config_data, dict):
+                # Deep merge yap (nested dict'ler için)
+                def deep_merge(base, new):
+                    for key, value in new.items():
+                        if key in base and isinstance(base[key], dict) and isinstance(value, dict):
+                            deep_merge(base[key], value)
+                        else:
+                            base[key] = value
+                    return base
+                
+                deep_merge(current_config, config_data)
+                instance.config = current_config
         
         # API key'leri güncelle (sadece gönderilmişse)
         if api_key is not None:
