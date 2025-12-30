@@ -270,6 +270,9 @@ class ArasCargoService:
         - loginInfo: Kullanıcı bilgileri
         - queryInfo: Gönderi bilgileri (XML string)
         
+        Not: SetDataXML için queryInfo formatı Aras Kargo dokümantasyonunda belirtilmiş olmalı.
+        Şu an için genel bir format kullanıyoruz, field isimleri dokümantasyona göre düzenlenebilir.
+        
         Args:
             data: Gönderi bilgileri (orderNumber, receiverName, vb.)
         
@@ -277,13 +280,39 @@ class ArasCargoService:
             str: QueryInfo XML string
         """
         # QueryInfo XML oluştur (SetDataXML için gönderi bilgileri)
-        # Not: Gerçek field isimleri Aras Kargo dokümantasyonunda olabilir
+        # Not: Field isimleri Aras Kargo dokümantasyonuna göre olmalı
+        # Örnek format (test edilmeli):
         query_info = ET.Element('QueryInfo')
         
         # Gönderi bilgilerini XML'e çevir
+        # Field mapping: Python field -> Aras Kargo field (gerekirse)
+        field_mapping = {
+            'orderNumber': 'IntegrationCode',  # Müşteri özel kodu
+            'senderName': 'GondericiAdi',
+            'senderPhone': 'GondericiTelefon',
+            'senderAddress': 'GondericiAdres',
+            'senderCity': 'GondericiSehir',
+            'senderPostalCode': 'GondericiPostaKodu',
+            'receiverName': 'AliciAdi',
+            'receiverPhone': 'AliciTelefon',
+            'receiverAddress': 'AliciAdres',
+            'receiverAddress2': 'AliciAdres2',
+            'receiverCity': 'AliciSehir',
+            'receiverState': 'AliciIlce',
+            'receiverPostalCode': 'AliciPostaKodu',
+            'receiverCountry': 'AliciUlke',
+            'weight': 'Agirlik',
+            'pieceCount': 'Adet',
+            'content': 'Icerik',
+            'paymentType': 'OdemeTipi',
+            'serviceType': 'ServisTipi',
+        }
+        
         for key, value in data.items():
             if value is not None and value != '':
-                element = ET.SubElement(query_info, key)
+                # Field mapping varsa kullan, yoksa orijinal key'i kullan
+                xml_field_name = field_mapping.get(key, key)
+                element = ET.SubElement(query_info, xml_field_name)
                 element.text = str(value)
         
         xml_str = ET.tostring(query_info, encoding='utf-8', method='xml')
@@ -473,10 +502,10 @@ class ArasCargoService:
                 # Production endpoint
                 setorder_endpoint = ArasCargoService.DEFAULT_API_ENDPOINT
         
-        # Gönderi bilgilerini hazırla (SetOrder API formatına göre)
-        # Not: SetOrder API formatı farklı olabilir, gerçek dokümantasyona göre güncellenebilir
+        # Gönderi bilgilerini hazırla (SetDataXML API formatına göre)
+        # Not: SetDataXML için queryInfo içindeki field isimleri Aras Kargo dokümantasyonuna göre olmalı
         shipment_data = {
-            'orderNumber': order.order_number,  # Müşteri özel kodu (M.Ö.K) - takip için kullanılacak
+            'orderNumber': order.order_number,  # IntegrationCode olarak map edilecek - Müşteri özel kodu (M.Ö.K)
             'senderName': tenant.name,
             'senderPhone': tenant.owner.phone or '',
             'senderAddress': integration.config.get('sender_address', {}).get('address_line_1', ''),
@@ -493,7 +522,7 @@ class ArasCargoService:
             'weight': float(order.items.aggregate(total_weight=models.Sum('product__weight'))['total_weight'] or 1.0),
             'pieceCount': order.items.count(),
             'content': ', '.join([item.product.name for item in order.items.all()[:3]]),
-            'paymentType': 'prepaid',  # Ön ödemeli
+            'paymentType': 'prepaid',  # Ön ödemeli (OdemeTipi olarak map edilecek)
             'serviceType': integration.config.get('service_type', 'standard'),
         }
         
