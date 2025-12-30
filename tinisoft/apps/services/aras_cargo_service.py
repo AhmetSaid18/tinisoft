@@ -223,11 +223,7 @@ class ArasCargoService:
         Returns:
             str: SOAP XML string
         """
-        # SetOrder için farklı format
-        if service_method == 'SetOrder':
-            return ArasCargoService._build_setorder_soap_envelope(credentials, data)
-        
-        # GetQueryDS için mevcut format
+        # GetQueryDS ve SetDataXML için mevcut format (WSDL'e göre aynı format)
         # SOAP Envelope oluştur
         envelope = ET.Element('soap:Envelope')
         envelope.set('xmlns:soap', 'http://schemas.xmlsoap.org/soap/envelope/')
@@ -245,9 +241,17 @@ class ArasCargoService:
         login_info_param.text = login_info_xml
         
         # QueryInfo parametresi (XML string olarak)
-        query_type = data.get('query_type', 1)
-        query_params = data.get('query_params', {})
-        query_info_xml = ArasCargoService._build_query_info_xml(query_type, query_params)
+        # SetDataXML için gönderi bilgileri, GetQueryDS için query parametreleri
+        if service_method == 'SetDataXML':
+            # SetDataXML için gönderi bilgilerini queryInfo olarak gönder
+            # queryInfo içinde gönderi bilgileri XML formatında olmalı
+            query_info_xml = ArasCargoService._build_shipment_query_info_xml(data)
+        else:
+            # GetQueryDS, GetQueryXML, GetQueryJSON için query parametreleri
+            query_type = data.get('query_type', 1)
+            query_params = data.get('query_params', {})
+            query_info_xml = ArasCargoService._build_query_info_xml(query_type, query_params)
+        
         query_info_param = ET.SubElement(method, 'tem:queryInfo')
         query_info_param.text = query_info_xml
         
@@ -258,66 +262,31 @@ class ArasCargoService:
         return dom.toprettyxml(indent="  ", encoding='utf-8').decode('utf-8')
     
     @staticmethod
-    def _build_setorder_soap_envelope(credentials: Dict, data: Dict) -> str:
+    def _build_shipment_query_info_xml(data: Dict) -> str:
         """
-        SetOrder için SOAP XML envelope oluştur.
+        SetDataXML için queryInfo XML parametresini oluştur.
         
-        SetOrder API'si için özel SOAP formatı.
+        WSDL'e göre SetDataXML, GetQueryDS ile aynı formatı kullanır:
+        - loginInfo: Kullanıcı bilgileri
+        - queryInfo: Gönderi bilgileri (XML string)
         
         Args:
-            credentials: API credentials (username, password, customer_code)
             data: Gönderi bilgileri (orderNumber, receiverName, vb.)
         
         Returns:
-            str: SOAP XML string
+            str: QueryInfo XML string
         """
-        # SOAP Envelope oluştur
-        envelope = ET.Element('soap:Envelope')
-        envelope.set('xmlns:soap', 'http://schemas.xmlsoap.org/soap/envelope/')
-        envelope.set('xmlns:tem', 'http://tempuri.org/')
-        
-        # Body
-        body = ET.SubElement(envelope, 'soap:Body')
-        
-        # SetOrder Method
-        method = ET.SubElement(body, 'tem:SetOrder')
-        
-        # LoginInfo parametresi (XML string olarak)
-        login_info_xml = ArasCargoService._build_login_info_xml(credentials)
-        login_info_param = ET.SubElement(method, 'tem:loginInfo')
-        login_info_param.text = login_info_xml
-        
-        # OrderInfo parametresi (XML string olarak)
-        order_info_xml = ArasCargoService._build_order_info_xml(data)
-        order_info_param = ET.SubElement(method, 'tem:orderInfo')
-        order_info_param.text = order_info_xml
-        
-        # XML string'e çevir
-        xml_str = ET.tostring(envelope, encoding='utf-8', method='xml')
-        # Pretty print için minidom kullan
-        dom = minidom.parseString(xml_str)
-        return dom.toprettyxml(indent="  ", encoding='utf-8').decode('utf-8')
-    
-    @staticmethod
-    def _build_order_info_xml(data: Dict) -> str:
-        """
-        OrderInfo XML parametresini oluştur (SetOrder için).
-        
-        Args:
-            data: Gönderi bilgileri
-        
-        Returns:
-            str: OrderInfo XML string
-        """
-        order_info = ET.Element('OrderInfo')
+        # QueryInfo XML oluştur (SetDataXML için gönderi bilgileri)
+        # Not: Gerçek field isimleri Aras Kargo dokümantasyonunda olabilir
+        query_info = ET.Element('QueryInfo')
         
         # Gönderi bilgilerini XML'e çevir
         for key, value in data.items():
             if value is not None and value != '':
-                element = ET.SubElement(order_info, key)
+                element = ET.SubElement(query_info, key)
                 element.text = str(value)
         
-        xml_str = ET.tostring(order_info, encoding='utf-8', method='xml')
+        xml_str = ET.tostring(query_info, encoding='utf-8', method='xml')
         return xml_str.decode('utf-8')
     
     @staticmethod
@@ -395,7 +364,8 @@ class ArasCargoService:
         
         try:
             logger.info(f"Aras Kargo SOAP request: {service_method} to {base_url}")
-            logger.debug(f"SOAP XML: {soap_xml[:500]}...")  # İlk 500 karakter
+            # SOAP XML'i logla (debug için) - ilk 1500 karakter
+            logger.debug(f"SOAP XML (first 1500 chars): {soap_xml[:1500]}")
             
             response = requests.post(
                 url=base_url,
@@ -426,7 +396,14 @@ class ArasCargoService:
             
         except requests.exceptions.RequestException as e:
             error_msg = f"Aras Kargo SOAP error: {str(e)}"
-            logger.error(error_msg)
+            
+            # Response body'yi logla (500 hatalarında hata detayları burada olur)
+            if hasattr(e, 'response') and e.response is not None:
+                response_text = e.response.text[:1000] if e.response.text else 'No response body'
+                logger.error(f"{error_msg}\nResponse body: {response_text}")
+                logger.error(f"Request SOAP XML: {soap_xml[:1000]}")  # İlk 1000 karakter
+            else:
+                logger.error(error_msg)
             
             # Hata kaydet
             integration.last_error = error_msg
@@ -436,6 +413,7 @@ class ArasCargoService:
                 'success': False,
                 'error': error_msg,
                 'status_code': getattr(e.response, 'status_code', None) if hasattr(e, 'response') else None,
+                'response_body': getattr(e.response, 'text', '')[:500] if hasattr(e, 'response') and e.response else None,
             }
         except Exception as e:
             error_msg = f"Unexpected error in Aras Kargo SOAP: {str(e)}"
@@ -519,8 +497,8 @@ class ArasCargoService:
             'serviceType': integration.config.get('service_type', 'standard'),
         }
         
-        # SetOrder API metod adı
-        service_method = integration.config.get('setorder', {}).get('method', 'SetOrder')
+        # SetDataXML API metod adı (WSDL'de SetOrder yok, SetDataXML var)
+        service_method = integration.config.get('setorder', {}).get('method', 'SetDataXML')
         
         # SetOrder için SOAP request gönder
         # Geçici olarak mevcut _make_soap_request metodunu kullan
