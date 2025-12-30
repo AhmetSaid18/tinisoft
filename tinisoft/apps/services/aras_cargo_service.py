@@ -54,21 +54,28 @@ class ArasCargoService:
             integration: IntegrationProvider instance
             service_type: 'query' (GetQueryDS için) veya 'setorder' (SetOrder için)
         """
+        config = integration.config or {}
+        
         if service_type == 'setorder':
             # SetOrder için ayrı credentials (email'den gelen bilgiler)
-            setorder_config = integration.config.get('setorder', {})
+            setorder_config = config.get('setorder', {})
             return {
                 'username': setorder_config.get('username') or integration.get_api_key(),
                 'password': setorder_config.get('password') or integration.get_api_secret(),
-                'customer_code': setorder_config.get('customer_code') or integration.config.get('customer_code', ''),
+                'customer_code': setorder_config.get('customer_code') or config.get('customer_code', ''),
+                'customer_username': config.get('customer_username', ''),  # Müşteri Kullanıcı Adı
+                'customer_password': config.get('customer_password', ''),  # Müşteri Şifre
+                'branch': config.get('branch', ''),  # Şube
             }
         else:
             # Query servisleri için (GetQueryDS)
-            query_config = integration.config.get('query', {})
+            query_config = config.get('query', {})
             return {
                 'username': query_config.get('username') or integration.get_api_key(),
                 'password': query_config.get('password') or integration.get_api_secret(),
-                'customer_code': query_config.get('customer_code') or integration.config.get('customer_code', ''),
+                'customer_code': query_config.get('customer_code') or config.get('customer_code', ''),
+                'customer_username': config.get('customer_username', ''),  # Müşteri Kullanıcı Adı
+                'customer_password': config.get('customer_password', ''),  # Müşteri Şifre
             }
     
     @staticmethod
