@@ -365,7 +365,9 @@ class ArasCargoService:
                 element = ET.SubElement(order, xml_field)
                 element.text = str(value).strip()
         
-        # PieceCount ve PieceDetails ekle
+        # PieceCount ekle (PieceDetails olmadan)
+        # NOT: PieceDetails gönderdiğimizde "barcode bilgisi eksik" hatası alıyoruz
+        # Şimdilik sadece PieceCount gönderelim, PieceDetails'i kaldıralım
         piece_count = shipment_data.get('pieceCount', '1')
         try:
             piece_count_int = int(piece_count)
@@ -376,35 +378,8 @@ class ArasCargoService:
         piece_count_elem = ET.SubElement(order, 'PieceCount')
         piece_count_elem.text = str(piece_count_int)
         
-        # PieceDetails ekle (her parça için bir PieceDetail)
-        piece_details = ET.SubElement(order, 'PieceDetails')
-        
-        # Her parça için ağırlık ve desi hesapla
-        weight_per_piece = float(shipment_data.get('weight', '1.0')) / piece_count_int if piece_count_int > 0 else float(shipment_data.get('weight', '1.0'))
-        desi_per_piece = float(shipment_data.get('desi', '3.0')) / piece_count_int if piece_count_int > 0 else float(shipment_data.get('desi', '3.0'))
-        
-        for i in range(piece_count_int):
-            piece_detail = ET.SubElement(piece_details, 'PieceDetail')
-            
-            # PieceDetail içinde barcode zorunlu (Aras Kargo hatası: "barcode bilgisi eksik")
-            # Barcode: IntegrationCode + parça numarası (örn: ORD-AVRUPAMUTFAK-176-1)
-            barcode = f"{shipment_data.get('orderNumber', '')}-{i+1}"[:50]  # Barcode max 50 karakter olabilir
-            
-            # Farklı barcode field isimlerini deneyelim
-            # Barcode field ismi farklı olabilir: Barcode, BarcodeCode, PieceBarcode vb.
-            barcode_elem = ET.SubElement(piece_detail, 'Barcode')
-            barcode_elem.text = barcode
-            
-            # PieceDetail içinde Weight ve Desi de ekleyelim (her parça için)
-            weight_elem = ET.SubElement(piece_detail, 'Weight')
-            weight_elem.text = str(round(weight_per_piece, 2))
-            
-            desi_elem = ET.SubElement(piece_detail, 'Desi')
-            desi_elem.text = str(round(desi_per_piece, 2))
-            
-            # PieceNumber (parça numarası)
-            piece_number_elem = ET.SubElement(piece_detail, 'PieceNumber')
-            piece_number_elem.text = str(i + 1)
+        # PieceDetails'i kaldırdık - Aras Kargo barcode hatası veriyor
+        # Eğer PieceDetails gerekiyorsa, Aras Kargo'dan doğru format alınmalı
         
         # SetOrder parametreleri (orderInfo dışında)
         if credentials:
