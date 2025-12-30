@@ -187,6 +187,8 @@ def aras_print_label(request, tracking_number):
     """
     Kargo etiketi yazdır (Aras Kargo).
     
+    NOT: Şu an için implement edilmemiş. Label işlemi daha sonra eklenecek.
+    
     GET: /api/aras/label/{tracking_number}/
     """
     tenant = get_tenant_from_request(request)
@@ -203,30 +205,12 @@ def aras_print_label(request, tracking_number):
             'message': 'Bu işlem için yetkiniz yok.',
         }, status=status.HTTP_403_FORBIDDEN)
     
-    result = ArasCargoService.print_label(tenant, tracking_number)
-    
-    if result.get('success'):
-        label_url = result.get('label_url', '')
-        label_pdf = result.get('label_pdf', b'')
-        
-        # PDF varsa direkt döndür
-        if label_pdf:
-            from django.http import HttpResponse
-            response = HttpResponse(label_pdf, content_type='application/pdf')
-            response['Content-Disposition'] = f'attachment; filename="label_{tracking_number}.pdf"'
-            return response
-        
-        # URL varsa döndür
-        return Response({
-            'success': True,
-            'tracking_number': tracking_number,
-            'label_url': label_url,
-        })
-    else:
-        return Response({
-            'success': False,
-            'message': result.get('error', 'Etiket alınamadı.'),
-        }, status=status.HTTP_400_BAD_REQUEST)
+    # Şimdilik not implemented - label işlemi daha sonra eklenecek
+    return Response({
+        'success': False,
+        'message': 'Kargo etiketi yazdırma özelliği şu an için kullanılamıyor. Daha sonra eklenecek.',
+        'tracking_number': tracking_number,
+    }, status=status.HTTP_501_NOT_IMPLEMENTED)
 
 
 @api_view(['POST'])

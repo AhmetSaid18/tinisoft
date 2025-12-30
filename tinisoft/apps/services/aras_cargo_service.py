@@ -502,8 +502,8 @@ class ArasCargoService:
             
             # Debug için response'u logla
             logger.info(f"Aras Kargo SetOrder response: {response.status_code}")
-            logger.debug(f"SetOrder parsed data: {parsed_data}")
-            logger.debug(f"SetOrder raw response: {response.text[:500]}")
+            logger.info(f"SetOrder parsed data (ALL FIELDS): {parsed_data}")
+            logger.info(f"SetOrder raw response (first 1000 chars): {response.text[:1000]}")
             
             result = {
                 'success': True,
@@ -988,13 +988,35 @@ class ArasCargoService:
                     'error': f"Aras Kargo hatası: {result_message} (Code: {result_code})",
                 }
             
-            # InvoiceKey muhtemelen takip numarası veya invoice key
-            # Eğer InvoiceKey yoksa, OrgReceiverCustId bizim gönderdiğimiz order_number (M.Ö.K)
-            tracking_number = data.get('InvoiceKey') or data.get('trackingNumber') or data.get('tracking_number') or ''
-            org_receiver_cust_id = data.get('OrgReceiverCustId', '')
-            barcode = ''  # SetOrder response'da barkod olmayabilir
+            # SetOrder response'unda dönen field'lar:
+            # - InvoiceKey: Bizim gönderdiğimiz InvoiceNumber (kısaltılmış order_number)
+            # - OrgReceiverCustId: Bizim gönderdiğimiz IntegrationCode (order_number)
+            # - ResultCode: Sonuç kodu (0 = başarılı)
+            # - ResultMessage: Sonuç mesajı
             
-            logger.info(f"SetOrder tracking_number: {tracking_number}, OrgReceiverCustId: {org_receiver_cust_id}")
+            # NOT: SetOrder gerçek takip numarasını (13 haneli) döndürmeyebilir
+            # Gerçek takip numarası muhtemelen GetOrder veya GetOrderWithIntegrationCode servisi ile alınmalı
+            # Şimdilik InvoiceKey'i kullanıyoruz ama bu bizim gönderdiğimiz değer
+            
+            invoice_key = data.get('InvoiceKey', '')  # Bizim gönderdiğimiz InvoiceNumber
+            org_receiver_cust_id = data.get('OrgReceiverCustId', '')  # Bizim gönderdiğimiz IntegrationCode
+            
+            # Tüm field'ları kontrol et - belki başka bir field'da gerçek takip numarası var
+            logger.info(f"SetOrder response ALL FIELDS: {data}")
+            
+            # Gerçek takip numarası için diğer field'ları kontrol et
+            tracking_number = (
+                data.get('CargoKey') or  # Sevk İrsaliye No (16 karakter)
+                data.get('WaybillNo') or  # İrsaliye No (50 karakter)
+                data.get('Barcode') or  # Barkod (20 karakter)
+                data.get('TrackingNumber') or
+                data.get('TrackingNo') or
+                invoice_key  # Fallback: InvoiceKey (bizim gönderdiğimiz)
+            )
+            
+            barcode = data.get('Barcode') or data.get('CargoCode') or ''
+            
+            logger.info(f"SetOrder tracking_number: {tracking_number}, InvoiceKey: {invoice_key}, OrgReceiverCustId: {org_receiver_cust_id}, Barcode: {barcode}")
             
             # Tracking URL oluştur - müşteriye gönderilecek link
             tracking_url = ''
