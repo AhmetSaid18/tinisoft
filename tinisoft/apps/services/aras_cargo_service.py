@@ -502,17 +502,33 @@ class ArasCargoService:
         setorder_credentials = ArasCargoService._get_api_credentials(integration, 'setorder')
         
         # SetOrder endpoint'i
+        # ÖNEMLI: DOCX'teki endpoint (arascargoservice.asmx) GetDispatch servisi için, SetDataXML için değil!
+        # SetDataXML için doğru endpoint: ArasCargoIntegrationService.svc
         # Önce config'de tanımlı endpoint, yoksa test/production moduna göre default endpoint
         setorder_endpoint = integration.config.get('setorder', {}).get('endpoint')
+        
+        # Eğer config'de DOCX'teki eski endpoint varsa (arascargoservice.asmx), onu ignore et ve default kullan
+        # VEYA sadece host girilmişse (path eksik), onu da ignore et
+        if setorder_endpoint:
+            if 'arascargoservice.asmx' in setorder_endpoint:
+                logger.warning(f"Config'de eski endpoint bulundu (GetDispatch servisi), SetDataXML için default endpoint kullanılacak: {setorder_endpoint}")
+                setorder_endpoint = None
+            elif setorder_endpoint.count('/') < 3 or not setorder_endpoint.endswith('.svc'):
+                # Sadece host girilmişse (örn: https://customerservicestest.araskargo.com.tr)
+                # veya .svc ile bitmiyorsa, path eksik demektir
+                logger.warning(f"Config'de eksik endpoint bulundu (sadece host?), SetDataXML için default endpoint kullanılacak: {setorder_endpoint}")
+                setorder_endpoint = None
         
         if not setorder_endpoint:
             # Test modundaysa test endpoint, değilse production endpoint
             if integration.status == IntegrationProvider.Status.TEST_MODE:
-                # Test endpoint - SetOrder için de aynı endpoint kullanılır (PDF'de belirtilen)
+                # Test endpoint - SetDataXML için doğru endpoint
                 setorder_endpoint = ArasCargoService.DEFAULT_TEST_ENDPOINT
             else:
                 # Production endpoint
                 setorder_endpoint = ArasCargoService.DEFAULT_API_ENDPOINT
+        
+        logger.info(f"SetDataXML endpoint: {setorder_endpoint}")
         
         # Gönderi bilgilerini hazırla (SetDataXML API formatına göre)
         # ÖNEMLI: SetDataXML için queryInfo içindeki field isimleri ve format Aras Kargo dokümantasyonunda belirtilmiş olmalı
@@ -528,18 +544,23 @@ class ArasCargoService:
         # Desi hesaplama (basit formül: kg * 3, gerçekte hacim bazlı olmalı)
         desi = total_weight * 3.0  # Basit hesaplama, gerçekte hacim gerekli
         
+        # DOCX'teki GetDispatch servisi field isimlerini kullanıyoruz
+        # SetDataXML için queryInfo formatı aynı olabilir (test edilmeli)
         shipment_data = {
             'orderNumber': order.order_number,  # orgReceiverCustId olarak map edilecek - Müşteri özel kodu (M.Ö.K)
             'receiverName': f"{shipping_address.get('first_name', '').strip()} {shipping_address.get('last_name', '').strip()}".strip()[:100],  # receiverCustName (max 100)
             'receiverPhone': shipping_address.get('phone', '').strip()[:32],  # receiverPhone1 (max 32)
-            'receiverAddress': shipping_address.get('address_line_1', '').strip()[:250],  # receiverAddress (max 250)
-            'receiverCity': shipping_address.get('city', '').strip()[:32],  # cityName (max 32)
-            'receiverState': shipping_address.get('state', '').strip()[:32] if shipping_address.get('state') else '',  # townName (max 32)
-            'weight': total_weight,  # kg (Double 6,2)
+            'receiverAddress': shipping_address.get('address_line_1', '').strip()[:250],  # receiverAddress (max 250) - ZORUNLU
+            'receiverCity': shipping_address.get('city', '').strip()[:32],  # cityName (max 32) - ZORUNLU
+            'weight': total_weight,  # kg (Double 6,2) - ZORUNLU
             'desi': round(desi, 2),  # desi (Double 6,2)
-            'pieceCount': min(99, max(1, order.items.count())),  # cargoCount (Integer 2, max 99)
+            'pieceCount': min(99, max(1, order.items.count())),  # cargoCount (Integer 2, max 99) - ZORUNLU
             'content': ', '.join([item.product.name for item in order.items.all()[:3]])[:255],  # description (max 255)
         }
+        
+        # İlçe (townName) - opsiyonel ama ekleyelim
+        if shipping_address.get('state'):
+            shipment_data['receiverState'] = shipping_address.get('state', '').strip()[:32]  # townName (max 32)
         
         # Opsiyonel alanlar (eğer varsa)
         if shipping_address.get('phone2'):
@@ -547,6 +568,38 @@ class ArasCargoService:
         
         if shipping_address.get('phone3'):
             shipment_data['receiverPhone3'] = shipping_address.get('phone3', '').strip()[:15]
+        
+        # Zorunlu alanların boş olmadığını kontrol et
+        required_fields = {
+            'receiverAddress': 'Alıcı adresi',
+            'receiverCity': 'Alıcı şehir',
+            'weight': 'Ağırlık',
+            'pieceCount': 'Kargo sayısı'
+        }
+        
+        missing_fields = []
+        for field, field_name in required_fields.items():
+            if field not in shipment_data or not shipment_data[field] or (isinstance(shipment_data[field], str) and not shipment_data[field].strip()):
+                missing_fields.append(field_name)
+                logger.warning(f"SetDataXML için zorunlu alan eksik: {field} ({field_name})")
+        
+        if missing_fields:
+            return {
+                'success': False,
+                'error': f'Gönderi bilgileri eksik: {", ".join(missing_fields)}. Lütfen sipariş adres bilgilerini kontrol edin.',
+            }
+        
+        # Boş değerleri temizle (sadece string field'lar için)
+        # Ama zorunlu numeric field'ları (weight, pieceCount) koru
+        cleaned_data = {}
+        for key, value in shipment_data.items():
+            if isinstance(value, (int, float)):
+                cleaned_data[key] = value
+            elif value and str(value).strip():
+                cleaned_data[key] = value
+            # Boş string'leri atla (opsiyonel alanlar için)
+        
+        shipment_data = cleaned_data
         
         # Boş değerleri temizle
         shipment_data = {k: v for k, v in shipment_data.items() if v and str(v).strip()}

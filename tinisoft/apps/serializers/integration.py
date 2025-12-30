@@ -26,13 +26,42 @@ class IntegrationProviderSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'last_used_at', 'last_error']
     
+    def validate_test_endpoint(self, value):
+        """Test endpoint validasyonu."""
+        if value:
+            # Sadece host girilmişse (path eksik) uyar
+            if value.count('/') < 3 or not (value.endswith('.svc') or value.endswith('.asmx')):
+                raise serializers.ValidationError(
+                    'Test endpoint tam URL olmalı (örn: https://customerservicestest.araskargo.com.tr/ArasCargoIntegrationService.svc). '
+                    'Sadece host girilmemeli.'
+                )
+        return value
+    
+    def validate_api_endpoint(self, value):
+        """API endpoint validasyonu."""
+        if value:
+            # Sadece host girilmişse (path eksik) uyar
+            if value.count('/') < 3 or not (value.endswith('.svc') or value.endswith('.asmx')):
+                raise serializers.ValidationError(
+                    'API endpoint tam URL olmalı (örn: https://customerservices.araskargo.com.tr/ArasCargoCustomerIntegrationService/ArasCargoIntegrationService.svc). '
+                    'Sadece host girilmemeli.'
+                )
+        return value
+    
     def validate(self, data):
         """Validation."""
-        # Test modunda test_endpoint zorunlu
+        # Test modunda test_endpoint zorunlu ve doğru format olmalı
         if data.get('status') == IntegrationProvider.Status.TEST_MODE:
-            if not data.get('test_endpoint'):
+            test_endpoint = data.get('test_endpoint') or (self.instance.test_endpoint if self.instance else None)
+            if not test_endpoint:
                 raise serializers.ValidationError({
                     'test_endpoint': 'Test modu için test endpoint gereklidir.'
+                })
+            # Test modunda API endpoint prod'a işaret ediyorsa uyar
+            api_endpoint = data.get('api_endpoint') or (self.instance.api_endpoint if self.instance else None)
+            if api_endpoint and 'customerservices.araskargo.com.tr' in api_endpoint and 'customerservicestest' not in api_endpoint:
+                raise serializers.ValidationError({
+                    'api_endpoint': 'Test modunda production endpoint kullanılamaz. Test endpoint kullanın.'
                 })
         return data
 
@@ -83,13 +112,42 @@ class IntegrationProviderCreateSerializer(serializers.ModelSerializer):
         integration.save()
         return integration
     
+    def validate_test_endpoint(self, value):
+        """Test endpoint validasyonu."""
+        if value:
+            # Sadece host girilmişse (path eksik) uyar
+            if value.count('/') < 3 or not (value.endswith('.svc') or value.endswith('.asmx')):
+                raise serializers.ValidationError(
+                    'Test endpoint tam URL olmalı (örn: https://customerservicestest.araskargo.com.tr/ArasCargoIntegrationService.svc). '
+                    'Sadece host girilmemeli.'
+                )
+        return value
+    
+    def validate_api_endpoint(self, value):
+        """API endpoint validasyonu."""
+        if value:
+            # Sadece host girilmişse (path eksik) uyar
+            if value.count('/') < 3 or not (value.endswith('.svc') or value.endswith('.asmx')):
+                raise serializers.ValidationError(
+                    'API endpoint tam URL olmalı (örn: https://customerservices.araskargo.com.tr/ArasCargoCustomerIntegrationService/ArasCargoIntegrationService.svc). '
+                    'Sadece host girilmemeli.'
+                )
+        return value
+    
     def validate(self, data):
         """Validation."""
-        # Test modunda test_endpoint zorunlu
+        # Test modunda test_endpoint zorunlu ve doğru format olmalı
         if data.get('status') == IntegrationProvider.Status.TEST_MODE:
-            if not data.get('test_endpoint'):
+            test_endpoint = data.get('test_endpoint')
+            if not test_endpoint:
                 raise serializers.ValidationError({
                     'test_endpoint': 'Test modu için test endpoint gereklidir.'
+                })
+            # Test modunda API endpoint prod'a işaret ediyorsa uyar
+            api_endpoint = data.get('api_endpoint')
+            if api_endpoint and 'customerservices.araskargo.com.tr' in api_endpoint and 'customerservicestest' not in api_endpoint:
+                raise serializers.ValidationError({
+                    'api_endpoint': 'Test modunda production endpoint kullanılamaz. Test endpoint kullanın.'
                 })
         return data
 
@@ -133,6 +191,28 @@ class IntegrationProviderUpdateSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
     
+    def validate_test_endpoint(self, value):
+        """Test endpoint validasyonu."""
+        if value:
+            # Sadece host girilmişse (path eksik) uyar
+            if value.count('/') < 3 or not (value.endswith('.svc') or value.endswith('.asmx')):
+                raise serializers.ValidationError(
+                    'Test endpoint tam URL olmalı (örn: https://customerservicestest.araskargo.com.tr/ArasCargoIntegrationService.svc). '
+                    'Sadece host girilmemeli.'
+                )
+        return value
+    
+    def validate_api_endpoint(self, value):
+        """API endpoint validasyonu."""
+        if value:
+            # Sadece host girilmişse (path eksik) uyar
+            if value.count('/') < 3 or not (value.endswith('.svc') or value.endswith('.asmx')):
+                raise serializers.ValidationError(
+                    'API endpoint tam URL olmalı (örn: https://customerservices.araskargo.com.tr/ArasCargoCustomerIntegrationService/ArasCargoIntegrationService.svc). '
+                    'Sadece host girilmemeli.'
+                )
+        return value
+    
     def validate(self, data):
         """Validation."""
         # Test endpoint girilmişse ve status belirtilmemişse otomatik test_mode yap
@@ -145,11 +225,18 @@ class IntegrationProviderUpdateSerializer(serializers.ModelSerializer):
             if not self.instance or not self.instance.status:
                 data['status'] = IntegrationProvider.Status.ACTIVE
         
-        # Test modunda test_endpoint zorunlu
+        # Test modunda test_endpoint zorunlu ve doğru format olmalı
         if data.get('status') == IntegrationProvider.Status.TEST_MODE:
-            if not data.get('test_endpoint') and not (self.instance and self.instance.test_endpoint):
+            test_endpoint = data.get('test_endpoint') or (self.instance.test_endpoint if self.instance else None)
+            if not test_endpoint:
                 raise serializers.ValidationError({
                     'test_endpoint': 'Test modu için test endpoint gereklidir.'
+                })
+            # Test modunda API endpoint prod'a işaret ediyorsa uyar
+            api_endpoint = data.get('api_endpoint') or (self.instance.api_endpoint if self.instance else None)
+            if api_endpoint and 'customerservices.araskargo.com.tr' in api_endpoint and 'customerservicestest' not in api_endpoint:
+                raise serializers.ValidationError({
+                    'api_endpoint': 'Test modunda production endpoint kullanılamaz. Test endpoint kullanın.'
                 })
         return data
 
