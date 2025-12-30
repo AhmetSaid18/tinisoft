@@ -47,22 +47,25 @@ def aras_create_shipment(request, order_id):
     # Kargo adresi bilgilerini hazırla
     shipping_address = {}
     if order.shipping_address:
+        # ShippingAddress modelinden al
+        addr = order.shipping_address
         shipping_address = {
-            'first_name': order.shipping_address.first_name,
-            'last_name': order.shipping_address.last_name,
-            'phone': order.shipping_address.phone,
-            'address_line_1': order.shipping_address.address_line_1,
-            'address_line_2': order.shipping_address.address_line_2 or '',
-            'city': order.shipping_address.city,
-            'state': order.shipping_address.state or '',
-            'postal_code': order.shipping_address.postal_code,
-            'country': order.shipping_address.country or 'TR',
+            'first_name': addr.first_name or order.customer_first_name or '',
+            'last_name': addr.last_name or order.customer_last_name or '',
+            'phone': addr.phone or order.customer_phone or '',
+            'address_line_1': addr.address_line_1 or '',
+            'address_line_2': addr.address_line_2 or '',
+            'city': addr.city or '',
+            'state': addr.state or '',
+            'postal_code': addr.postal_code or '',
+            'country': addr.country or 'TR',
         }
+        logger.info(f"Order shipping_address: address_line_1={shipping_address.get('address_line_1')}, city={shipping_address.get('city')}")
     else:
         # Shipping address yoksa customer bilgilerinden oluştur
         shipping_address = {
-            'first_name': order.customer_first_name,
-            'last_name': order.customer_last_name,
+            'first_name': order.customer_first_name or '',
+            'last_name': order.customer_last_name or '',
             'phone': order.customer_phone or '',
             'address_line_1': '',
             'address_line_2': '',
@@ -71,6 +74,20 @@ def aras_create_shipment(request, order_id):
             'postal_code': '',
             'country': 'TR',
         }
+        logger.warning(f"Order {order.id} için shipping_address yok, customer bilgilerinden oluşturuldu.")
+    
+    # Adres bilgileri kontrolü
+    if not shipping_address.get('address_line_1') or not shipping_address.get('city'):
+        logger.error(f"Order {order.id} için eksik adres bilgisi: address_line_1={shipping_address.get('address_line_1')}, city={shipping_address.get('city')}")
+        return Response({
+            'success': False,
+            'message': 'Sipariş için kargo adresi eksik veya geçersiz. Lütfen sipariş adres bilgilerini kontrol edin.',
+            'details': {
+                'has_shipping_address': order.shipping_address is not None,
+                'address_line_1': shipping_address.get('address_line_1'),
+                'city': shipping_address.get('city'),
+            }
+        }, status=status.HTTP_400_BAD_REQUEST)
     
     # Gönderi oluştur
     result = ArasCargoService.create_shipment(tenant, order, shipping_address)
