@@ -280,7 +280,7 @@ class ArasCargoService:
         return dom.toprettyxml(indent="  ", encoding='utf-8').decode('utf-8')
     
     @staticmethod
-    def _build_setorder_soap_envelope(shipment_data: Dict, credentials: Dict) -> str:
+    def _build_setorder_soap_envelope(shipment_data: Dict, credentials: Dict, order=None) -> str:
         """
         SetOrder servisi için SOAP envelope oluştur (ASMX servisi).
         
@@ -433,7 +433,8 @@ class ArasCargoService:
         integration: IntegrationProvider,
         endpoint: str,
         shipment_data: Dict,
-        credentials: Dict
+        credentials: Dict,
+        order
     ) -> Dict[str, Any]:
         """
         SetOrder ASMX servisine istek gönder.
@@ -448,7 +449,7 @@ class ArasCargoService:
             dict: API response
         """
         # SOAP XML oluştur
-        soap_xml = ArasCargoService._build_setorder_soap_envelope(shipment_data, credentials)
+        soap_xml = ArasCargoService._build_setorder_soap_envelope(shipment_data, credentials, order)
         
         # SOAP Action header (SetOrder için)
         headers = {
@@ -939,7 +940,8 @@ class ArasCargoService:
             integration=integration,
             endpoint=setorder_endpoint,
             shipment_data=shipment_data,
-            credentials=setorder_credentials
+            credentials=setorder_credentials,
+            order=order
         )
         
         if response.get('success'):
