@@ -817,8 +817,14 @@ class ArasCargoService:
         desi = total_weight * 3.0  # Basit hesaplama, gerçekte hacim gerekli
         
         # SetOrder servisi için field isimleri (ASMX servisi formatı)
+        # IntegrationCode: En az 2, en fazla 32 karakter olmalı (Aras Kargo kısıtlaması)
+        integration_code = order.order_number[:32] if len(order.order_number) > 32 else order.order_number
+        if len(integration_code) < 2:
+            # Eğer order_number çok kısaysa, order ID'nin son kısmını kullan
+            integration_code = str(order.id)[:32] if len(str(order.id)) <= 32 else str(order.id)[-32:]
+        
         shipment_data = {
-            'orderNumber': order.order_number,  # IntegrationCode olarak map edilecek - Müşteri özel kodu (M.Ö.K)
+            'orderNumber': integration_code,  # IntegrationCode olarak map edilecek - Müşteri özel kodu (M.Ö.K) - MAX 32 karakter
             'receiverName': f"{shipping_address.get('first_name', '').strip()} {shipping_address.get('last_name', '').strip()}".strip()[:100],  # ReceiverName
             'receiverPhone': shipping_address.get('phone', '').strip()[:32],  # ReceiverPhone1
             'receiverAddress': shipping_address.get('address_line_1', '').strip()[:250],  # ReceiverAddress - ZORUNLU
