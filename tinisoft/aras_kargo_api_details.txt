@@ -1,0 +1,212 @@
+================================================================================
+ARAS KARGO API DOKÜMANTASYONU
+================================================================================
+
+
+--- GetQueryDS Metodları ---
+
+GetQueryDS
+Girilen parametrelere bağlı olarak servis (GetQueryDS) kargo bilgilerinin bulunduğu
+listeyi “DataSet” olarak geri döndürmektedir.
+2. GetQueryXML
+Girilen parametrelere bağlı olarak servis(GetQueryXML) kargo bilgilerinin
+bulunduğu listeyi “XML” formatında string geri döndürmektedir.
+3. GetQueryJSON
+Girilen parametrelere bağlı olarak servis (GetQueryJSON) kargo bilgilerinin
+bulunduğu listeyi “JSON” formatında string geri döndürmektedir.
+Servisler 2 parametre ile çalışır. Bu parametreler; “loginInfo” ve “queryInfo” şeklindedir.
+Bu parametreler “String” türündedir ve yapıları XML formatındadır.
+Kullanım Örneği;
+● Birinci Parametre, bu parametre sabittir. Aşağıdaki formata uyulmalıdır.
+string loginInfo = @"<LoginInfo>
+<UserName>Aras</UserName>
+<Password>12345</Password>
+<CustomerCode>1234567889</CustomerCode>
+</LoginInfo>";
+● İkinci parametre dinamiktir, en az bir değer içermelidir.
+string queryInfo = @"<QueryInfo>
+<QueryType>1</QueryType>
+<IntegrationCode>123456</IntegrationCode>
+
+--------------------------------------------------------------------------------
+
+GetQueryDS(loginInfo, queryInfo);
+string xmlResult = ArasIntegrationService.GetQueryXML(loginInfo, queryInfo); string
+jsonResult = ArasIntegrationService.GetQueryJSON(loginInfo, queryInfo);
+3. MAIL İLE YAPILAN BİLGİLENDİRME
+3.1. UYGULAMAYA KAYIT OLMA
+● Uygulamaya kayıt olabilmek için, kurumsal web sitemizden “Tanımlamalar”
+sekmesi altında bulunan “Entegrasyon” butonuna tıklanır ve “Bilgilendirme
+Hizmeti” sekmesi seçilir, Bilgilendirme Türü “MAIL” olarak seçilir ve buradan
+kayıt olunur
+
+=== PAGE 57 ===
+Doküman Kodu
+MÜŞTERİ BİLGİ SORGULAMA
+Yayın Tarihi 30.09.2014
+SERVİSLERİ Rev. No - Syf. No 00 - Syf. 57 / 78
+Revizyon Tarihi 31.07.2017
+● Bilgilendirme Tipi olarak; Teslim Edilememe (Devir), Parçalı Teslimat, Teslimat,
+Sevkiyat seçeneklerinden biri seçilir
+4. MÜŞTERİ WEB SERVİSİ İLE YAPILAN BİLGİLENDİRME
+4.1. UYGULAMAYA GİRİŞ
+● Müşteri, Aras Kargo tarafından belirlenen formatta web servis hazırlar
+● Bilgilendirme Tipi olarak; Teslim Edilememe (Devir), Parçalı Teslimat, Teslimat,
+Sevkiyat s
+
+--------------------------------------------------------------------------------
+
+
+--- CreateShipment Metodları ---
+
+
+--- QueryType Değerleri ---
+
+QueryType 1:
+QueryType = 1: 8
+2.2.2. QueryType = 2: 10
+2.2.3. QueryType = 3: 11
+2.2.4. QueryType = 4: 12
+2.2.5. QueryType = 5: 13
+2.2.6. QueryType = 6: 13
+2.2.7. QueryType = 7: 14
+2.2.8. QueryType = 8: 15
+2.2.9. QueryType = 9: 16
+2.2.10. QueryType = 10: 17
+2.2.11. QueryType = 11: 18
+2.2.12. QueryType = 12: 19
+2.2.13. QueryTy
+
+QueryType 2:
+QueryType = 2: 10
+2.2.3. QueryType = 3: 11
+2.2.4. QueryType = 4: 12
+2.2.5. QueryType = 5: 13
+2.2.6. QueryType = 6: 13
+2.2.7. QueryType = 7: 14
+2.2.8. QueryType = 8: 15
+2.2.9. QueryType = 9: 16
+2.2.10. QueryType = 10: 17
+2.2.11. QueryType = 11: 18
+2.2.12. QueryType = 12: 19
+2.2.13. QueryType = 13: 21
+2.2.14. Quer
+
+QueryType 3:
+QueryType = 3: 11
+2.2.4. QueryType = 4: 12
+2.2.5. QueryType = 5: 13
+2.2.6. QueryType = 6: 13
+2.2.7. QueryType = 7: 14
+2.2.8. QueryType = 8: 15
+2.2.9. QueryType = 9: 16
+2.2.10. QueryType = 10: 17
+2.2.11. QueryType = 11: 18
+2.2.12. QueryType = 12: 19
+2.2.13. QueryType = 13: 21
+2.2.14. QueryType = 14 23
+2.2.15. Que
+
+QueryType 4:
+QueryType = 4: 12
+2.2.5. QueryType = 5: 13
+2.2.6. QueryType = 6: 13
+2.2.7. QueryType = 7: 14
+2.2.8. QueryType = 8: 15
+2.2.9. QueryType = 9: 16
+2.2.10. QueryType = 10: 17
+2.2.11. QueryType = 11: 18
+2.2.12. QueryType = 12: 19
+2.2.13. QueryType = 13: 21
+2.2.14. QueryType = 14 23
+2.2.15. QueryType = 15: 24
+2.2.16. Q
+
+QueryType 5:
+QueryType = 5: 13
+2.2.6. QueryType = 6: 13
+2.2.7. QueryType = 7: 14
+2.2.8. QueryType = 8: 15
+2.2.9. QueryType = 9: 16
+2.2.10. QueryType = 10: 17
+2.2.11. QueryType = 11: 18
+2.2.12. QueryType = 12: 19
+2.2.13. QueryType = 13: 21
+2.2.14. QueryType = 14 23
+2.2.15. QueryType = 15: 24
+2.2.16. QueryType = 16: 25
+2.2.17.
+
+QueryType 6:
+QueryType = 6: 13
+2.2.7. QueryType = 7: 14
+2.2.8. QueryType = 8: 15
+2.2.9. QueryType = 9: 16
+2.2.10. QueryType = 10: 17
+2.2.11. QueryType = 11: 18
+2.2.12. QueryType = 12: 19
+2.2.13. QueryType = 13: 21
+2.2.14. QueryType = 14 23
+2.2.15. QueryType = 15: 24
+2.2.16. QueryType = 16: 25
+2.2.17. QueryType = 18: 26
+2.2.1
+
+QueryType 7:
+QueryType = 7: 14
+2.2.8. QueryType = 8: 15
+2.2.9. QueryType = 9: 16
+2.2.10. QueryType = 10: 17
+2.2.11. QueryType = 11: 18
+2.2.12. QueryType = 12: 19
+2.2.13. QueryType = 13: 21
+2.2.14. QueryType = 14 23
+2.2.15. QueryType = 15: 24
+2.2.16. QueryType = 16: 25
+2.2.17. QueryType = 18: 26
+2.2.18. QueryType = 19: 27
+2.2
+
+QueryType 8:
+QueryType = 8: 15
+2.2.9. QueryType = 9: 16
+2.2.10. QueryType = 10: 17
+2.2.11. QueryType = 11: 18
+2.2.12. QueryType = 12: 19
+2.2.13. QueryType = 13: 21
+2.2.14. QueryType = 14 23
+2.2.15. QueryType = 15: 24
+2.2.16. QueryType = 16: 25
+2.2.17. QueryType = 18: 26
+2.2.18. QueryType = 19: 27
+2.2.19. QueryType = 21: 29
+2
+
+QueryType 9:
+QueryType = 9: 16
+2.2.10. QueryType = 10: 17
+2.2.11. QueryType = 11: 18
+2.2.12. QueryType = 12: 19
+2.2.13. QueryType = 13: 21
+2.2.14. QueryType = 14 23
+2.2.15. QueryType = 15: 24
+2.2.16. QueryType = 16: 25
+2.2.17. QueryType = 18: 26
+2.2.18. QueryType = 19: 27
+2.2.19. QueryType = 21: 29
+2.2.20. QueryType = 22: 31
+
+QueryType 10:
+QueryType = 10: 17
+2.2.11. QueryType = 11: 18
+2.2.12. QueryType = 12: 19
+2.2.13. QueryType = 13: 21
+2.2.14. QueryType = 14 23
+2.2.15. QueryType = 15: 24
+2.2.16. QueryType = 16: 25
+2.2.17. QueryType = 18: 26
+2.2.18. QueryType = 19: 27
+2.2.19. QueryType = 21: 29
+2.2.20. QueryType = 22: 31
+2.2.21. QueryType = 23: 33
+

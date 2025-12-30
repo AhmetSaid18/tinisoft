@@ -1,0 +1,56 @@
+
+=== PAGE 1 ===
+KARGO TAKİP
+ENTEGRASYONU
+Aras Kargo A.Ş ile gönderimde bulunduğunuz ürünlerin takibini kolaylıkla yapabilirsiniz.
+Kendi uygulamalarınızın veya web sitenizin içerisine rahatlıkla Kargo Takip Linklerimizi
+yerleştirebilirsiniz.
+Kargo Takip Servisimizden yararlanmak için lütfen bu servise üye olunuz.
+Nasıl Üye Olunur?
+Aras Kargo A.Ş’nin Kurumsal web sayfasında yer alan “Tanımlamalar” linkine tıkladığınızda karşınıza
+gelen seçeneklerden “Entegrasyonlar” sekmesine geliniz.
+Karşınıza çıkan entegrasyon modellerinden “Kargo Takip Web Sayfası Üyeliği” linkine tıklayınız.
+Açılan formu doldurarak Size Özel Kargo Takip Linki üretiniz.
+Örnek Kargo Takip Linkleri:
+Sistemin kullanılması için örnek web sayfası linkleri aşağıdaki gibidir
+1) Aras Kargo’nun Üretmiş Olduğu “Kargo Takip Numarası” İle Takip Linki
+http://kargotakip.araskargo.com.tr/mainpage.aspx?code=%203513773163316
+Code: Aras Kargo’nun gönderi kaydı oluştururken üretmiş olduğu 13 haneli kargo takip kodudur.
+Benzersizdir. Özel fonksiyon ile üretilmektedir.
+2) “Sipariş Numarası” İle Gönderi Takip Linki
+http://kargotakip.araskargo.com.tr/mainpage.aspx?accountid=CBAD417894B73048BBC058C09771C
+DB8&sifre=nd1234&alici_kod=6140307
+Alıcı Kod: Siparişleriniz için üretmiş olduğunuz unique ( benzersiz) kodu temsil eder. Aras Kargo
+terminolojisinde M.Ö.K (müşteri özel kodu) diye adlandırılır.
+querystring açıklaması;
+ accountid, sifre ve alici_kod adlarında 3 adet parametre almaktadır.
+* accountid’ye geçilecek parametre değeri sabit olup Aras Kargo tarafından sağlanacaktır. Bu kod
+müşterinin Aras Kargo sistemindeki hesap kodu değeridir.
+
+=== PAGE 2 ===
+
+ Şifre’ye geçilecek parametre değeri linki kullanacak sistemin müşterimize ait olup olmadığını
+kanıtlaması için kullanılmaktadır. Kayıt olurken Müşteri ya da Aras Kargo Tarafından
+oluşturulacak değerdir. Ve accountid’de olduğu gibi sabittir her bir istekte değişmeyecektir.
+ Alici_kod’a geçilecek parametre değeri müşterimizin kargo takibi için kullandığı referans
+numaradır.
+Aras Kargo, kargo kaydını gerçekleştirirken müşterilerinin verdiği referans numarasını kargo takibi
+amacıyla kayıt eder ve bu referans no ilgili kargo kaydını bulmak için kullanır.
+Önemli Bilgiler:
+ Müşteriler kendilerine verilen linkte “ALICI KOD” hanesini kargolarına göre düzenleyerek
+istedikleri Verilere ulaşabilirler. “ACCOUNTID” ve “ŞİFRE” haneleri güvenlik açısından kendi
+kullanıcıları ile paylaşılmaması gereken alanlardır. Paylaşılması durumunda “ALICI KOD”
+hanesi değiştirilerek aynı firmanın başka gönderilerine ulaşılması söz konusudur. Bunun bir
+güvenlik açığı oluşturması durumunda Aras Kargo A.Ş. hiçbir şekilde sorumluluk kabul
+etmemektedir.
+ Bağlantı linkinde mevcut olan parametreleri gizlemek amacıyla “<iFrame>” yöntemi ya da
+“Sanal Adres” yöntemi gibi link saklama yöntemleri kullanılabilir.
+ Yukarıdaki web sayfası linkinde kullanılan parametreler örnek olup müşterilerimizde farklı
+değerler kullanılacaktır.
+ Sistemin çalışması için çalıştığınız Aras Kargo Şubesi kargo kaydını gerçekleştirirken kargo
+takip numaranızla ilgili alana giriş yapmalıdır. Kargo takibi yapmaya başlamadan önce Aras
+Kargo Şubenizi bu konuda uyarınız.
+3) “Kargo Barkod Kodu” İle Gönderi Takip Linki
+http://kargotakip.araskargo.com.tr/yurticigonbil.aspx?Cargo_Code=0805513773163332313
+Kargo Code: Aras Kargo’nun gönderi kaydı oluştururken üretmiş olduğu 20 haneli barkod koddur.
+Benzersizdir. Özel fonksiyon ile üretilmektedir.

@@ -1,0 +1,187 @@
+﻿[INFO] Toplam sayfa: 78
+
+[INFO] PDF icerigi extract ediliyor...
+
+[INFO] API ile ilgili 67 sayfa bulundu
+
+[INFO] SOAP metodlari araniyor...
+
+[OK] GetQueryDS: 4 bolum bulundu
+[OK] GetQuery: 4 bolum bulundu
+[OK] Query: 44 bolum bulundu
+
+================================================================================
+[INFO] GetQueryDS Metodu Detaylari
+================================================================================
+
+
+--- GetQueryDS ├ûrnek 1 ---
+
+GetQueryDS Girilen parametrelere ba─şl─▒ olarak servis (GetQueryDS) kargo bilgilerinin bulundu─şu listeyi ÔÇ£DataSetÔÇØ olarak geri d├Ând├╝rmektedir. 2. GetQueryXML Girilen parametrelere ba─şl─▒ olarak servis(GetQueryXML) kargo bilgilerinin bulundu─şu listeyi ÔÇ£XMLÔÇØ format─▒nda string geri d├Ând├╝rmektedir. 3. GetQueryJSON Girilen parametrelere ba─şl─▒ olarak servis (GetQueryJSON) kargo bilgilerinin bulundu─şu listeyi ÔÇ£JSONÔÇØ format─▒nda string geri d├Ând├╝rmektedir. Servisler 2 parametre ile ├ğal─▒┼ş─▒r. Bu parametreler; ÔÇ£loginInfoÔÇØ ve ÔÇ£queryInfoÔÇØ ┼şeklindedir. Bu parametreler ÔÇ£StringÔÇØ t├╝r├╝ndedir ve yap─▒lar─▒ XML format─▒ndad─▒r. Kullan─▒m ├ûrne─şi; ÔùÅ Birinci Parametre, bu parametre sabittir. A┼şa─ş─▒daki formata uyulmal─▒d─▒r. string loginInfo = @"<LoginInfo> <UserName>Aras</UserName> <Password>12345</Password> <CustomerCode>
+...
+
+--- GetQueryDS ├ûrnek 2 ---
+
+GetQueryDS(loginInfo, queryInfo); string xmlResult = ArasIntegrationService.GetQueryXML(loginInfo, queryInfo); string jsonResult = ArasIntegrationService.GetQueryJSON(loginInfo, queryInfo); 3. MAIL ─░LE YAPILAN B─░LG─░LEND─░RME 3.1. UYGULAMAYA KAYIT OLMA ÔùÅ Uygulamaya kay─▒t olabilmek i├ğin, kurumsal web sitemizden ÔÇ£Tan─▒mlamalarÔÇØ sekmesi alt─▒nda bulunan ÔÇ£EntegrasyonÔÇØ butonuna t─▒klan─▒r ve ÔÇ£Bilgilendirme HizmetiÔÇØ sekmesi se├ğilir, Bilgilendirme T├╝r├╝ ÔÇ£MAILÔÇØ olarak se├ğilir ve buradan kay─▒t olunur === PAGE 57 === Dok├╝man Kodu M├£┼ŞTER─░ B─░LG─░ SORGULAMA Yay─▒n Tarihi 30.09.2014 SERV─░SLER─░ Rev. No - Syf. No 00 - Syf. 57 / 78 Revizyon Tarihi 31.07.2017 ÔùÅ Bilgilendirme Tipi olarak; Teslim Edilememe (Devir), Par├ğal─▒ Teslimat, Teslimat, Sevkiyat se├ğeneklerinden biri se├ğilir 4. M├£┼ŞTER─░ WEB SERV─░S─░ ─░LE YAPILAN B─░L
+...
+
+================================================================================
+[INFO] CreateShipment Metodu Detaylari
+================================================================================
+
+
+================================================================================
+[INFO] QueryType Degerleri
+================================================================================
+
+QueryType 1: QueryType = 1: 8
+2.2.2. QueryType = 2: 10
+2.2.3. QueryType = 3: 11
+2.2.4. QueryType = 4: 12
+2.2.5. QueryType = 5: 13
+2.2.6. QueryType = 6: 13
+2.2.7. QueryType = 7: 14
+2.2.8. QueryType = 8: 15
+2.2.9. QueryType = 9: 16
+2.2.10. QueryType = 10: 17
+2.2.11. QueryType = 11: 18
+2.2.12. QueryType = 12: 19
+2....
+QueryType 2: QueryType = 2: 10
+2.2.3. QueryType = 3: 11
+2.2.4. QueryType = 4: 12
+2.2.5. QueryType = 5: 13
+2.2.6. QueryType = 6: 13
+2.2.7. QueryType = 7: 14
+2.2.8. QueryType = 8: 15
+2.2.9. QueryType = 9: 16
+2.2.10. QueryType = 10: 17
+2.2.11. QueryType = 11: 18
+2.2.12. QueryType = 12: 19
+2.2.13. QueryType = 13: 21...
+QueryType 3: QueryType = 3: 11
+2.2.4. QueryType = 4: 12
+2.2.5. QueryType = 5: 13
+2.2.6. QueryType = 6: 13
+2.2.7. QueryType = 7: 14
+2.2.8. QueryType = 8: 15
+2.2.9. QueryType = 9: 16
+2.2.10. QueryType = 10: 17
+2.2.11. QueryType = 11: 18
+2.2.12. QueryType = 12: 19
+2.2.13. QueryType = 13: 21
+2.2.14. QueryType = 14 2...
+QueryType 4: QueryType = 4: 12
+2.2.5. QueryType = 5: 13
+2.2.6. QueryType = 6: 13
+2.2.7. QueryType = 7: 14
+2.2.8. QueryType = 8: 15
+2.2.9. QueryType = 9: 16
+2.2.10. QueryType = 10: 17
+2.2.11. QueryType = 11: 18
+2.2.12. QueryType = 12: 19
+2.2.13. QueryType = 13: 21
+2.2.14. QueryType = 14 23
+2.2.15. QueryType = 15:...
+QueryType 5: QueryType = 5: 13
+2.2.6. QueryType = 6: 13
+2.2.7. QueryType = 7: 14
+2.2.8. QueryType = 8: 15
+2.2.9. QueryType = 9: 16
+2.2.10. QueryType = 10: 17
+2.2.11. QueryType = 11: 18
+2.2.12. QueryType = 12: 19
+2.2.13. QueryType = 13: 21
+2.2.14. QueryType = 14 23
+2.2.15. QueryType = 15: 24
+2.2.16. QueryType = 1...
+QueryType 6: QueryType = 6: 13
+2.2.7. QueryType = 7: 14
+2.2.8. QueryType = 8: 15
+2.2.9. QueryType = 9: 16
+2.2.10. QueryType = 10: 17
+2.2.11. QueryType = 11: 18
+2.2.12. QueryType = 12: 19
+2.2.13. QueryType = 13: 21
+2.2.14. QueryType = 14 23
+2.2.15. QueryType = 15: 24
+2.2.16. QueryType = 16: 25
+2.2.17. QueryType =...
+QueryType 7: QueryType = 7: 14
+2.2.8. QueryType = 8: 15
+2.2.9. QueryType = 9: 16
+2.2.10. QueryType = 10: 17
+2.2.11. QueryType = 11: 18
+2.2.12. QueryType = 12: 19
+2.2.13. QueryType = 13: 21
+2.2.14. QueryType = 14 23
+2.2.15. QueryType = 15: 24
+2.2.16. QueryType = 16: 25
+2.2.17. QueryType = 18: 26
+2.2.18. QueryType...
+QueryType 8: QueryType = 8: 15
+2.2.9. QueryType = 9: 16
+2.2.10. QueryType = 10: 17
+2.2.11. QueryType = 11: 18
+2.2.12. QueryType = 12: 19
+2.2.13. QueryType = 13: 21
+2.2.14. QueryType = 14 23
+2.2.15. QueryType = 15: 24
+2.2.16. QueryType = 16: 25
+2.2.17. QueryType = 18: 26
+2.2.18. QueryType = 19: 27
+2.2.19. QueryTy...
+QueryType 9: QueryType = 9: 16
+2.2.10. QueryType = 10: 17
+2.2.11. QueryType = 11: 18
+2.2.12. QueryType = 12: 19
+2.2.13. QueryType = 13: 21
+2.2.14. QueryType = 14 23
+2.2.15. QueryType = 15: 24
+2.2.16. QueryType = 16: 25
+2.2.17. QueryType = 18: 26
+2.2.18. QueryType = 19: 27
+2.2.19. QueryType = 21: 29
+2.2.20. Query...
+QueryType 10: QueryType = 10: 17
+2.2.11. QueryType = 11: 18
+2.2.12. QueryType = 12: 19
+2.2.13. QueryType = 13: 21
+2.2.14. QueryType = 14 23
+2.2.15. QueryType = 15: 24
+2.2.16. QueryType = 16: 25
+2.2.17. QueryType = 18: 26
+2.2.18. QueryType = 19: 27
+2.2.19. QueryType = 21: 29
+2.2.20. QueryType = 22: 31
+2.2.21. Quer...
+
+================================================================================
+[INFO] Parametre Listeleri
+================================================================================
+
+6 parametre b├Âl├╝m├╝ bulundu
+
+
+================================================================================
+[INFO] XML/SOAP Ornekleri
+================================================================================
+
+0 XML ├Ârne─şi bulundu
+
+
+================================================================================
+[INFO] Endpoint Bilgileri
+================================================================================
+
+
+================================================================================
+[INFO] Sonuclar kaydediliyor...
+================================================================================
+
+[OK] Tamamlandi!
+
+Olu┼şturulan dosyalar:
+  - aras_kargo_extracted_text.txt (T├╝m metin)
+  - aras_kargo_api_summary.json (├ûzet JSON)
+  - aras_kargo_api_details.txt (Detayl─▒ API bilgileri)

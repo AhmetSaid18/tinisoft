@@ -20,6 +20,8 @@ from apps.views.product_image_upload import (
 )
 from apps.views.product_image_from_excel import upload_images_from_excel_paths
 from apps.views.order import order_list_create, order_detail, order_track
+from apps.views.aras_cargo import aras_create_shipment, aras_track_shipment, aras_print_label, aras_cancel_shipment
+from apps.views.aras_cargo import aras_create_shipment, aras_track_shipment, aras_print_label, aras_cancel_shipment
 from apps.views.cart import (
     cart_detail, add_to_cart, cart_item_detail,
     update_shipping_method, apply_coupon
@@ -140,7 +142,13 @@ urlpatterns = [
     # Sipariş yönetimi
     path('orders/', order_list_create, name='order_list_create'),  # GET: List, POST: Create
     path('orders/<uuid:order_id>/', order_detail, name='order_detail'),  # GET, PATCH
+    path('orders/<uuid:order_id>/aras/create-shipment/', aras_create_shipment, name='aras_create_shipment'),  # POST: Aras Kargo gönderi oluştur
     path('orders/track/<str:order_number>/', order_track, name='order_track'),  # GET: Track order by order number
+    
+    # Aras Kargo API
+    path('aras/track/<str:tracking_number>/', aras_track_shipment, name='aras_track_shipment'),  # GET: Gönderi takip
+    path('aras/label/<str:tracking_number>/', aras_print_label, name='aras_print_label'),  # GET: Etiket yazdır
+    path('aras/cancel/<str:tracking_number>/', aras_cancel_shipment, name='aras_cancel_shipment'),  # POST: Gönderi iptal
     
     # Sepet yönetimi (Basket - Basit CRUD)
     path('basket/', basket, name='basket'),  # GET: Sepeti getir, POST: Sepete ürün ekle
