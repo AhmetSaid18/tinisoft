@@ -5,7 +5,7 @@ Aras Kargo XML Servisleri kullanır (SOAP).
 """
 import requests
 import logging
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, List
 from django.utils import timezone
 from apps.models import IntegrationProvider, Order
 from django.db import models
@@ -462,6 +462,177 @@ class ArasCargoService:
         return dom.toprettyxml(indent="  ", encoding='utf-8').decode('utf-8')
     
     @staticmethod
+    def _get_order_with_integration_code(
+        integration: IntegrationProvider,
+        endpoint: str,
+        integration_code: str,
+        credentials: Dict
+    ) -> Dict[str, Any]:
+        """
+        GetOrderWithIntegrationCode ASMX servisini çağır.
+        
+        Args:
+            integration: IntegrationProvider instance
+            endpoint: GetOrderWithIntegrationCode endpoint URL
+            integration_code: IntegrationCode (Müşteri Özel Kodu)
+            credentials: API credentials (username, password)
+        
+        Returns:
+            dict: {
+                'success': bool,
+                'tracking_number': str,  # TradingWaybillNumber
+                'data': dict
+            }
+        """
+        # SOAP Envelope oluştur
+        envelope = ET.Element('soap:Envelope')
+        envelope.set('xmlns:xsi', 'http://www.w3.org/2001/XMLSchema-instance')
+        envelope.set('xmlns:xsd', 'http://www.w3.org/2001/XMLSchema')
+        envelope.set('xmlns:soap', 'http://schemas.xmlsoap.org/soap/envelope/')
+        
+        # Body
+        body = ET.SubElement(envelope, 'soap:Body')
+        
+        # GetOrderWithIntegrationCode
+        get_order = ET.SubElement(body, 'GetOrderWithIntegrationCode')
+        get_order.set('xmlns', 'http://tempuri.org/')
+        
+        # userName
+        user_name_elem = ET.SubElement(get_order, 'userName')
+        user_name_elem.text = str(credentials.get('username', '') or credentials.get('user_name', ''))
+        
+        # password
+        password_elem = ET.SubElement(get_order, 'password')
+        password_elem.text = str(credentials.get('password', ''))
+        
+        # integrationCode
+        integration_code_elem = ET.SubElement(get_order, 'integrationCode')
+        integration_code_elem.text = str(integration_code)
+        
+        # XML string'e çevir
+        xml_str = ET.tostring(envelope, encoding='utf-8', method='xml')
+        # Pretty print için minidom kullan
+        dom = minidom.parseString(xml_str)
+        soap_xml = dom.toprettyxml(indent="  ", encoding='utf-8').decode('utf-8')
+        
+        # SOAP Action header
+        headers = {
+            'Content-Type': 'text/xml; charset=utf-8',
+            'SOAPAction': '"http://tempuri.org/GetOrderWithIntegrationCode"',  # Tırnak içinde!
+        }
+        
+        try:
+            logger.info(f"Aras Kargo GetOrderWithIntegrationCode request to {endpoint}")
+            logger.debug(f"GetOrderWithIntegrationCode SOAP XML:\n{soap_xml}")
+            
+            response = requests.post(
+                url=endpoint,
+                data=soap_xml.encode('utf-8'),
+                headers=headers,
+                timeout=30
+            )
+            
+            response.raise_for_status()
+            
+            # SOAP response'u parse et
+            parsed_data = ArasCargoService._parse_get_order_with_integration_code_response(response.text)
+            
+            logger.info(f"Aras Kargo GetOrderWithIntegrationCode response: {response.status_code}")
+            logger.info(f"GetOrderWithIntegrationCode parsed data: {parsed_data}")
+            
+            # TradingWaybillNumber'ı al (ilk Order'dan)
+            tracking_number = None
+            if parsed_data and isinstance(parsed_data, list) and len(parsed_data) > 0:
+                # İlk Order'dan TradingWaybillNumber'ı al
+                first_order = parsed_data[0]
+                tracking_number = first_order.get('TradingWaybillNumber', '') or first_order.get('TradingWaybillNo', '')
+            
+            result = {
+                'success': True,
+                'tracking_number': tracking_number,
+                'data': parsed_data,
+                'status_code': response.status_code,
+                'raw_response': response.text,
+            }
+            
+            return result
+            
+        except requests.exceptions.RequestException as e:
+            error_msg = f"Aras Kargo GetOrderWithIntegrationCode error: {str(e)}"
+            
+            if hasattr(e, 'response') and e.response is not None:
+                response_text = e.response.text[:1000] if e.response.text else 'No response body'
+                logger.error(f"{error_msg}\nResponse body: {response_text}")
+                logger.error(f"Request SOAP XML: {soap_xml}")
+            else:
+                logger.error(error_msg)
+            
+            return {
+                'success': False,
+                'error': error_msg,
+            }
+        except Exception as e:
+            error_msg = f"Unexpected error in Aras Kargo GetOrderWithIntegrationCode: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            
+            return {
+                'success': False,
+                'error': error_msg,
+            }
+    
+    @staticmethod
+    def _parse_get_order_with_integration_code_response(xml_response: str) -> List[Dict[str, Any]]:
+        """
+        GetOrderWithIntegrationCode SOAP response'u parse et.
+        
+        Format:
+        <GetOrderWithIntegrationCodeResponse>
+          <GetOrderWithIntegrationCodeResult>
+            <Order>
+              <TradingWaybillNumber>string</TradingWaybillNumber>
+              ...
+            </Order>
+            <Order>...</Order>
+          </GetOrderWithIntegrationCodeResult>
+        </GetOrderWithIntegrationCodeResponse>
+        
+        Args:
+            xml_response: SOAP XML response string
+        
+        Returns:
+            list: Parsed Order list
+        """
+        try:
+            root = ET.fromstring(xml_response)
+            namespaces = {
+                'soap': 'http://schemas.xmlsoap.org/soap/envelope/',
+                'tem': 'http://tempuri.org/'
+            }
+            
+            # Body içindeki GetOrderWithIntegrationCodeResponse'u bul
+            body = root.find('.//soap:Body', namespaces)
+            if body is not None:
+                get_order_response = body.find('.//tem:GetOrderWithIntegrationCodeResponse', namespaces)
+                if get_order_response is not None:
+                    # GetOrderWithIntegrationCodeResult içindeki Order'ları bul
+                    result_element = get_order_response.find('.//tem:GetOrderWithIntegrationCodeResult', namespaces)
+                    if result_element is not None:
+                        orders = []
+                        # Tüm Order elementlerini bul
+                        order_elements = result_element.findall('.//tem:Order', namespaces)
+                        for order_elem in order_elements:
+                            order_dict = {}
+                            for child in order_elem:
+                                tag = child.tag.split('}')[-1]  # Namespace'i kaldır
+                                order_dict[tag] = child.text if child.text else ''
+                            orders.append(order_dict)
+                        return orders
+            return []
+        except Exception as e:
+            logger.error(f"Error parsing GetOrderWithIntegrationCode SOAP response: {str(e)}")
+            return []
+    
+    @staticmethod
     def _make_setorder_request(
         integration: IntegrationProvider,
         endpoint: str,
@@ -737,9 +908,18 @@ class ArasCargoService:
         soap_xml = ArasCargoService._build_soap_envelope(service_method, credentials, data or {})
         
         # SOAP Action header
+        # GetQueryDS için farklı bir SOAPAction olabilir
+        if service_method == 'GetQueryDS':
+            soap_action = 'http://tempuri.org/GetQueryDS'
+        elif service_method == 'SetOrder':
+            soap_action = 'http://tempuri.org/SetOrder'
+        else:
+            # Diğer servisler için varsayılan format
+            soap_action = f'http://tempuri.org/{service_method}'
+        
         headers = {
             'Content-Type': 'text/xml; charset=utf-8',
-            'SOAPAction': f'http://tempuri.org/IArasCargoIntegrationService/{service_method}',
+            'SOAPAction': soap_action,
         }
         
         try:
@@ -1034,34 +1214,31 @@ class ArasCargoService:
             
             barcode = data.get('Barcode') or data.get('CargoCode') or ''
             
-            # Eğer response'da gerçek takip numarası yoksa, IntegrationCode ile track_shipment çağır
+            # Eğer response'da gerçek takip numarası yoksa, GetOrderWithIntegrationCode ile sorgula
             # integration_code shipment_data'dan al
             integration_code_for_track = shipment_data.get('orderNumber', order.order_number)
             if not tracking_number or (len(str(tracking_number).strip()) != 13 and len(str(tracking_number).strip()) != 20):
-                logger.info(f"SetOrder response'unda gerçek takip numarası bulunamadı, IntegrationCode ile sorgulama yapılıyor: {org_receiver_cust_id or integration_code_for_track}")
+                logger.info(f"SetOrder response'unda gerçek takip numarası bulunamadı, GetOrderWithIntegrationCode ile sorgulama yapılıyor: {org_receiver_cust_id or integration_code_for_track}")
                 try:
-                    # IntegrationCode ile gönderi bilgilerini sorgula
-                    track_result = ArasCargoService.track_shipment(
-                        tenant=tenant,
-                        tracking_reference=org_receiver_cust_id or integration_code_for_track,
-                        query_type=1  # QueryType 1: IntegrationCode ile sorgu
+                    # GetOrderWithIntegrationCode ile gönderi bilgilerini sorgula
+                    # Bu servis aynı endpoint'i (arascargoservice.asmx) kullanır
+                    get_order_result = ArasCargoService._get_order_with_integration_code(
+                        integration=integration,
+                        endpoint=setorder_endpoint,  # Aynı endpoint
+                        integration_code=org_receiver_cust_id or integration_code_for_track,
+                        credentials=setorder_credentials
                     )
                     
-                    if track_result.get('success') and track_result.get('data'):
-                        track_data = track_result.get('data', {})
-                        # Track response'dan gerçek takip numarasını al
-                        # Aras Kargo response formatına göre field isimleri değişebilir
-                        tracking_number = (
-                            track_data.get('CargoKey') or  # 13 haneli takip numarası
-                            track_data.get('TrackingNumber') or
-                            track_data.get('TrackingNo') or
-                            track_data.get('WaybillNo') or
-                            tracking_number  # Fallback: önceki değer
-                        )
-                        barcode = track_data.get('Barcode') or track_data.get('CargoCode') or barcode
-                        logger.info(f"Track shipment'dan alınan tracking_number: {tracking_number}, barcode: {barcode}")
-                except Exception as track_error:
-                    logger.warning(f"SetOrder sonrası track_shipment çağrısı başarısız: {str(track_error)}")
+                    if get_order_result.get('success'):
+                        # TradingWaybillNumber'ı al (gerçek takip numarası)
+                        waybill_number = get_order_result.get('tracking_number', '')
+                        if waybill_number and waybill_number.strip():
+                            tracking_number = waybill_number.strip()
+                            logger.info(f"GetOrderWithIntegrationCode'dan alınan TradingWaybillNumber (takip numarası): {tracking_number}")
+                        else:
+                            logger.info(f"GetOrderWithIntegrationCode başarılı ama TradingWaybillNumber boş - gönderi henüz işlenmemiş olabilir")
+                except Exception as get_order_error:
+                    logger.warning(f"SetOrder sonrası GetOrderWithIntegrationCode çağrısı başarısız: {str(get_order_error)}")
                     # Hata olsa bile devam et, invoice_key kullanacağız
             
             # Eğer hala gerçek takip numarası yoksa, invoice_key'i kullan (bizim gönderdiğimiz InvoiceNumber)
