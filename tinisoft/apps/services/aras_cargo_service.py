@@ -321,8 +321,8 @@ class ArasCargoService:
         # orderInfo
         order_info = ET.SubElement(set_order, 'orderInfo')
         
-        # Order
-        order = ET.SubElement(order_info, 'Order')
+        # Order (XML element)
+        order_xml = ET.SubElement(order_info, 'Order')
         
         # Field mapping: shipment_data -> SetOrder XML fields
         field_mapping = {
@@ -349,10 +349,10 @@ class ArasCargoService:
             
             logger.info(f"SetOrder Order içinde UserName: {user_name}, Password: {'*' * len(password) if password else 'EMPTY'}")
             
-            user_name_elem = ET.SubElement(order, 'UserName')
+            user_name_elem = ET.SubElement(order_xml, 'UserName')
             user_name_elem.text = str(user_name)
             
-            password_elem = ET.SubElement(order, 'Password')
+            password_elem = ET.SubElement(order_xml, 'Password')
             password_elem.text = str(password)
         
         # Gönderi bilgilerini ekle
@@ -362,7 +362,7 @@ class ArasCargoService:
                 # PieceCount ve PieceDetails özel işlem gerektirir
                 if xml_field == 'PieceCount':
                     continue  # PieceCount'u sonra ekleyeceğiz (PieceDetails ile birlikte)
-                element = ET.SubElement(order, xml_field)
+                element = ET.SubElement(order_xml, xml_field)
                 element.text = str(value).strip()
         
         # PieceCount ekle (PieceDetails olmadan)
@@ -375,11 +375,11 @@ class ArasCargoService:
             piece_count_int = 1
         
         # PieceCount ekle
-        piece_count_elem = ET.SubElement(order, 'PieceCount')
+        piece_count_elem = ET.SubElement(order_xml, 'PieceCount')
         piece_count_elem.text = str(piece_count_int)
         
         # PieceDetails ekle - Her order item için gerçek ürün barcode'u gönder
-        piece_details = ET.SubElement(order, 'PieceDetails')
+        piece_details = ET.SubElement(order_xml, 'PieceDetails')
         
         # Order items'dan ürün barcode'larını al
         order_items = order.items.all()
