@@ -359,8 +359,29 @@ class ArasCargoService:
         for key, value in shipment_data.items():
             xml_field = field_mapping.get(key, key)
             if value is not None and value != '':
+                # PieceCount ve PieceDetails özel işlem gerektirir
+                if xml_field == 'PieceCount':
+                    continue  # PieceCount'u sonra ekleyeceğiz (PieceDetails ile birlikte)
                 element = ET.SubElement(order, xml_field)
                 element.text = str(value).strip()
+        
+        # PieceCount ve PieceDetails ekle
+        piece_count = shipment_data.get('pieceCount', '1')
+        try:
+            piece_count_int = int(piece_count)
+        except (ValueError, TypeError):
+            piece_count_int = 1
+        
+        # PieceCount ekle
+        piece_count_elem = ET.SubElement(order, 'PieceCount')
+        piece_count_elem.text = str(piece_count_int)
+        
+        # PieceDetails ekle (her parça için bir PieceDetail)
+        piece_details = ET.SubElement(order, 'PieceDetails')
+        for i in range(piece_count_int):
+            piece_detail = ET.SubElement(piece_details, 'PieceDetail')
+            # PieceDetail içinde ağırlık, desi vb. bilgiler olabilir
+            # Şimdilik boş gönderelim, gerekirse sonra doldururuz
         
         # SetOrder parametreleri (orderInfo dışında)
         if credentials:
