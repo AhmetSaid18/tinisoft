@@ -379,14 +379,60 @@ class ArasCargoService:
         piece_count_elem.text = str(piece_count_int)
         
         # PieceDetails ekle - Her order item için gerçek ürün barcode'u gönder
-        # NOT: Aras Kargo "barcode bilgisi eksik" hatası veriyor
-        # Belki PieceDetails formatı yanlış veya SetOrderPiece servisi kullanılmalı
-        # Şimdilik PieceDetails'i kaldırıp sadece PieceCount gönderelim
-        # Eğer PieceDetails zorunluysa, Aras Kargo'dan doğru format alınmalı
+        # Aras Kargo PieceCount ile PieceDetails içindeki parça sayısının eşleşmesini bekliyor
+        piece_details = ET.SubElement(order_xml, 'PieceDetails')
         
-        # Geçici çözüm: PieceDetails'i tamamen kaldır
-        # Eğer Aras Kargo PieceDetails zorunlu ise, bu hata devam edecek
-        # O zaman SetOrderPiece servisi kullanılmalı veya format doğru alınmalı
+        # Order items'dan ürün barcode'larını al
+        order_items = order.items.all()
+        
+        # Her order item için quantity kadar PieceDetail oluştur
+        piece_index = 0
+        # Toplam ağırlık ve desi'yi parça sayısına böl (her parça için eşit dağıt)
+        total_weight_float = float(shipment_data.get('weight', '1.0'))
+        total_desi_float = float(shipment_data.get('desi', '3.0'))
+        weight_per_piece = total_weight_float / piece_count_int if piece_count_int > 0 else total_weight_float
+        desi_per_piece = total_desi_float / piece_count_int if piece_count_int > 0 else total_desi_float
+        
+        for order_item in order_items:
+            # Ürün barcode'unu al (product.barcode veya product.sku veya product_sku)
+            barcode = ''
+            if order_item.product:
+                barcode = order_item.product.barcode or order_item.product.sku or ''
+            if not barcode:
+                barcode = order_item.product_sku or ''
+            if not barcode:
+                # Barcode yoksa, IntegrationCode + parça numarası kullan
+                barcode = f"{integration_code}-{piece_index+1}"
+            
+            # Barcode'daki boşlukları temizle (Aras Kargo boşluğu "geçersiz/boş" gibi ele alabiliyor)
+            barcode = barcode.strip().replace(' ', '')
+            
+            # Her quantity için bir PieceDetail oluştur
+            for qty_index in range(order_item.quantity):
+                piece_detail = ET.SubElement(piece_details, 'PieceDetail')
+                
+                # BarcodeNumber (Aras Kargo'nun beklediği field ismi)
+                barcode_elem = ET.SubElement(piece_detail, 'BarcodeNumber')
+                barcode_elem.text = barcode[:50] if barcode else f"{integration_code}-{piece_index+1}"[:50]
+                
+                # Weight (her parça için)
+                weight_elem = ET.SubElement(piece_detail, 'Weight')
+                weight_elem.text = str(round(weight_per_piece, 2))
+                
+                # VolumetricWeight (Desi yerine - Aras Kargo'nun beklediği field ismi)
+                volumetric_weight_elem = ET.SubElement(piece_detail, 'VolumetricWeight')
+                volumetric_weight_elem.text = str(round(desi_per_piece, 2))
+                
+                # ProductNumber (opsiyonel ama ekleyelim)
+                product_number_elem = ET.SubElement(piece_detail, 'ProductNumber')
+                product_number_elem.text = barcode[:50] if barcode else f"{integration_code}-{piece_index+1}"[:50]
+                
+                # Description (opsiyonel ama ekleyelim)
+                if order_item.product_name:
+                    description_elem = ET.SubElement(piece_detail, 'Description')
+                    description_elem.text = order_item.product_name[:255]
+                
+                piece_index += 1
         
         # SetOrder parametreleri (orderInfo dışında)
         if credentials:
