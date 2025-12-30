@@ -148,9 +148,51 @@ class Command(BaseCommand):
 
         if dry_run:
             self.stdout.write(self.style.WARNING("DRY RUN MODE - Veritabanına yazılmayacak"))
-            self.stdout.write(f"\nÖrnek eşleştirmeler (ilk 10):")
-            for i, (match_val, brand_val) in enumerate(list(brand_data.items())[:10]):
-                self.stdout.write(f"  {match_val} → {brand_val}")
+            self.stdout.write(f"\nVeritabanında eşleşen ürünler kontrol ediliyor...")
+            
+            # Dry-run'da da eşleşen ürünleri kontrol et
+            matched_products = []
+            matched_count = 0
+            unmatched_count = 0
+            
+            for match_value, brand_value in brand_data.items():
+                try:
+                    if match_by == 'sku':
+                        product = Product.objects.filter(
+                            tenant=tenant,
+                            sku=match_value,
+                            is_deleted=False
+                        ).first()
+                    else:  # barcode
+                        product = Product.objects.filter(
+                            tenant=tenant,
+                            barcode=match_value,
+                            is_deleted=False
+                        ).first()
+                    
+                    if product:
+                        matched_count += 1
+                        if len(matched_products) < 10:
+                            matched_products.append((match_value, brand_value, product.name))
+                    else:
+                        unmatched_count += 1
+                        if unmatched_count <= 5:  # İlk 5 bulunamayanı göster
+                            self.stdout.write(
+                                self.style.WARNING(f"  ⚠ Bulunamadı: {match_by}={match_value}, marka={brand_value}")
+                            )
+                except Exception as e:
+                    self.stdout.write(
+                        self.style.ERROR(f"  ✗ Hata ({match_value}): {str(e)}")
+                    )
+            
+            self.stdout.write(f"\n✓ Eşleşen ürün sayısı: {matched_count}")
+            if unmatched_count > 0:
+                self.stdout.write(self.style.WARNING(f"⚠ Bulunamayan ürün sayısı: {unmatched_count}"))
+            
+            if matched_products:
+                self.stdout.write(f"\nÖrnek eşleştirmeler (ilk {len(matched_products)}):")
+                for match_val, brand_val, product_name in matched_products:
+                    self.stdout.write(f"  {match_val} → {brand_val} (Ürün: {product_name})")
         else:
             # Veritabanına yaz
             with transaction.atomic():
