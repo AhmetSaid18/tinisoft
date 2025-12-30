@@ -43,3 +43,4 @@ with open('aras_kargo_full_text.txt', 'w', encoding='utf-8') as f:
 print(f"\n\nFull text saved to aras_kargo_full_text.txt")
 pdf.close()
 
+

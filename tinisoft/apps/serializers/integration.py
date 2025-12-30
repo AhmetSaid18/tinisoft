@@ -135,9 +135,19 @@ class IntegrationProviderUpdateSerializer(serializers.ModelSerializer):
     
     def validate(self, data):
         """Validation."""
+        # Test endpoint girilmişse ve status belirtilmemişse otomatik test_mode yap
+        if data.get('test_endpoint') and not data.get('status'):
+            data['status'] = IntegrationProvider.Status.TEST_MODE
+        
+        # API key'ler girilmişse ve status belirtilmemişse otomatik active yap
+        if (data.get('api_key') or data.get('api_secret')) and not data.get('status'):
+            # Mevcut instance varsa status'ünü koru, yoksa active yap
+            if not self.instance or not self.instance.status:
+                data['status'] = IntegrationProvider.Status.ACTIVE
+        
         # Test modunda test_endpoint zorunlu
         if data.get('status') == IntegrationProvider.Status.TEST_MODE:
-            if not data.get('test_endpoint') and not self.instance.test_endpoint:
+            if not data.get('test_endpoint') and not (self.instance and self.instance.test_endpoint):
                 raise serializers.ValidationError({
                     'test_endpoint': 'Test modu için test endpoint gereklidir.'
                 })

@@ -97,22 +97,26 @@ class ArasCargoService:
             return f"http://kargotakip.araskargo.com.tr/mainpage.aspx?code={tracking_reference}"
         
         elif tracking_type == 'order_number':
-            # Format 2: Sipariş Numarası ile (accountid, sifre, alici_kod)
-            # http://kargotakip.araskargo.com.tr/mainpage.aspx?accountid=XXX&sifre=YYY&alici_kod=ZZZ
+            # Format 2: Sipariş Numarası ile (accountid, alici_kod)
+            # Yeni format: https://kargotakip.araskargo.com.tr/mainpage.aspx?accountid=XXX&alici_kod=ZZZ
+            # Eski format (sifre varsa): http://kargotakip.araskargo.com.tr/mainpage.aspx?accountid=XXX&sifre=YYY&alici_kod=ZZZ
             account_id = integration.config.get('account_id', '')
-            tracking_password = integration.config.get('tracking_password', '')  # Güvenlik şifresi
+            tracking_password = integration.config.get('tracking_password', '')  # Güvenlik şifresi (opsiyonel)
             
             if not account_id:
                 logger.warning("Aras Kargo account_id bulunamadı. Tracking URL oluşturulamadı.")
                 return ''
             
-            if not tracking_password:
-                logger.warning("Aras Kargo tracking_password bulunamadı. Tracking URL oluşturulamadı.")
-                return ''
-            
             # URL encoding için urllib kullan
             from urllib.parse import quote_plus
-            return f"http://kargotakip.araskargo.com.tr/mainpage.aspx?accountid={quote_plus(account_id)}&sifre={quote_plus(tracking_password)}&alici_kod={quote_plus(tracking_reference)}"
+            
+            # Yeni format: sifre yok, sadece accountid ve alici_kod
+            if tracking_password:
+                # Eski format: sifre varsa onu da ekle
+                return f"https://kargotakip.araskargo.com.tr/mainpage.aspx?accountid={quote_plus(account_id)}&sifre={quote_plus(tracking_password)}&alici_kod={quote_plus(tracking_reference)}"
+            else:
+                # Yeni format: sifre yok
+                return f"https://kargotakip.araskargo.com.tr/mainpage.aspx?accountid={quote_plus(account_id)}&alici_kod={quote_plus(tracking_reference)}"
         
         elif tracking_type == 'barcode':
             # Format 3: Kargo Barkod Kodu ile (20 haneli barkod)
@@ -125,10 +129,20 @@ class ArasCargoService:
     
     @staticmethod
     def _get_base_url(integration: IntegrationProvider) -> str:
-        """Base URL'i al (test veya production)."""
+        """
+        Base URL'i al (test veya production).
+        
+        - Test mode ise: test_endpoint (config) veya DEFAULT_TEST_ENDPOINT
+        - Canlı mode ise: api_endpoint (config) veya DEFAULT_API_ENDPOINT
+        """
         if integration.status == IntegrationProvider.Status.TEST_MODE:
+            # Test modunda test endpoint kullan
+            # Önce integration'da tanımlı test_endpoint, yoksa default test endpoint
             return integration.test_endpoint or ArasCargoService.DEFAULT_TEST_ENDPOINT
-        return integration.api_endpoint or ArasCargoService.DEFAULT_API_ENDPOINT
+        else:
+            # Canlı modda production endpoint kullan
+            # Önce integration'da tanımlı api_endpoint, yoksa default canlı endpoint
+            return integration.api_endpoint or ArasCargoService.DEFAULT_API_ENDPOINT
     
     @staticmethod
     def _build_login_info_xml(credentials: Dict) -> str:

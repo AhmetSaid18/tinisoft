@@ -47,7 +47,7 @@ class Command(BaseCommand):
             '--tracking-password',
             type=str,
             required=False,
-            help='Takip linki için güvenlik şifresi (sifre parametresi). Eğer verilmezse password kullanılır.',
+            help='Takip linki için güvenlik şifresi (sifre parametresi - opsiyonel, yeni format sifre gerektirmiyor).',
         )
         parser.add_argument(
             '--setorder-username',
