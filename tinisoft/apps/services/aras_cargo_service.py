@@ -24,7 +24,7 @@ class ArasCargoService:
     # WSDL: https://customerservicestest.araskargo.com.tr/ArasCargoIntegrationService.svc?wsdl
     # Canlı: http://customerservices.araskargo.com.tr/ArasCargoCustomerIntegrationService/ArasCargoIntegrationService.svc
     # SetOrder servisi için ASMX endpoint'leri
-    DEFAULT_SETORDER_API_ENDPOINT = "https://customerservices.araskargo.com.tr/arascargoservice/arascargoservice.asmx"
+    DEFAULT_SETORDER_API_ENDPOINT = "https://customerws.araskargo.com.tr/arascargoservice.asmx"
     DEFAULT_SETORDER_TEST_ENDPOINT = "https://customerservicestest.araskargo.com.tr/arascargoservice/arascargoservice.asmx"
     
     # Eski endpoint'ler (SetDataXML için - şimdilik kullanılmıyor)
@@ -768,19 +768,31 @@ class ArasCargoService:
         setorder_credentials = ArasCargoService._get_api_credentials(integration, 'setorder')
         
         # SetOrder endpoint'i (ASMX servisi)
-        # Önce config'de tanımlı endpoint, yoksa test/production moduna göre default endpoint
-        setorder_endpoint = integration.config.get('setorder', {}).get('endpoint')
+        # Öncelik sırası:
+        # 1. integration.api_endpoint (eğer .asmx ile bitiyorsa)
+        # 2. config.setorder.endpoint
+        # 3. Test/Production moduna göre default endpoint
         
-        # Eğer config'de eksik endpoint varsa (sadece host girilmişse), ignore et
-        if setorder_endpoint:
+        setorder_endpoint = None
+        
+        # Önce api_endpoint'i kontrol et (canlı/production için)
+        if integration.api_endpoint and integration.api_endpoint.endswith('.asmx'):
+            setorder_endpoint = integration.api_endpoint
+            logger.info(f"SetOrder endpoint from api_endpoint: {setorder_endpoint}")
+        # Test modundaysa test_endpoint'i kontrol et
+        elif integration.status == IntegrationProvider.Status.TEST_MODE and integration.test_endpoint and integration.test_endpoint.endswith('.asmx'):
+            setorder_endpoint = integration.test_endpoint
+            logger.info(f"SetOrder endpoint from test_endpoint: {setorder_endpoint}")
+        # Config'de tanımlı endpoint
+        elif integration.config.get('setorder', {}).get('endpoint'):
+            setorder_endpoint = integration.config.get('setorder', {}).get('endpoint')
+            # Eğer config'de eksik endpoint varsa (sadece host girilmişse), ignore et
             if setorder_endpoint.count('/') < 3 or not setorder_endpoint.endswith('.asmx'):
-                # Sadece host girilmişse (örn: https://customerservicestest.araskargo.com.tr)
-                # veya .asmx ile bitmiyorsa, path eksik demektir
                 logger.warning(f"Config'de eksik endpoint bulundu (sadece host?), SetOrder için default endpoint kullanılacak: {setorder_endpoint}")
                 setorder_endpoint = None
         
+        # Default endpoint (eğer hala endpoint yoksa)
         if not setorder_endpoint:
-            # Test modundaysa test endpoint, değilse production endpoint
             if integration.status == IntegrationProvider.Status.TEST_MODE:
                 # Test endpoint - SetOrder için ASMX servisi
                 setorder_endpoint = ArasCargoService.DEFAULT_SETORDER_TEST_ENDPOINT
