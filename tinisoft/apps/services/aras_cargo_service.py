@@ -393,27 +393,33 @@ class ArasCargoService:
         weight_per_piece = total_weight_float / piece_count_int if piece_count_int > 0 else total_weight_float
         desi_per_piece = total_desi_float / piece_count_int if piece_count_int > 0 else total_desi_float
         
+        # IntegrationCode'u shipment_data'dan al (gönderi için unique barcode üretmek için)
+        integration_code = shipment_data.get('orderNumber', '')
+        
         for order_item in order_items:
-            # Ürün barcode'unu al (product.barcode veya product.sku veya product_sku)
-            barcode = ''
+            # Ürün bilgilerini al (açıklama için kullanılacak, barcode için değil)
+            product_sku = ''
             if order_item.product:
-                barcode = order_item.product.barcode or order_item.product.sku or ''
-            if not barcode:
-                barcode = order_item.product_sku or ''
-            if not barcode:
-                # Barcode yoksa, IntegrationCode + parça numarası kullan
-                barcode = f"{integration_code}-{piece_index+1}"
-            
-            # Barcode'daki boşlukları temizle (Aras Kargo boşluğu "geçersiz/boş" gibi ele alabiliyor)
-            barcode = barcode.strip().replace(' ', '')
+                product_sku = order_item.product.sku or order_item.product.barcode or ''
+            if not product_sku:
+                product_sku = order_item.product_sku or ''
             
             # Her quantity için bir PieceDetail oluştur
             for qty_index in range(order_item.quantity):
                 piece_detail = ET.SubElement(piece_details, 'PieceDetail')
                 
+                # ÖNEMLİ: BarcodeNumber her gönderi için UNIQUE olmalı!
+                # Aynı ürün farklı siparişlerde kullanılsa bile, her gönderi için farklı bir barcode olmalı
+                # Format: {IntegrationCode}-{piece_index+1}
+                # Örnek: "ORD-AVRUPAMUTFAK-1767003031-509D-1", "ORD-AVRUPAMUTFAK-1767003031-509D-2"
+                # NOT: Ürün barkodu değil, gönderi parça barkodu! Aras Kargo her parça için unique barcode bekliyor.
+                # IntegrationCode'u temizle (boşlukları kaldır, tire'leri koru)
+                clean_integration_code = str(integration_code).strip().replace(' ', '')
+                unique_barcode = f"{clean_integration_code}-{piece_index+1}"[:50]
+                
                 # BarcodeNumber (Aras Kargo'nun beklediği field ismi)
                 barcode_elem = ET.SubElement(piece_detail, 'BarcodeNumber')
-                barcode_elem.text = barcode[:50] if barcode else f"{integration_code}-{piece_index+1}"[:50]
+                barcode_elem.text = unique_barcode
                 
                 # Weight (her parça için)
                 weight_elem = ET.SubElement(piece_detail, 'Weight')
@@ -423,9 +429,10 @@ class ArasCargoService:
                 volumetric_weight_elem = ET.SubElement(piece_detail, 'VolumetricWeight')
                 volumetric_weight_elem.text = str(round(desi_per_piece, 2))
                 
-                # ProductNumber (opsiyonel ama ekleyelim)
+                # ProductNumber (opsiyonel - ürün SKU'su veya barcode'u buraya gelebilir)
                 product_number_elem = ET.SubElement(piece_detail, 'ProductNumber')
-                product_number_elem.text = barcode[:50] if barcode else f"{integration_code}-{piece_index+1}"[:50]
+                # ProductNumber ürün SKU'su olabilir (barcode değil, sadece referans için)
+                product_number_elem.text = (product_sku or unique_barcode)[:50]
                 
                 # Description (opsiyonel ama ekleyelim)
                 if order_item.product_name:
@@ -892,14 +899,25 @@ class ArasCargoService:
         
         # SetOrder servisi için field isimleri (ASMX servisi formatı)
         # IntegrationCode: En az 2, en fazla 32 karakter olmalı (Aras Kargo kısıtlaması)
+        # IntegrationCode = Müşteri Özel Kodu (M.Ö.K) = order_number (unique per tenant)
         integration_code = order.order_number[:32] if len(order.order_number) > 32 else order.order_number
         if len(integration_code) < 2:
             # Eğer order_number çok kısaysa, order ID'nin son kısmını kullan
             integration_code = str(order.id)[:32] if len(str(order.id)) <= 32 else str(order.id)[-32:]
         
         # InvoiceNumber: En fazla 20 karakter olmalı (Aras Kargo kısıtlaması)
-        # Eğer invoice number yoksa, IntegrationCode'un ilk 20 karakterini kullan
-        invoice_number = integration_code[:20] if integration_code else str(order.id)[:20]
+        # Her sipariş için unique olmalı - order.id'nin son kısmını ekleyerek unique yapıyoruz
+        # Format: order_number'ın son kısmı + order.id'nin son 8 karakteri (hash-like)
+        order_id_short = str(order.id).replace('-', '')[-8:]  # UUID'nin son 8 karakteri (tire olmadan)
+        if integration_code and len(integration_code) >= 12:
+            # IntegrationCode'un son 12 karakteri + order.id'nin son 8 karakteri = 20 karakter
+            invoice_number = (integration_code[-12:] + order_id_short)[:20]
+        else:
+            # IntegrationCode çok kısaysa, order.id'nin son 20 karakterini kullan
+            invoice_number = order_id_short[:20] if len(order_id_short) >= 20 else (integration_code or '')[:20-len(order_id_short)] + order_id_short
+        
+        # InvoiceNumber'ın 20 karakteri aşmadığından emin ol
+        invoice_number = invoice_number[:20]
         
         shipment_data = {
             'orderNumber': integration_code,  # IntegrationCode olarak map edilecek - Müşteri özel kodu (M.Ö.K) - MAX 32 karakter
@@ -995,8 +1013,7 @@ class ArasCargoService:
             # - ResultMessage: Sonuç mesajı
             
             # NOT: SetOrder gerçek takip numarasını (13 haneli) döndürmeyebilir
-            # Gerçek takip numarası muhtemelen GetOrder veya GetOrderWithIntegrationCode servisi ile alınmalı
-            # Şimdilik InvoiceKey'i kullanıyoruz ama bu bizim gönderdiğimiz değer
+            # Gerçek takip numarasını almak için IntegrationCode ile track_shipment çağırmalıyız
             
             invoice_key = data.get('InvoiceKey', '')  # Bizim gönderdiğimiz InvoiceNumber
             org_receiver_cust_id = data.get('OrgReceiverCustId', '')  # Bizim gönderdiğimiz IntegrationCode
@@ -1004,36 +1021,74 @@ class ArasCargoService:
             # Tüm field'ları kontrol et - belki başka bir field'da gerçek takip numarası var
             logger.info(f"SetOrder response ALL FIELDS: {data}")
             
-            # Gerçek takip numarası için diğer field'ları kontrol et
+            # Önce response'dan gerçek takip numarasını kontrol et
             tracking_number = (
                 data.get('CargoKey') or  # Sevk İrsaliye No (16 karakter)
                 data.get('WaybillNo') or  # İrsaliye No (50 karakter)
                 data.get('Barcode') or  # Barkod (20 karakter)
                 data.get('TrackingNumber') or
                 data.get('TrackingNo') or
-                invoice_key  # Fallback: InvoiceKey (bizim gönderdiğimiz)
+                data.get('CargoCode') or  # 20 haneli barkod
+                None
             )
             
             barcode = data.get('Barcode') or data.get('CargoCode') or ''
             
-            logger.info(f"SetOrder tracking_number: {tracking_number}, InvoiceKey: {invoice_key}, OrgReceiverCustId: {org_receiver_cust_id}, Barcode: {barcode}")
+            # Eğer response'da gerçek takip numarası yoksa, IntegrationCode ile track_shipment çağır
+            # integration_code shipment_data'dan al
+            integration_code_for_track = shipment_data.get('orderNumber', order.order_number)
+            if not tracking_number or (len(str(tracking_number).strip()) != 13 and len(str(tracking_number).strip()) != 20):
+                logger.info(f"SetOrder response'unda gerçek takip numarası bulunamadı, IntegrationCode ile sorgulama yapılıyor: {org_receiver_cust_id or integration_code_for_track}")
+                try:
+                    # IntegrationCode ile gönderi bilgilerini sorgula
+                    track_result = ArasCargoService.track_shipment(
+                        tenant=tenant,
+                        tracking_reference=org_receiver_cust_id or integration_code_for_track,
+                        query_type=1  # QueryType 1: IntegrationCode ile sorgu
+                    )
+                    
+                    if track_result.get('success') and track_result.get('data'):
+                        track_data = track_result.get('data', {})
+                        # Track response'dan gerçek takip numarasını al
+                        # Aras Kargo response formatına göre field isimleri değişebilir
+                        tracking_number = (
+                            track_data.get('CargoKey') or  # 13 haneli takip numarası
+                            track_data.get('TrackingNumber') or
+                            track_data.get('TrackingNo') or
+                            track_data.get('WaybillNo') or
+                            tracking_number  # Fallback: önceki değer
+                        )
+                        barcode = track_data.get('Barcode') or track_data.get('CargoCode') or barcode
+                        logger.info(f"Track shipment'dan alınan tracking_number: {tracking_number}, barcode: {barcode}")
+                except Exception as track_error:
+                    logger.warning(f"SetOrder sonrası track_shipment çağrısı başarısız: {str(track_error)}")
+                    # Hata olsa bile devam et, invoice_key kullanacağız
+            
+            # Eğer hala gerçek takip numarası yoksa, invoice_key'i kullan (bizim gönderdiğimiz InvoiceNumber)
+            if not tracking_number:
+                tracking_number = invoice_key
+                logger.info(f"Gerçek takip numarası alınamadı, InvoiceKey kullanılıyor: {invoice_key}")
+            
+            logger.info(f"SetOrder final tracking_number: {tracking_number}, InvoiceKey: {invoice_key}, OrgReceiverCustId: {org_receiver_cust_id}, Barcode: {barcode}")
             
             # Tracking URL oluştur - müşteriye gönderilecek link
             tracking_url = ''
             
             # Öncelik sırası: tracking_number (13 haneli) > barcode (20 haneli) > order_number (M.Ö.K)
             if tracking_number:
-                if len(str(tracking_number).strip()) == 13:
+                tracking_number_str = str(tracking_number).strip()
+                if len(tracking_number_str) == 13:
                     # 13 haneli takip numarası varsa onu kullan
-                    tracking_url = ArasCargoService.get_tracking_url(tenant, str(tracking_number).strip(), 'tracking_number')
-                elif len(str(tracking_number).strip()) == 20:
+                    tracking_url = ArasCargoService.get_tracking_url(tenant, tracking_number_str, 'tracking_number')
+                elif len(tracking_number_str) == 20:
                     # 20 haneli barkod varsa onu kullan
-                    tracking_url = ArasCargoService.get_tracking_url(tenant, str(tracking_number).strip(), 'barcode')
+                    tracking_url = ArasCargoService.get_tracking_url(tenant, tracking_number_str, 'barcode')
             
             # Eğer hala tracking_url yoksa ve barcode varsa onu dene
             if not tracking_url and barcode:
-                if len(str(barcode).strip()) == 20:
-                    tracking_url = ArasCargoService.get_tracking_url(tenant, str(barcode).strip(), 'barcode')
+                barcode_str = str(barcode).strip()
+                if len(barcode_str) == 20:
+                    tracking_url = ArasCargoService.get_tracking_url(tenant, barcode_str, 'barcode')
             
             # Eğer hala tracking_url yoksa order_number (M.Ö.K) ile dene
             if not tracking_url and order.order_number:
