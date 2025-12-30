@@ -401,6 +401,11 @@ class ArasCargoService:
             # SOAP response'u parse et
             parsed_data = ArasCargoService._parse_setorder_response(response.text)
             
+            # Debug için response'u logla
+            logger.info(f"Aras Kargo SetOrder response: {response.status_code}")
+            logger.debug(f"SetOrder parsed data: {parsed_data}")
+            logger.debug(f"SetOrder raw response: {response.text[:500]}")
+            
             result = {
                 'success': True,
                 'data': parsed_data,
@@ -413,7 +418,6 @@ class ArasCargoService:
             integration.last_error = ''
             integration.save(update_fields=['last_used_at', 'last_error'])
             
-            logger.info(f"Aras Kargo SetOrder response: {response.status_code}")
             return result
             
         except requests.exceptions.RequestException as e:
@@ -844,24 +848,29 @@ class ArasCargoService:
         
         if response.get('success'):
             data = response.get('data', {})
+            logger.info(f"SetOrder response data: {data}")
+            
             # SetOrder response'dan tracking number ve label URL'i al
-            # InvoiceKey muhtemelen takip numarası veya invoice key
             # ResultCode ve ResultMessage kontrolü yap
             result_code = data.get('ResultCode', '')
             result_message = data.get('ResultMessage', '')
             
-            if result_code and result_code != '0' and result_code.lower() != 'success':
+            # ResultCode boşsa veya 0 ise başarılı, diğerleri hata
+            if result_code and result_code != '0' and result_code != '' and result_code.lower() not in ['0', 'success', 'ok']:
                 # Hata varsa
+                logger.warning(f"SetOrder hatası: {result_message} (Code: {result_code})")
                 return {
                     'success': False,
                     'error': f"Aras Kargo hatası: {result_message} (Code: {result_code})",
                 }
             
-            # InvoiceKey muhtemelen takip numarası
+            # InvoiceKey muhtemelen takip numarası veya invoice key
+            # Eğer InvoiceKey yoksa, OrgReceiverCustId bizim gönderdiğimiz order_number (M.Ö.K)
             tracking_number = data.get('InvoiceKey') or data.get('trackingNumber') or data.get('tracking_number') or ''
-            # OrgReceiverCustId bizim gönderdiğimiz order_number (M.Ö.K)
             org_receiver_cust_id = data.get('OrgReceiverCustId', '')
             barcode = ''  # SetOrder response'da barkod olmayabilir
+            
+            logger.info(f"SetOrder tracking_number: {tracking_number}, OrgReceiverCustId: {org_receiver_cust_id}")
             
             # Tracking URL oluştur - müşteriye gönderilecek link
             tracking_url = ''
