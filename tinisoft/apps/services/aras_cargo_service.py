@@ -19,8 +19,11 @@ class ArasCargoService:
     """Aras Kargo XML/SOAP servisi."""
     
     # Aras Kargo XML Servis endpoint'leri
+    # PDF'den alınan endpoint'ler:
+    # Test: http://customerservicestest.araskargo.com.tr/ArasCargoIntegrationService.svc
+    # Canlı: http://customerservices.araskargo.com.tr/ArasCargoCustomerIntegrationService/ArasCargoIntegrationService.svc
     DEFAULT_API_ENDPOINT = "http://customerservices.araskargo.com.tr/ArasCargoCustomerIntegrationService/ArasCargoIntegrationService.svc"
-    DEFAULT_TEST_ENDPOINT = "http://test-customerservices.araskargo.com.tr/ArasCargoCustomerIntegrationService/ArasCargoIntegrationService.svc"
+    DEFAULT_TEST_ENDPOINT = "http://customerservicestest.araskargo.com.tr/ArasCargoIntegrationService.svc"
     
     @staticmethod
     def get_integration(tenant) -> Optional[IntegrationProvider]:

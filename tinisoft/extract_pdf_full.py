@@ -44,3 +44,4 @@ print(f"\n\nFull text saved to aras_kargo_full_text.txt")
 pdf.close()
 
 
+
