@@ -340,10 +340,19 @@ class ArasCargoService:
             'content': 'Description',
         }
         
-        # NOT: SetOrder dokümantasyonuna göre Order içinde UserName/Password OPSIYONEL
-        # Bazı implementasyonlarda sadece orderInfo dışındaki userName/password kullanılıyor
-        # Şimdilik Order içine eklemiyoruz, sadece orderInfo dışına ekleyeceğiz
-        # Eğer hata devam ederse, Order içine de ekleyebiliriz
+        # Order içine UserName ve Password ekle (SetOrder dokümantasyonuna göre gerekli olabilir)
+        if credentials:
+            # SetOrder için user_name ve password kullan
+            user_name = credentials.get('user_name') or credentials.get('username', '')
+            password = credentials.get('password', '')
+            
+            logger.info(f"SetOrder Order içinde UserName: {user_name}, Password: {'*' * len(password) if password else 'EMPTY'}")
+            
+            user_name_elem = ET.SubElement(order, 'UserName')
+            user_name_elem.text = str(user_name)
+            
+            password_elem = ET.SubElement(order, 'Password')
+            password_elem.text = str(password)
         
         # Gönderi bilgilerini ekle
         for key, value in shipment_data.items():
