@@ -23,6 +23,11 @@ class ArasCargoService:
     # Test: https://customerservicestest.araskargo.com.tr/ArasCargoIntegrationService.svc (HTTPS)
     # WSDL: https://customerservicestest.araskargo.com.tr/ArasCargoIntegrationService.svc?wsdl
     # Canlı: http://customerservices.araskargo.com.tr/ArasCargoCustomerIntegrationService/ArasCargoIntegrationService.svc
+    # SetOrder servisi için ASMX endpoint'leri
+    DEFAULT_SETORDER_API_ENDPOINT = "https://customerservices.araskargo.com.tr/arascargoservice/arascargoservice.asmx"
+    DEFAULT_SETORDER_TEST_ENDPOINT = "https://customerservicestest.araskargo.com.tr/arascargoservice/arascargoservice.asmx"
+    
+    # Eski endpoint'ler (SetDataXML için - şimdilik kullanılmıyor)
     DEFAULT_API_ENDPOINT = "http://customerservices.araskargo.com.tr/ArasCargoCustomerIntegrationService/ArasCargoIntegrationService.svc"
     DEFAULT_TEST_ENDPOINT = "https://customerservicestest.araskargo.com.tr/ArasCargoIntegrationService.svc"
     
@@ -262,6 +267,235 @@ class ArasCargoService:
         return dom.toprettyxml(indent="  ", encoding='utf-8').decode('utf-8')
     
     @staticmethod
+    def _build_setorder_soap_envelope(shipment_data: Dict, credentials: Dict) -> str:
+        """
+        SetOrder servisi için SOAP envelope oluştur (ASMX servisi).
+        
+        Format:
+        <SetOrder xmlns="http://tempuri.org/">
+          <orderInfo>
+            <Order>
+              <UserName>...</UserName>
+              <Password>...</Password>
+              <ReceiverName>...</ReceiverName>
+              ...
+            </Order>
+          </orderInfo>
+          <userName>...</userName>
+          <password>...</password>
+        </SetOrder>
+        
+        Args:
+            shipment_data: Gönderi bilgileri
+            credentials: API credentials (user_name, password, customer_code)
+        
+        Returns:
+            str: SOAP XML envelope
+        """
+        # SOAP Envelope
+        envelope = ET.Element('soap:Envelope')
+        envelope.set('xmlns:xsi', 'http://www.w3.org/2001/XMLSchema-instance')
+        envelope.set('xmlns:xsd', 'http://www.w3.org/2001/XMLSchema')
+        envelope.set('xmlns:soap', 'http://schemas.xmlsoap.org/soap/envelope/')
+        
+        # Body
+        body = ET.SubElement(envelope, 'soap:Body')
+        
+        # SetOrder
+        set_order = ET.SubElement(body, 'SetOrder')
+        set_order.set('xmlns', 'http://tempuri.org/')
+        
+        # orderInfo
+        order_info = ET.SubElement(set_order, 'orderInfo')
+        
+        # Order
+        order = ET.SubElement(order_info, 'Order')
+        
+        # Field mapping: shipment_data -> SetOrder XML fields
+        field_mapping = {
+            'orderNumber': 'IntegrationCode',  # Sipariş numarası (M.Ö.K)
+            'receiverName': 'ReceiverName',
+            'receiverAddress': 'ReceiverAddress',
+            'receiverPhone': 'ReceiverPhone1',
+            'receiverPhone2': 'ReceiverPhone2',
+            'receiverPhone3': 'ReceiverPhone3',
+            'receiverCity': 'ReceiverCityName',
+            'receiverState': 'ReceiverTownName',
+            'weight': 'Weight',
+            'desi': 'VolumetricWeight',
+            'pieceCount': 'PieceCount',
+            'content': 'Description',
+        }
+        
+        # UserName ve Password Order içinde de var ama genelde orderInfo dışında gönderilir
+        # Önce Order içine field'ları ekle
+        if credentials:
+            user_name_elem = ET.SubElement(order, 'UserName')
+            user_name_elem.text = str(credentials.get('user_name', ''))
+            
+            password_elem = ET.SubElement(order, 'Password')
+            password_elem.text = str(credentials.get('password', ''))
+        
+        # Gönderi bilgilerini ekle
+        for key, value in shipment_data.items():
+            xml_field = field_mapping.get(key, key)
+            if value is not None and value != '':
+                element = ET.SubElement(order, xml_field)
+                element.text = str(value).strip()
+        
+        # SetOrder parametreleri (orderInfo dışında)
+        if credentials:
+            user_name_param = ET.SubElement(set_order, 'userName')
+            user_name_param.text = str(credentials.get('user_name', ''))
+            
+            password_param = ET.SubElement(set_order, 'password')
+            password_param.text = str(credentials.get('password', ''))
+        
+        # XML string'e çevir
+        xml_str = ET.tostring(envelope, encoding='utf-8', method='xml')
+        # Pretty print için minidom kullan
+        dom = minidom.parseString(xml_str)
+        return dom.toprettyxml(indent="  ", encoding='utf-8').decode('utf-8')
+    
+    @staticmethod
+    def _make_setorder_request(
+        integration: IntegrationProvider,
+        endpoint: str,
+        shipment_data: Dict,
+        credentials: Dict
+    ) -> Dict[str, Any]:
+        """
+        SetOrder ASMX servisine istek gönder.
+        
+        Args:
+            integration: IntegrationProvider instance
+            endpoint: SetOrder endpoint URL
+            shipment_data: Gönderi bilgileri
+            credentials: API credentials
+        
+        Returns:
+            dict: API response
+        """
+        # SOAP XML oluştur
+        soap_xml = ArasCargoService._build_setorder_soap_envelope(shipment_data, credentials)
+        
+        # SOAP Action header (SetOrder için)
+        headers = {
+            'Content-Type': 'text/xml; charset=utf-8',
+            'SOAPAction': 'http://tempuri.org/SetOrder',
+        }
+        
+        try:
+            logger.info(f"Aras Kargo SetOrder request to {endpoint}")
+            logger.debug(f"SOAP XML (first 1500 chars): {soap_xml[:1500]}")
+            
+            response = requests.post(
+                url=endpoint,
+                data=soap_xml.encode('utf-8'),
+                headers=headers,
+                timeout=30
+            )
+            
+            response.raise_for_status()
+            
+            # SOAP response'u parse et
+            parsed_data = ArasCargoService._parse_setorder_response(response.text)
+            
+            result = {
+                'success': True,
+                'data': parsed_data,
+                'status_code': response.status_code,
+                'raw_response': response.text,
+            }
+            
+            # Son kullanım zamanını güncelle
+            integration.last_used_at = timezone.now()
+            integration.last_error = ''
+            integration.save(update_fields=['last_used_at', 'last_error'])
+            
+            logger.info(f"Aras Kargo SetOrder response: {response.status_code}")
+            return result
+            
+        except requests.exceptions.RequestException as e:
+            error_msg = f"Aras Kargo SetOrder error: {str(e)}"
+            
+            if hasattr(e, 'response') and e.response is not None:
+                response_text = e.response.text[:1000] if e.response.text else 'No response body'
+                logger.error(f"{error_msg}\nResponse body: {response_text}")
+                logger.error(f"Request SOAP XML: {soap_xml}")
+            else:
+                logger.error(error_msg)
+            
+            integration.last_error = error_msg
+            integration.save(update_fields=['last_error'])
+            
+            return {
+                'success': False,
+                'error': error_msg,
+            }
+        except Exception as e:
+            error_msg = f"Unexpected error in Aras Kargo SetOrder: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            
+            integration.last_error = error_msg
+            integration.save(update_fields=['last_error'])
+            
+            return {
+                'success': False,
+                'error': error_msg,
+            }
+    
+    @staticmethod
+    def _parse_setorder_response(xml_response: str) -> Dict[str, Any]:
+        """
+        SetOrder SOAP response'u parse et.
+        
+        Format:
+        <SetOrderResponse>
+          <SetOrderResult>
+            <OrderResultInfo>
+              <ResultCode>string</ResultCode>
+              <ResultMessage>string</ResultMessage>
+              <InvoiceKey>string</InvoiceKey>
+              <OrgReceiverCustId>string</OrgReceiverCustId>
+            </OrderResultInfo>
+          </SetOrderResult>
+        </SetOrderResponse>
+        
+        Args:
+            xml_response: SOAP XML response string
+        
+        Returns:
+            dict: Parsed data
+        """
+        try:
+            root = ET.fromstring(xml_response)
+            namespaces = {
+                'soap': 'http://schemas.xmlsoap.org/soap/envelope/',
+                'tem': 'http://tempuri.org/'
+            }
+            
+            # Body içindeki SetOrderResponse'u bul
+            body = root.find('.//soap:Body', namespaces)
+            if body is not None:
+                set_order_response = body.find('.//tem:SetOrderResponse', namespaces)
+                if set_order_response is not None:
+                    result = {}
+                    # SetOrderResult içindeki OrderResultInfo'yu bul
+                    set_order_result = set_order_response.find('.//tem:SetOrderResult', namespaces)
+                    if set_order_result is not None:
+                        order_result_info = set_order_result.find('.//tem:OrderResultInfo', namespaces)
+                        if order_result_info is not None:
+                            for child in order_result_info:
+                                tag = child.tag.split('}')[-1]
+                                result[tag] = child.text if child.text else ''
+                    return result
+            return {}
+        except Exception as e:
+            logger.error(f"Error parsing SetOrder SOAP response: {str(e)}")
+            return {}
+    
+    @staticmethod
     def _build_shipment_query_info_xml(data: Dict) -> str:
         """
         SetDataXML için queryInfo XML parametresini oluştur.
@@ -437,6 +671,9 @@ class ArasCargoService:
             if hasattr(e, 'response') and e.response is not None:
                 response_text = e.response.text[:1000] if e.response.text else 'No response body'
                 logger.error(f"{error_msg}\nResponse body: {response_text}")
+                
+                # Request SOAP XML'ini de logla (500 hatası için)
+                logger.error(f"Request SOAP XML: {soap_xml}")
                 logger.error(f"Request SOAP XML: {soap_xml[:1000]}")  # İlk 1000 karakter
             else:
                 logger.error(error_msg)
@@ -501,34 +738,28 @@ class ArasCargoService:
         # SetOrder için credentials al
         setorder_credentials = ArasCargoService._get_api_credentials(integration, 'setorder')
         
-        # SetOrder endpoint'i
-        # ÖNEMLI: DOCX'teki endpoint (arascargoservice.asmx) GetDispatch servisi için, SetDataXML için değil!
-        # SetDataXML için doğru endpoint: ArasCargoIntegrationService.svc
+        # SetOrder endpoint'i (ASMX servisi)
         # Önce config'de tanımlı endpoint, yoksa test/production moduna göre default endpoint
         setorder_endpoint = integration.config.get('setorder', {}).get('endpoint')
         
-        # Eğer config'de DOCX'teki eski endpoint varsa (arascargoservice.asmx), onu ignore et ve default kullan
-        # VEYA sadece host girilmişse (path eksik), onu da ignore et
+        # Eğer config'de eksik endpoint varsa (sadece host girilmişse), ignore et
         if setorder_endpoint:
-            if 'arascargoservice.asmx' in setorder_endpoint:
-                logger.warning(f"Config'de eski endpoint bulundu (GetDispatch servisi), SetDataXML için default endpoint kullanılacak: {setorder_endpoint}")
-                setorder_endpoint = None
-            elif setorder_endpoint.count('/') < 3 or not setorder_endpoint.endswith('.svc'):
+            if setorder_endpoint.count('/') < 3 or not setorder_endpoint.endswith('.asmx'):
                 # Sadece host girilmişse (örn: https://customerservicestest.araskargo.com.tr)
-                # veya .svc ile bitmiyorsa, path eksik demektir
-                logger.warning(f"Config'de eksik endpoint bulundu (sadece host?), SetDataXML için default endpoint kullanılacak: {setorder_endpoint}")
+                # veya .asmx ile bitmiyorsa, path eksik demektir
+                logger.warning(f"Config'de eksik endpoint bulundu (sadece host?), SetOrder için default endpoint kullanılacak: {setorder_endpoint}")
                 setorder_endpoint = None
         
         if not setorder_endpoint:
             # Test modundaysa test endpoint, değilse production endpoint
             if integration.status == IntegrationProvider.Status.TEST_MODE:
-                # Test endpoint - SetDataXML için doğru endpoint
-                setorder_endpoint = ArasCargoService.DEFAULT_TEST_ENDPOINT
+                # Test endpoint - SetOrder için ASMX servisi
+                setorder_endpoint = ArasCargoService.DEFAULT_SETORDER_TEST_ENDPOINT
             else:
-                # Production endpoint
-                setorder_endpoint = ArasCargoService.DEFAULT_API_ENDPOINT
+                # Production endpoint - SetOrder için ASMX servisi
+                setorder_endpoint = ArasCargoService.DEFAULT_SETORDER_API_ENDPOINT
         
-        logger.info(f"SetDataXML endpoint: {setorder_endpoint}")
+        logger.info(f"SetOrder endpoint: {setorder_endpoint}")
         
         # Gönderi bilgilerini hazırla (SetDataXML API formatına göre)
         # ÖNEMLI: SetDataXML için queryInfo içindeki field isimleri ve format Aras Kargo dokümantasyonunda belirtilmiş olmalı
@@ -544,18 +775,17 @@ class ArasCargoService:
         # Desi hesaplama (basit formül: kg * 3, gerçekte hacim bazlı olmalı)
         desi = total_weight * 3.0  # Basit hesaplama, gerçekte hacim gerekli
         
-        # DOCX'teki GetDispatch servisi field isimlerini kullanıyoruz
-        # SetDataXML için queryInfo formatı aynı olabilir (test edilmeli)
+        # SetOrder servisi için field isimleri (ASMX servisi formatı)
         shipment_data = {
-            'orderNumber': order.order_number,  # orgReceiverCustId olarak map edilecek - Müşteri özel kodu (M.Ö.K)
-            'receiverName': f"{shipping_address.get('first_name', '').strip()} {shipping_address.get('last_name', '').strip()}".strip()[:100],  # receiverCustName (max 100)
-            'receiverPhone': shipping_address.get('phone', '').strip()[:32],  # receiverPhone1 (max 32)
-            'receiverAddress': shipping_address.get('address_line_1', '').strip()[:250],  # receiverAddress (max 250) - ZORUNLU
-            'receiverCity': shipping_address.get('city', '').strip()[:32],  # cityName (max 32) - ZORUNLU
-            'weight': total_weight,  # kg (Double 6,2) - ZORUNLU
-            'desi': round(desi, 2),  # desi (Double 6,2)
-            'pieceCount': min(99, max(1, order.items.count())),  # cargoCount (Integer 2, max 99) - ZORUNLU
-            'content': ', '.join([item.product.name for item in order.items.all()[:3]])[:255],  # description (max 255)
+            'orderNumber': order.order_number,  # IntegrationCode olarak map edilecek - Müşteri özel kodu (M.Ö.K)
+            'receiverName': f"{shipping_address.get('first_name', '').strip()} {shipping_address.get('last_name', '').strip()}".strip()[:100],  # ReceiverName
+            'receiverPhone': shipping_address.get('phone', '').strip()[:32],  # ReceiverPhone1
+            'receiverAddress': shipping_address.get('address_line_1', '').strip()[:250],  # ReceiverAddress - ZORUNLU
+            'receiverCity': shipping_address.get('city', '').strip()[:32],  # ReceiverCityName - ZORUNLU
+            'weight': str(total_weight),  # Weight (string format) - ZORUNLU
+            'desi': str(round(desi, 2)),  # VolumetricWeight (string format, desi)
+            'pieceCount': str(min(99, max(1, order.items.count()))),  # PieceCount (string format) - ZORUNLU
+            'content': ', '.join([item.product.name for item in order.items.all()[:3]])[:255],  # Description
         }
         
         # İlçe (townName) - opsiyonel ama ekleyelim
@@ -604,30 +834,34 @@ class ArasCargoService:
         # Boş değerleri temizle
         shipment_data = {k: v for k, v in shipment_data.items() if v and str(v).strip()}
         
-        # SetDataXML API metod adı (WSDL'de SetOrder yok, SetDataXML var)
-        service_method = integration.config.get('setorder', {}).get('method', 'SetDataXML')
-        
-        # SetOrder için SOAP request gönder
-        # Geçici olarak mevcut _make_soap_request metodunu kullan
-        # SetOrder endpoint'i ve credentials'ları override et
-        old_endpoint = integration.api_endpoint
-        integration.api_endpoint = setorder_endpoint
-        
-        try:
-            response = ArasCargoService._make_soap_request(
-                integration=integration,
-                service_method=service_method,
-                data=shipment_data,
-                credentials=setorder_credentials
-            )
-        finally:
-            integration.api_endpoint = old_endpoint
+        # SetOrder için SOAP request gönder (ASMX servisi)
+        response = ArasCargoService._make_setorder_request(
+            integration=integration,
+            endpoint=setorder_endpoint,
+            shipment_data=shipment_data,
+            credentials=setorder_credentials
+        )
         
         if response.get('success'):
             data = response.get('data', {})
-            # Response'dan tracking number ve label URL'i al
-            tracking_number = data.get('trackingNumber') or data.get('tracking_number') or data.get('awbNumber') or data.get('KargoTakipNo', '')
-            barcode = data.get('barcode') or data.get('barcodeCode') or data.get('cargoCode', '') or data.get('KargoKodu', '')
+            # SetOrder response'dan tracking number ve label URL'i al
+            # InvoiceKey muhtemelen takip numarası veya invoice key
+            # ResultCode ve ResultMessage kontrolü yap
+            result_code = data.get('ResultCode', '')
+            result_message = data.get('ResultMessage', '')
+            
+            if result_code and result_code != '0' and result_code.lower() != 'success':
+                # Hata varsa
+                return {
+                    'success': False,
+                    'error': f"Aras Kargo hatası: {result_message} (Code: {result_code})",
+                }
+            
+            # InvoiceKey muhtemelen takip numarası
+            tracking_number = data.get('InvoiceKey') or data.get('trackingNumber') or data.get('tracking_number') or ''
+            # OrgReceiverCustId bizim gönderdiğimiz order_number (M.Ö.K)
+            org_receiver_cust_id = data.get('OrgReceiverCustId', '')
+            barcode = ''  # SetOrder response'da barkod olmayabilir
             
             # Tracking URL oluştur - müşteriye gönderilecek link
             tracking_url = ''
