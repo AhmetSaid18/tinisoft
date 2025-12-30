@@ -581,6 +581,195 @@ class ArasCargoService:
             }
     
     @staticmethod
+    def _get_barcode(
+        integration: IntegrationProvider,
+        endpoint: str,
+        invoice_key: str,
+        credentials: Dict
+    ) -> Dict[str, Any]:
+        """
+        GetBarcode ASMX servisini çağır.
+        
+        GetBarcode response'unda TrackingNumber (birincil takip numarası) ve Barcode alanları var.
+        Ayrıca etiket görüntüleri (base64) ve Zebra çıktıları da dönebiliyor.
+        
+        Args:
+            integration: IntegrationProvider instance
+            endpoint: GetBarcode endpoint URL
+            invoice_key: InvoiceKey (SetOrder'dan dönen InvoiceKey)
+            credentials: API credentials (username, password)
+        
+        Returns:
+            dict: {
+                'success': bool,
+                'tracking_number': str,  # TrackingNumber (birincil)
+                'barcode': str,  # Barcode (20 haneli)
+                'label_data': str,  # Base64 encoded label (opsiyonel)
+                'data': dict
+            }
+        """
+        # SOAP Envelope oluştur
+        envelope = ET.Element('soap:Envelope')
+        envelope.set('xmlns:xsi', 'http://www.w3.org/2001/XMLSchema-instance')
+        envelope.set('xmlns:xsd', 'http://www.w3.org/2001/XMLSchema')
+        envelope.set('xmlns:soap', 'http://schemas.xmlsoap.org/soap/envelope/')
+        
+        # Body
+        body = ET.SubElement(envelope, 'soap:Body')
+        
+        # GetBarcode
+        get_barcode = ET.SubElement(body, 'GetBarcode')
+        get_barcode.set('xmlns', 'http://tempuri.org/')
+        
+        # userName
+        user_name_elem = ET.SubElement(get_barcode, 'userName')
+        user_name_elem.text = str(credentials.get('username', '') or credentials.get('user_name', ''))
+        
+        # password
+        password_elem = ET.SubElement(get_barcode, 'password')
+        password_elem.text = str(credentials.get('password', ''))
+        
+        # invoiceKey
+        invoice_key_elem = ET.SubElement(get_barcode, 'invoiceKey')
+        invoice_key_elem.text = str(invoice_key)
+        
+        # XML string'e çevir
+        xml_str = ET.tostring(envelope, encoding='utf-8', method='xml')
+        # Pretty print için minidom kullan
+        dom = minidom.parseString(xml_str)
+        soap_xml = dom.toprettyxml(indent="  ", encoding='utf-8').decode('utf-8')
+        
+        # SOAP Action header
+        headers = {
+            'Content-Type': 'text/xml; charset=utf-8',
+            'SOAPAction': '"http://tempuri.org/GetBarcode"',
+        }
+        
+        try:
+            logger.info(f"Aras Kargo GetBarcode request to {endpoint} with InvoiceKey: {invoice_key[:30]}...")
+            logger.debug(f"GetBarcode SOAP XML:\n{soap_xml}")
+            
+            response = requests.post(
+                url=endpoint,
+                data=soap_xml.encode('utf-8'),
+                headers=headers,
+                timeout=30
+            )
+            
+            response.raise_for_status()
+            
+            # SOAP response'u parse et
+            parsed_data = ArasCargoService._parse_get_barcode_response(response.text)
+            
+            logger.info(f"Aras Kargo GetBarcode response: {response.status_code}")
+            logger.info(f"GetBarcode parsed data: {parsed_data}")
+            
+            # TrackingNumber ve Barcode'u al
+            tracking_number = None
+            barcode = None
+            label_data = None
+            
+            if parsed_data:
+                # BarcodeModel içindeki TrackingNumber (birincil takip numarası)
+                tracking_number = parsed_data.get('TrackingNumber', '') or parsed_data.get('TrackingNo', '')
+                # Barcode (20 haneli)
+                barcode = parsed_data.get('Barcode', '') or parsed_data.get('BarcodeCode', '')
+                # Label data (base64, opsiyonel)
+                label_data = parsed_data.get('LabelData', '') or parsed_data.get('Label', '')
+            
+            result = {
+                'success': True,
+                'tracking_number': tracking_number,
+                'barcode': barcode,
+                'label_data': label_data,
+                'data': parsed_data,
+                'status_code': response.status_code,
+                'raw_response': response.text,
+            }
+            
+            return result
+            
+        except requests.exceptions.RequestException as e:
+            error_msg = f"Aras Kargo GetBarcode error: {str(e)}"
+            
+            if hasattr(e, 'response') and e.response is not None:
+                response_text = e.response.text[:1000] if e.response.text else 'No response body'
+                logger.error(f"{error_msg}\nResponse body: {response_text}")
+                logger.error(f"Request SOAP XML: {soap_xml}")
+            else:
+                logger.error(error_msg)
+            
+            return {
+                'success': False,
+                'error': error_msg,
+            }
+        except Exception as e:
+            error_msg = f"Unexpected error in Aras Kargo GetBarcode: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            
+            return {
+                'success': False,
+                'error': error_msg,
+            }
+    
+    @staticmethod
+    def _parse_get_barcode_response(xml_response: str) -> Dict[str, Any]:
+        """
+        GetBarcode SOAP response'u parse et.
+        
+        Format:
+        <GetBarcodeResponse>
+          <GetBarcodeResult>
+            <BarcodeModel>
+              <TrackingNumber>string</TrackingNumber>
+              <Barcode>string</Barcode>
+              <LabelData>string</LabelData>
+              ...
+            </BarcodeModel>
+          </GetBarcodeResult>
+        </GetBarcodeResponse>
+        
+        Args:
+            xml_response: SOAP XML response string
+        
+        Returns:
+            dict: Parsed BarcodeModel data
+        """
+        try:
+            root = ET.fromstring(xml_response)
+            namespaces = {
+                'soap': 'http://schemas.xmlsoap.org/soap/envelope/',
+                'tem': 'http://tempuri.org/'
+            }
+            
+            # Body içindeki GetBarcodeResponse'u bul
+            body = root.find('.//soap:Body', namespaces)
+            if body is not None:
+                get_barcode_response = body.find('.//tem:GetBarcodeResponse', namespaces)
+                if get_barcode_response is not None:
+                    # GetBarcodeResult içindeki BarcodeModel'i bul
+                    result_element = get_barcode_response.find('.//tem:GetBarcodeResult', namespaces)
+                    if result_element is not None:
+                        barcode_model = result_element.find('.//tem:BarcodeModel', namespaces)
+                        if barcode_model is not None:
+                            barcode_dict = {}
+                            for child in barcode_model:
+                                tag = child.tag.split('}')[-1]  # Namespace'i kaldır
+                                barcode_dict[tag] = child.text if child.text else ''
+                            return barcode_dict
+                        # Eğer BarcodeModel yoksa direkt GetBarcodeResult içindeki child'ları al
+                        else:
+                            barcode_dict = {}
+                            for child in result_element:
+                                tag = child.tag.split('}')[-1]
+                                barcode_dict[tag] = child.text if child.text else ''
+                            return barcode_dict
+            return {}
+        except Exception as e:
+            logger.error(f"Error parsing GetBarcode SOAP response: {str(e)}")
+            return {}
+    
+    @staticmethod
     def _parse_get_order_with_integration_code_response(xml_response: str) -> List[Dict[str, Any]]:
         """
         GetOrderWithIntegrationCode SOAP response'u parse et.
@@ -1214,14 +1403,45 @@ class ArasCargoService:
             
             barcode = data.get('Barcode') or data.get('CargoCode') or ''
             
-            # Eğer response'da gerçek takip numarası yoksa, GetOrderWithIntegrationCode ile sorgula
-            # integration_code shipment_data'dan al
+            # Öncelik sırası ile gerçek takip numarasını al:
+            # 1. GetBarcode'dan TrackingNumber (birincil - en sağlam kaynak)
+            # 2. GetOrderWithIntegrationCode'dan TradingWaybillNumber (fallback)
+            # 3. InvoiceKey (son çare)
+            
             integration_code_for_track = shipment_data.get('orderNumber', order.order_number)
-            if not tracking_number or (len(str(tracking_number).strip()) != 13 and len(str(tracking_number).strip()) != 20):
-                logger.info(f"SetOrder response'unda gerçek takip numarası bulunamadı, GetOrderWithIntegrationCode ile sorgulama yapılıyor: {org_receiver_cust_id or integration_code_for_track}")
+            
+            # 1. ÖNCE GetBarcode çağır (birincil takip numarası için)
+            if invoice_key:
                 try:
-                    # GetOrderWithIntegrationCode ile gönderi bilgilerini sorgula
-                    # Bu servis aynı endpoint'i (arascargoservice.asmx) kullanır
+                    logger.info(f"SetOrder başarılı, GetBarcode ile TrackingNumber alınıyor (InvoiceKey: {invoice_key})")
+                    get_barcode_result = ArasCargoService._get_barcode(
+                        integration=integration,
+                        endpoint=setorder_endpoint,  # Aynı endpoint
+                        invoice_key=invoice_key,
+                        credentials=setorder_credentials
+                    )
+                    
+                    if get_barcode_result.get('success'):
+                        # TrackingNumber'ı al (birincil takip numarası)
+                        barcode_tracking_number = get_barcode_result.get('tracking_number', '')
+                        if barcode_tracking_number and barcode_tracking_number.strip():
+                            tracking_number = barcode_tracking_number.strip()
+                            logger.info(f"GetBarcode'dan alınan TrackingNumber (birincil takip numarası): {tracking_number}")
+                            
+                            # Barcode'u da al (20 haneli)
+                            barcode_from_barcode = get_barcode_result.get('barcode', '')
+                            if barcode_from_barcode:
+                                barcode = barcode_from_barcode
+                                logger.info(f"GetBarcode'dan alınan Barcode: {barcode}")
+                        else:
+                            logger.info(f"GetBarcode başarılı ama TrackingNumber boş - GetOrderWithIntegrationCode deneniyor")
+                except Exception as get_barcode_error:
+                    logger.warning(f"SetOrder sonrası GetBarcode çağrısı başarısız: {str(get_barcode_error)} - GetOrderWithIntegrationCode deneniyor")
+            
+            # 2. Eğer GetBarcode'dan tracking_number alınamadıysa, GetOrderWithIntegrationCode ile dene (fallback)
+            if not tracking_number or (len(str(tracking_number).strip()) != 13 and len(str(tracking_number).strip()) != 20 and '-' not in str(tracking_number).strip()):
+                try:
+                    logger.info(f"GetBarcode'dan tracking_number alınamadı, GetOrderWithIntegrationCode ile sorgulama yapılıyor: {org_receiver_cust_id or integration_code_for_track}")
                     get_order_result = ArasCargoService._get_order_with_integration_code(
                         integration=integration,
                         endpoint=setorder_endpoint,  # Aynı endpoint
@@ -1230,31 +1450,39 @@ class ArasCargoService:
                     )
                     
                     if get_order_result.get('success'):
-                        # TradingWaybillNumber'ı al (gerçek takip numarası)
+                        # TradingWaybillNumber'ı al (fallback takip numarası)
                         waybill_number = get_order_result.get('tracking_number', '')
                         if waybill_number and waybill_number.strip():
                             tracking_number = waybill_number.strip()
-                            logger.info(f"GetOrderWithIntegrationCode'dan alınan TradingWaybillNumber (takip numarası): {tracking_number}")
+                            logger.info(f"GetOrderWithIntegrationCode'dan alınan TradingWaybillNumber (fallback takip numarası): {tracking_number}")
                         else:
                             logger.info(f"GetOrderWithIntegrationCode başarılı ama TradingWaybillNumber boş - gönderi henüz işlenmemiş olabilir")
                 except Exception as get_order_error:
-                    logger.warning(f"SetOrder sonrası GetOrderWithIntegrationCode çağrısı başarısız: {str(get_order_error)}")
-                    # Hata olsa bile devam et, invoice_key kullanacağız
+                    logger.warning(f"GetOrderWithIntegrationCode çağrısı başarısız: {str(get_order_error)}")
             
-            # Eğer hala gerçek takip numarası yoksa, invoice_key'i kullan (bizim gönderdiğimiz InvoiceNumber)
+            # 3. Son çare: InvoiceKey (bizim gönderdiğimiz InvoiceNumber)
             if not tracking_number:
                 tracking_number = invoice_key
-                logger.info(f"Gerçek takip numarası alınamadı, InvoiceKey kullanılıyor: {invoice_key}")
+                logger.info(f"Gerçek takip numarası alınamadı, InvoiceKey kullanılıyor (son çare): {invoice_key}")
             
             logger.info(f"SetOrder final tracking_number: {tracking_number}, InvoiceKey: {invoice_key}, OrgReceiverCustId: {org_receiver_cust_id}, Barcode: {barcode}")
             
             # Tracking URL oluştur - müşteriye gönderilecek link
             tracking_url = ''
             
-            # Öncelik sırası: tracking_number (13 haneli) > barcode (20 haneli) > order_number (M.Ö.K)
+            # Öncelik sırası: TradingWaybillNumber > tracking_number (13 haneli) > barcode (20 haneli) > order_number (M.Ö.K)
             if tracking_number:
                 tracking_number_str = str(tracking_number).strip()
-                if len(tracking_number_str) == 13:
+                
+                # TradingWaybillNumber format kontrolü (Aras Kargo'nun döndürdüğü format)
+                # Örnek: "7003031-509D92b2" (tire içerebilir, harf içerebilir)
+                # Bu durumda code parametresi ile direkt kullanabiliriz
+                if '-' in tracking_number_str or len(tracking_number_str) > 13:
+                    # TradingWaybillNumber formatında (tire içeriyor veya 13'ten uzun)
+                    # code parametresi ile tracking URL oluştur
+                    tracking_url = ArasCargoService.get_tracking_url(tenant, tracking_number_str, 'tracking_number')
+                    logger.info(f"TradingWaybillNumber formatında tracking URL oluşturuldu: {tracking_url}")
+                elif len(tracking_number_str) == 13:
                     # 13 haneli takip numarası varsa onu kullan
                     tracking_url = ArasCargoService.get_tracking_url(tenant, tracking_number_str, 'tracking_number')
                 elif len(tracking_number_str) == 20:
@@ -1270,13 +1498,19 @@ class ArasCargoService:
             # Eğer hala tracking_url yoksa order_number (M.Ö.K) ile dene
             if not tracking_url and order.order_number:
                 tracking_url = ArasCargoService.get_tracking_url(tenant, order.order_number, 'order_number')
+                logger.info(f"TradingWaybillNumber ile URL oluşturulamadı, order_number ile tracking URL oluşturuldu: {tracking_url}")
             
+            # Tüm önemli değerleri sakla (ileride iptal/label/sorgu için)
             return {
                 'success': True,
-                'tracking_number': tracking_number,
+                'tracking_number': tracking_number,  # Birincil: TrackingNumber (GetBarcode) veya TradingWaybillNumber (GetOrderWithIntegrationCode)
                 'tracking_url': tracking_url,  # ✅ Müşteriye gönderilecek link
-                'barcode': barcode,
+                'barcode': barcode,  # 20 haneli barkod (GetBarcode'dan veya diğer kaynaklardan)
                 'label_url': data.get('labelUrl') or data.get('label_url', ''),
+                # Aras Kargo referans bilgileri (sakla - iptal/label/sorgu için)
+                'invoice_key': invoice_key,  # InvoiceKey (SetOrder'dan)
+                'invoice_number': shipment_data.get('invoiceNumber', ''),  # InvoiceNumber (bizim gönderdiğimiz)
+                'integration_code': org_receiver_cust_id or integration_code_for_track,  # IntegrationCode (M.Ö.K)
                 'data': data,
             }
         else:
