@@ -379,48 +379,14 @@ class ArasCargoService:
         piece_count_elem.text = str(piece_count_int)
         
         # PieceDetails ekle - Her order item için gerçek ürün barcode'u gönder
-        piece_details = ET.SubElement(order_xml, 'PieceDetails')
+        # NOT: Aras Kargo "barcode bilgisi eksik" hatası veriyor
+        # Belki PieceDetails formatı yanlış veya SetOrderPiece servisi kullanılmalı
+        # Şimdilik PieceDetails'i kaldırıp sadece PieceCount gönderelim
+        # Eğer PieceDetails zorunluysa, Aras Kargo'dan doğru format alınmalı
         
-        # Order items'dan ürün barcode'larını al
-        order_items = order.items.all()
-        total_items_count = sum(item.quantity for item in order_items)
-        
-        # Her order item için quantity kadar PieceDetail oluştur
-        piece_index = 0
-        # Toplam ağırlık ve desi'yi parça sayısına böl (her parça için eşit dağıt)
-        total_weight_float = float(shipment_data.get('weight', '1.0'))
-        total_desi_float = float(shipment_data.get('desi', '3.0'))
-        weight_per_piece = total_weight_float / piece_count_int if piece_count_int > 0 else total_weight_float
-        desi_per_piece = total_desi_float / piece_count_int if piece_count_int > 0 else total_desi_float
-        
-        for order_item in order_items:
-            # Ürün barcode'unu al (product.barcode veya product.sku veya product_sku)
-            barcode = ''
-            if order_item.product:
-                barcode = order_item.product.barcode or order_item.product.sku or ''
-            if not barcode:
-                barcode = order_item.product_sku or ''
-            if not barcode:
-                # Barcode yoksa, IntegrationCode + parça numarası kullan
-                barcode = f"{integration_code}-{piece_index+1}"
-            
-            # Her quantity için bir PieceDetail oluştur
-            for qty_index in range(order_item.quantity):
-                piece_detail = ET.SubElement(piece_details, 'PieceDetail')
-                
-                # Barcode ekle (gerçek ürün barcode'u) - Farklı field isimlerini dene
-                # Belki BarcodeCode veya PieceBarcode olabilir, ama önce Barcode deneyelim
-                barcode_elem = ET.SubElement(piece_detail, 'Barcode')
-                barcode_elem.text = barcode[:50] if barcode else f"{integration_code}-{piece_index+1}"
-                
-                # Weight ve Desi ekle (her parça için)
-                weight_elem = ET.SubElement(piece_detail, 'Weight')
-                weight_elem.text = str(round(weight_per_piece, 2))
-                
-                desi_elem = ET.SubElement(piece_detail, 'Desi')
-                desi_elem.text = str(round(desi_per_piece, 2))
-                
-                piece_index += 1
+        # Geçici çözüm: PieceDetails'i tamamen kaldır
+        # Eğer Aras Kargo PieceDetails zorunlu ise, bu hata devam edecek
+        # O zaman SetOrderPiece servisi kullanılmalı veya format doğru alınmalı
         
         # SetOrder parametreleri (orderInfo dışında)
         if credentials:
