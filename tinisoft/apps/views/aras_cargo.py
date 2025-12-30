@@ -46,9 +46,29 @@ def aras_create_shipment(request, order_id):
     
     # Kargo adresi bilgilerini hazırla
     shipping_address = {}
+    addr = None
+    
+    # Önce order'ın shipping_address'ini kontrol et
     if order.shipping_address:
-        # ShippingAddress modelinden al
         addr = order.shipping_address
+        logger.info(f"Order shipping_address kullanılıyor: {addr.id}")
+    elif order.customer:
+        # Order'da shipping_address yoksa ama customer varsa, customer'ın default address'ini kullan
+        from apps.models import ShippingAddress
+        try:
+            addr = ShippingAddress.objects.filter(
+                tenant=tenant,
+                user=order.customer,
+                is_default=True,
+                is_deleted=False
+            ).first()
+            if addr:
+                logger.info(f"Order'da shipping_address yok, customer'ın default address'i kullanılıyor: {addr.id}")
+        except Exception as e:
+            logger.warning(f"Customer default address alınamadı: {str(e)}")
+    
+    if addr:
+        # ShippingAddress modelinden al
         shipping_address = {
             'first_name': addr.first_name or order.customer_first_name or '',
             'last_name': addr.last_name or order.customer_last_name or '',
@@ -60,7 +80,7 @@ def aras_create_shipment(request, order_id):
             'postal_code': addr.postal_code or '',
             'country': addr.country or 'TR',
         }
-        logger.info(f"Order shipping_address: address_line_1={shipping_address.get('address_line_1')}, city={shipping_address.get('city')}")
+        logger.info(f"Shipping address: address_line_1={shipping_address.get('address_line_1')}, city={shipping_address.get('city')}")
     else:
         # Shipping address yoksa customer bilgilerinden oluştur
         shipping_address = {
@@ -74,7 +94,7 @@ def aras_create_shipment(request, order_id):
             'postal_code': '',
             'country': 'TR',
         }
-        logger.warning(f"Order {order.id} için shipping_address yok, customer bilgilerinden oluşturuldu.")
+        logger.warning(f"Order {order.id} için shipping_address bulunamadı, customer bilgilerinden oluşturuldu.")
     
     # Adres bilgileri kontrolü
     if not shipping_address.get('address_line_1') or not shipping_address.get('city'):

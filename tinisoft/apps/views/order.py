@@ -348,11 +348,24 @@ def order_list_create(request):
                     shipping_address = None
                     if data.get('shipping_address_id'):
                         try:
-                            shipping_address = ShippingAddress.objects.get(
+                            # ShippingAddress'i al - tenant ve user kontrolü yap
+                            shipping_address_query = ShippingAddress.objects.filter(
                                 id=data['shipping_address_id'],
                                 tenant=tenant,
+                                is_deleted=False
                             )
-                        except ShippingAddress.DoesNotExist:
+                            
+                            # Eğer tenant_user ise, sadece kendi adreslerine erişebilir
+                            if request.user.is_tenant_user and request.user.tenant == tenant:
+                                shipping_address_query = shipping_address_query.filter(user=request.user)
+                            
+                            shipping_address = shipping_address_query.first()
+                            if shipping_address:
+                                logger.info(f"Order için shipping_address bulundu: {shipping_address.id}")
+                            else:
+                                logger.warning(f"Order için shipping_address bulunamadı: {data['shipping_address_id']}")
+                        except Exception as e:
+                            logger.warning(f"Shipping address alınırken hata: {str(e)}")
                             pass
                     
                     # Kargo yöntemi
