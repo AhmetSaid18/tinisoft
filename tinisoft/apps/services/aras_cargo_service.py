@@ -19,11 +19,12 @@ class ArasCargoService:
     """Aras Kargo XML/SOAP servisi."""
     
     # Aras Kargo XML Servis endpoint'leri
-    # PDF'den alınan endpoint'ler:
-    # Test: http://customerservicestest.araskargo.com.tr/ArasCargoIntegrationService.svc
+    # WSDL sayfasından doğrulanan endpoint'ler:
+    # Test: https://customerservicestest.araskargo.com.tr/ArasCargoIntegrationService.svc (HTTPS)
+    # WSDL: https://customerservicestest.araskargo.com.tr/ArasCargoIntegrationService.svc?wsdl
     # Canlı: http://customerservices.araskargo.com.tr/ArasCargoCustomerIntegrationService/ArasCargoIntegrationService.svc
     DEFAULT_API_ENDPOINT = "http://customerservices.araskargo.com.tr/ArasCargoCustomerIntegrationService/ArasCargoIntegrationService.svc"
-    DEFAULT_TEST_ENDPOINT = "http://customerservicestest.araskargo.com.tr/ArasCargoIntegrationService.svc"
+    DEFAULT_TEST_ENDPOINT = "https://customerservicestest.araskargo.com.tr/ArasCargoIntegrationService.svc"
     
     @staticmethod
     def get_integration(tenant) -> Optional[IntegrationProvider]:
@@ -210,17 +211,23 @@ class ArasCargoService:
         """
         SOAP XML envelope oluştur.
         
-        Aras Kargo API'si GetQueryDS, GetQueryXML, GetQueryJSON metodları için
-        loginInfo ve queryInfo string parametreleri bekler.
+        Aras Kargo API'si için SOAP request oluşturur.
+        - GetQueryDS, GetQueryXML, GetQueryJSON: loginInfo ve queryInfo parametreleri
+        - SetOrder: loginInfo ve orderInfo parametreleri (farklı format)
         
         Args:
-            service_method: Service metod adı (örn: GetQueryDS, GetQueryXML, GetQueryJSON)
+            service_method: Service metod adı (örn: GetQueryDS, SetOrder)
             credentials: API credentials (username, password, customer_code)
-            data: Method parametreleri (query_type, query_params)
+            data: Method parametreleri
         
         Returns:
             str: SOAP XML string
         """
+        # SetOrder için farklı format
+        if service_method == 'SetOrder':
+            return ArasCargoService._build_setorder_soap_envelope(credentials, data)
+        
+        # GetQueryDS için mevcut format
         # SOAP Envelope oluştur
         envelope = ET.Element('soap:Envelope')
         envelope.set('xmlns:soap', 'http://schemas.xmlsoap.org/soap/envelope/')
@@ -249,6 +256,69 @@ class ArasCargoService:
         # Pretty print için minidom kullan
         dom = minidom.parseString(xml_str)
         return dom.toprettyxml(indent="  ", encoding='utf-8').decode('utf-8')
+    
+    @staticmethod
+    def _build_setorder_soap_envelope(credentials: Dict, data: Dict) -> str:
+        """
+        SetOrder için SOAP XML envelope oluştur.
+        
+        SetOrder API'si için özel SOAP formatı.
+        
+        Args:
+            credentials: API credentials (username, password, customer_code)
+            data: Gönderi bilgileri (orderNumber, receiverName, vb.)
+        
+        Returns:
+            str: SOAP XML string
+        """
+        # SOAP Envelope oluştur
+        envelope = ET.Element('soap:Envelope')
+        envelope.set('xmlns:soap', 'http://schemas.xmlsoap.org/soap/envelope/')
+        envelope.set('xmlns:tem', 'http://tempuri.org/')
+        
+        # Body
+        body = ET.SubElement(envelope, 'soap:Body')
+        
+        # SetOrder Method
+        method = ET.SubElement(body, 'tem:SetOrder')
+        
+        # LoginInfo parametresi (XML string olarak)
+        login_info_xml = ArasCargoService._build_login_info_xml(credentials)
+        login_info_param = ET.SubElement(method, 'tem:loginInfo')
+        login_info_param.text = login_info_xml
+        
+        # OrderInfo parametresi (XML string olarak)
+        order_info_xml = ArasCargoService._build_order_info_xml(data)
+        order_info_param = ET.SubElement(method, 'tem:orderInfo')
+        order_info_param.text = order_info_xml
+        
+        # XML string'e çevir
+        xml_str = ET.tostring(envelope, encoding='utf-8', method='xml')
+        # Pretty print için minidom kullan
+        dom = minidom.parseString(xml_str)
+        return dom.toprettyxml(indent="  ", encoding='utf-8').decode('utf-8')
+    
+    @staticmethod
+    def _build_order_info_xml(data: Dict) -> str:
+        """
+        OrderInfo XML parametresini oluştur (SetOrder için).
+        
+        Args:
+            data: Gönderi bilgileri
+        
+        Returns:
+            str: OrderInfo XML string
+        """
+        order_info = ET.Element('OrderInfo')
+        
+        # Gönderi bilgilerini XML'e çevir
+        for key, value in data.items():
+            if value is not None and value != '':
+                element = ET.SubElement(order_info, key)
+                element.text = str(value)
+        
+        xml_str = ET.tostring(order_info, encoding='utf-8', method='xml')
+        return xml_str.decode('utf-8')
     
     @staticmethod
     def _parse_soap_response(xml_response: str) -> Dict[str, Any]:
@@ -412,9 +482,18 @@ class ArasCargoService:
         # SetOrder için credentials al
         setorder_credentials = ArasCargoService._get_api_credentials(integration, 'setorder')
         
-        # SetOrder endpoint'i (config'den veya default)
-        setorder_endpoint = integration.config.get('setorder', {}).get('endpoint') or \
-                           'http://customerservices.araskargo.com.tr/ArasCargoCustomerIntegrationService/ArasCargoIntegrationService.svc'
+        # SetOrder endpoint'i
+        # Önce config'de tanımlı endpoint, yoksa test/production moduna göre default endpoint
+        setorder_endpoint = integration.config.get('setorder', {}).get('endpoint')
+        
+        if not setorder_endpoint:
+            # Test modundaysa test endpoint, değilse production endpoint
+            if integration.status == IntegrationProvider.Status.TEST_MODE:
+                # Test endpoint - SetOrder için de aynı endpoint kullanılır (PDF'de belirtilen)
+                setorder_endpoint = ArasCargoService.DEFAULT_TEST_ENDPOINT
+            else:
+                # Production endpoint
+                setorder_endpoint = ArasCargoService.DEFAULT_API_ENDPOINT
         
         # Gönderi bilgilerini hazırla (SetOrder API formatına göre)
         # Not: SetOrder API formatı farklı olabilir, gerçek dokümantasyona göre güncellenebilir
