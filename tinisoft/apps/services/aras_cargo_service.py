@@ -340,20 +340,10 @@ class ArasCargoService:
             'content': 'Description',
         }
         
-        # UserName ve Password Order içinde de var
-        # Önce Order içine field'ları ekle
-        if credentials:
-            # SetOrder için user_name ve password kullan (api_key/api_secret veya setorder.username/password)
-            user_name = credentials.get('user_name') or credentials.get('username', '')
-            password = credentials.get('password', '')
-            
-            logger.debug(f"SetOrder Order içinde UserName: {user_name[:10] if user_name else 'EMPTY'}..., Password: {'*' * len(password) if password else 'EMPTY'}")
-            
-            user_name_elem = ET.SubElement(order, 'UserName')
-            user_name_elem.text = str(user_name)
-            
-            password_elem = ET.SubElement(order, 'Password')
-            password_elem.text = str(password)
+        # NOT: SetOrder dokümantasyonuna göre Order içinde UserName/Password OPSIYONEL
+        # Bazı implementasyonlarda sadece orderInfo dışındaki userName/password kullanılıyor
+        # Şimdilik Order içine eklemiyoruz, sadece orderInfo dışına ekleyeceğiz
+        # Eğer hata devam ederse, Order içine de ekleyebiliriz
         
         # Gönderi bilgilerini ekle
         for key, value in shipment_data.items():
@@ -412,7 +402,8 @@ class ArasCargoService:
         
         try:
             logger.info(f"Aras Kargo SetOrder request to {endpoint}")
-            logger.debug(f"SOAP XML (first 1500 chars): {soap_xml[:1500]}")
+            logger.info(f"SetOrder credentials being used - username: {credentials.get('username', '')[:30] if credentials.get('username') else 'EMPTY'}, password: {'*' * len(credentials.get('password', '')) if credentials.get('password') else 'EMPTY'}")
+            logger.info(f"SOAP XML (full):\n{soap_xml}")
             
             response = requests.post(
                 url=endpoint,
