@@ -378,8 +378,35 @@ class ArasCargoService:
         piece_count_elem = ET.SubElement(order, 'PieceCount')
         piece_count_elem.text = str(piece_count_int)
         
-        # PieceDetails'i kaldırdık - Aras Kargo barcode hatası veriyor
-        # Eğer PieceDetails gerekiyorsa, Aras Kargo'dan doğru format alınmalı
+        # PieceDetails ekle - Her order item için gerçek ürün barcode'u gönder
+        piece_details = ET.SubElement(order, 'PieceDetails')
+        
+        # Order items'dan ürün barcode'larını al
+        order_items = order.items.all()
+        total_items_count = sum(item.quantity for item in order_items)
+        
+        # Her order item için quantity kadar PieceDetail oluştur
+        piece_index = 0
+        for order_item in order_items:
+            # Ürün barcode'unu al (product.barcode veya product.sku veya product_sku)
+            barcode = ''
+            if order_item.product:
+                barcode = order_item.product.barcode or order_item.product.sku or ''
+            if not barcode:
+                barcode = order_item.product_sku or ''
+            if not barcode:
+                # Barcode yoksa, IntegrationCode + parça numarası kullan
+                barcode = f"{integration_code}-{piece_index+1}"
+            
+            # Her quantity için bir PieceDetail oluştur
+            for qty_index in range(order_item.quantity):
+                piece_detail = ET.SubElement(piece_details, 'PieceDetail')
+                
+                # Barcode ekle (gerçek ürün barcode'u)
+                barcode_elem = ET.SubElement(piece_detail, 'Barcode')
+                barcode_elem.text = barcode[:50]  # Max 50 karakter
+                
+                piece_index += 1
         
         # SetOrder parametreleri (orderInfo dışında)
         if credentials:
@@ -856,9 +883,8 @@ class ArasCargoService:
             'receiverCity': shipping_address.get('city', '').strip()[:32],  # ReceiverCityName - ZORUNLU
             'weight': str(total_weight),  # Weight (string format) - ZORUNLU
             'desi': str(round(desi, 2)),  # VolumetricWeight (string format, desi)
-            # PieceCount: PieceDetails göndermiyorsak 1 olmalı (tek parça)
-            # PieceDetails eklenecekse, her parça için detay gönderilmeli
-            'pieceCount': '1',  # Şimdilik tek parça olarak gönder (PieceDetails yok)
+            # PieceCount: Order items'ın toplam quantity'si (her item için quantity kadar parça)
+            'pieceCount': str(min(99, max(1, sum(item.quantity for item in order.items.all())))),  # Toplam parça sayısı
             'content': ', '.join([item.product.name for item in order.items.all()[:3]])[:255],  # Description
         }
         
