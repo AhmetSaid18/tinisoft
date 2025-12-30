@@ -837,7 +837,9 @@ class ArasCargoService:
             'receiverCity': shipping_address.get('city', '').strip()[:32],  # ReceiverCityName - ZORUNLU
             'weight': str(total_weight),  # Weight (string format) - ZORUNLU
             'desi': str(round(desi, 2)),  # VolumetricWeight (string format, desi)
-            'pieceCount': str(min(99, max(1, order.items.count()))),  # PieceCount (string format) - ZORUNLU
+            # PieceCount: PieceDetails göndermiyorsak 1 olmalı (tek parça)
+            # PieceDetails eklenecekse, her parça için detay gönderilmeli
+            'pieceCount': '1',  # Şimdilik tek parça olarak gönder (PieceDetails yok)
             'content': ', '.join([item.product.name for item in order.items.all()[:3]])[:255],  # Description
         }
         
