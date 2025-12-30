@@ -66,11 +66,22 @@ class ArasCargoService:
         config = integration.config or {}
         
         if service_type == 'setorder':
-            # SetOrder için ayrı credentials (email'den gelen bilgiler)
+            # SetOrder için ayrı credentials
+            # Öncelik sırası: setorder config > api_key/api_secret > boş
             setorder_config = config.get('setorder', {})
+            
+            # SetOrder username: setorder.username > api_key
+            username = setorder_config.get('username') or integration.get_api_key() or ''
+            
+            # SetOrder password: setorder.password > api_secret
+            password = setorder_config.get('password') or integration.get_api_secret() or ''
+            
+            logger.debug(f"SetOrder credentials - username: {username[:10]}..., password: {'*' * len(password) if password else 'EMPTY'}")
+            
             return {
-                'username': setorder_config.get('username') or integration.get_api_key(),
-                'password': setorder_config.get('password') or integration.get_api_secret(),
+                'user_name': username,  # SetOrder için user_name (Order içinde UserName)
+                'password': password,  # SetOrder için password (Order içinde Password)
+                'username': username,  # SetOrder için userName (orderInfo dışında)
                 'customer_code': setorder_config.get('customer_code') or config.get('customer_code', ''),
                 'customer_username': config.get('customer_username', ''),  # Müşteri Kullanıcı Adı
                 'customer_password': config.get('customer_password', ''),  # Müşteri Şifre
@@ -327,14 +338,20 @@ class ArasCargoService:
             'content': 'Description',
         }
         
-        # UserName ve Password Order içinde de var ama genelde orderInfo dışında gönderilir
+        # UserName ve Password Order içinde de var
         # Önce Order içine field'ları ekle
         if credentials:
+            # SetOrder için user_name ve password kullan (api_key/api_secret veya setorder.username/password)
+            user_name = credentials.get('user_name') or credentials.get('username', '')
+            password = credentials.get('password', '')
+            
+            logger.debug(f"SetOrder Order içinde UserName: {user_name[:10] if user_name else 'EMPTY'}..., Password: {'*' * len(password) if password else 'EMPTY'}")
+            
             user_name_elem = ET.SubElement(order, 'UserName')
-            user_name_elem.text = str(credentials.get('user_name', ''))
+            user_name_elem.text = str(user_name)
             
             password_elem = ET.SubElement(order, 'Password')
-            password_elem.text = str(credentials.get('password', ''))
+            password_elem.text = str(password)
         
         # Gönderi bilgilerini ekle
         for key, value in shipment_data.items():
@@ -345,11 +362,17 @@ class ArasCargoService:
         
         # SetOrder parametreleri (orderInfo dışında)
         if credentials:
+            # SetOrder için userName ve password (orderInfo dışında)
+            user_name = credentials.get('user_name') or credentials.get('username', '')
+            password = credentials.get('password', '')
+            
+            logger.debug(f"SetOrder orderInfo dışında userName: {user_name[:10] if user_name else 'EMPTY'}..., password: {'*' * len(password) if password else 'EMPTY'}")
+            
             user_name_param = ET.SubElement(set_order, 'userName')
-            user_name_param.text = str(credentials.get('user_name', ''))
+            user_name_param.text = str(user_name)
             
             password_param = ET.SubElement(set_order, 'password')
-            password_param.text = str(credentials.get('password', ''))
+            password_param.text = str(password)
         
         # XML string'e çevir
         xml_str = ET.tostring(envelope, encoding='utf-8', method='xml')
