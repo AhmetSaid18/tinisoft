@@ -152,6 +152,7 @@ class ProductListSerializer(serializers.ModelSerializer):
     display_compare_at_price = serializers.SerializerMethodField()
     display_min_price = serializers.SerializerMethodField()
     display_max_price = serializers.SerializerMethodField()
+    brand = serializers.SerializerMethodField()
     has_variants = serializers.BooleanField(source='is_variant_product', read_only=True)
     # Frontend uyumluluğu için camelCase field'lar
     inventoryQuantity = serializers.IntegerField(source='inventory_quantity', read_only=True)
@@ -169,7 +170,7 @@ class ProductListSerializer(serializers.ModelSerializer):
             'primary_image', 'images', 'category_names', 'min_price', 'max_price',
             'has_variants', 'is_featured', 'is_new', 'is_bestseller',
             'status', 'is_visible', 'isActive', 'view_count', 'sale_count',
-            'created_at',
+            'brand', 'created_at',
         ]
         read_only_fields = ['id', 'created_at', 'price_with_vat', 'display_price', 'display_compare_at_price', 'display_min_price', 'display_max_price']
     
@@ -311,6 +312,12 @@ class ProductListSerializer(serializers.ModelSerializer):
             return str(converted_price)
         except Exception:
             return str(max_price)
+    
+    def get_brand(self, obj):
+        """Marka bilgisini metadata'dan al."""
+        if obj.metadata and isinstance(obj.metadata, dict):
+            return obj.metadata.get('brand')
+        return None
 
 
 class ProductDetailSerializer(serializers.ModelSerializer):
@@ -321,6 +328,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     categories = CategorySerializer(many=True, read_only=True)
     display_price = serializers.SerializerMethodField()
     display_compare_at_price = serializers.SerializerMethodField()
+    brand = serializers.SerializerMethodField()
     category_ids = serializers.PrimaryKeyRelatedField(
         many=True,
         queryset=Category.objects.all(),
@@ -353,7 +361,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             'view_count', 'sale_count',
             'images', 'options', 'variants', 'categories',
             'category_ids',
-            'metadata',
+            'brand', 'metadata',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'view_count', 'sale_count', 'price_with_vat', 'display_price', 'display_compare_at_price']
@@ -488,4 +496,10 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             return str(converted_price)
         except Exception:
             return str(obj.compare_at_price)
+    
+    def get_brand(self, obj):
+        """Marka bilgisini metadata'dan al."""
+        if obj.metadata and isinstance(obj.metadata, dict):
+            return obj.metadata.get('brand')
+        return None
 
