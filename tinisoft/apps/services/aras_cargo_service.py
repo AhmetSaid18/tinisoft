@@ -380,8 +380,12 @@ class ArasCargoService:
         piece_details = ET.SubElement(order, 'PieceDetails')
         for i in range(piece_count_int):
             piece_detail = ET.SubElement(piece_details, 'PieceDetail')
-            # PieceDetail içinde ağırlık, desi vb. bilgiler olabilir
-            # Şimdilik boş gönderelim, gerekirse sonra doldururuz
+            # PieceDetail içinde barcode zorunlu (Aras Kargo hatası: "barcode bilgisi eksik")
+            # Barcode: IntegrationCode + parça numarası (örn: ORD-AVRUPAMUTFAK-176-1)
+            barcode = f"{shipment_data.get('orderNumber', '')}-{i+1}"[:50]  # Barcode max 50 karakter olabilir
+            barcode_elem = ET.SubElement(piece_detail, 'Barcode')
+            barcode_elem.text = barcode
+            # PieceDetail içinde ağırlık, desi vb. bilgiler de olabilir ama şimdilik sadece barcode
         
         # SetOrder parametreleri (orderInfo dışında)
         if credentials:
