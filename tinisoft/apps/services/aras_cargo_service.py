@@ -270,8 +270,9 @@ class ArasCargoService:
         - loginInfo: Kullanıcı bilgileri
         - queryInfo: Gönderi bilgileri (XML string)
         
-        Not: SetDataXML için queryInfo formatı Aras Kargo dokümantasyonunda belirtilmiş olmalı.
-        Şu an için genel bir format kullanıyoruz, field isimleri dokümantasyona göre düzenlenebilir.
+        ÖNEMLI: SetDataXML için queryInfo formatı Aras Kargo dokümantasyonunda belirtilmiş olmalı.
+        Bu method tahmini field isimlerini kullanıyor. Gerçek field isimleri ve format için
+        Aras Kargo teknik desteğiyle iletişime geçilmesi gerekiyor.
         
         Args:
             data: Gönderi bilgileri (orderNumber, receiverName, vb.)
@@ -280,43 +281,49 @@ class ArasCargoService:
             str: QueryInfo XML string
         """
         # QueryInfo XML oluştur (SetDataXML için gönderi bilgileri)
-        # Not: Field isimleri Aras Kargo dokümantasyonuna göre olmalı
-        # Örnek format (test edilmeli):
+        # Not: Bu format tahminidir, Aras Kargo dokümantasyonuna göre güncellenmelidir
         query_info = ET.Element('QueryInfo')
         
-        # Gönderi bilgilerini XML'e çevir
-        # Field mapping: Python field -> Aras Kargo field (gerekirse)
+        # Field mapping: Python field -> Aras Kargo field
+        # Kaynak: "Müşteri Servis Entegrasyon Dökümanı.docx" - GetDispatch servis field isimleri
         field_mapping = {
-            'orderNumber': 'IntegrationCode',  # Müşteri özel kodu
-            'senderName': 'GondericiAdi',
-            'senderPhone': 'GondericiTelefon',
-            'senderAddress': 'GondericiAdres',
-            'senderCity': 'GondericiSehir',
-            'senderPostalCode': 'GondericiPostaKodu',
-            'receiverName': 'AliciAdi',
-            'receiverPhone': 'AliciTelefon',
-            'receiverAddress': 'AliciAdres',
-            'receiverAddress2': 'AliciAdres2',
-            'receiverCity': 'AliciSehir',
-            'receiverState': 'AliciIlce',
-            'receiverPostalCode': 'AliciPostaKodu',
-            'receiverCountry': 'AliciUlke',
-            'weight': 'Agirlik',
-            'pieceCount': 'Adet',
-            'content': 'Icerik',
-            'paymentType': 'OdemeTipi',
-            'serviceType': 'ServisTipi',
+            'orderNumber': 'orgReceiverCustId',  # Müşteri Özel kodu (Sipariş kodu) - M.Ö.K
+            'receiverName': 'receiverCustName',  # Alıcı Adı
+            'receiverPhone': 'receiverPhone1',  # Telefon-1
+            'receiverAddress': 'receiverAddress',  # Alıcı Adresi
+            'receiverCity': 'cityName',  # İl – Şehir Adı
+            'receiverState': 'townName',  # İlçe Adı
+            'weight': 'kg',  # Ürün Kg (Double 6,2)
+            'pieceCount': 'cargoCount',  # Sevkedilen Kargo Sayısı (Integer 2)
+            'content': 'description',  # Açıklama (String 255)
+            'desi': 'desi',  # Ürün Desi (Double 6,2)
+            # Opsiyonel alanlar:
+            'receiverPhone2': 'receiverPhone2',  # Telefon-2 (String 15)
+            'receiverPhone3': 'receiverPhone3',  # Telefon-3 (String 15)
+            'specialField1': 'specialField1',  # Özel Alan - 1 (String 500)
+            'specialField2': 'specialField2',  # Özel Alan – 2 (String 500)
+            'specialField3': 'specialField3',  # Özel Alan – 3 (String 500)
         }
+        
+        # Zorunlu field'lar (tahmini)
+        required_fields = ['IntegrationCode', 'GondericiAdi', 'AliciAdi', 'AliciTelefon', 'AliciAdres', 'AliciSehir']
         
         for key, value in data.items():
             if value is not None and value != '':
                 # Field mapping varsa kullan, yoksa orijinal key'i kullan
                 xml_field_name = field_mapping.get(key, key)
                 element = ET.SubElement(query_info, xml_field_name)
-                element.text = str(value)
+                # String değeri temizle (XML güvenliği için)
+                clean_value = str(value).strip()
+                element.text = clean_value
         
         xml_str = ET.tostring(query_info, encoding='utf-8', method='xml')
-        return xml_str.decode('utf-8')
+        result = xml_str.decode('utf-8')
+        
+        # Debug için log
+        logger.debug(f"SetDataXML queryInfo XML: {result}")
+        
+        return result
     
     @staticmethod
     def _parse_soap_response(xml_response: str) -> Dict[str, Any]:
@@ -459,10 +466,15 @@ class ArasCargoService:
     @staticmethod
     def create_shipment(tenant, order: Order, shipping_address: Dict) -> Dict[str, Any]:
         """
-        Gönderi oluştur (SetOrder API kullanarak).
+        Gönderi oluştur (SetDataXML API kullanarak).
         
-        SetOrder API ile gönderi oluşturur ve takip linki döndürür.
+        NOT: SetDataXML için queryInfo formatı Aras Kargo dokümantasyonunda belirtilmiş olmalı.
+        Şu an kullandığımız format tahminidir ve Aras Kargo teknik desteğinden doğrulanmalıdır.
+        
+        SetDataXML API ile gönderi oluşturur ve takip linki döndürür.
         Müşteri bu link ile kargo durumunu takip edebilir.
+        
+        ÖNEMLİ: SetDataXML queryInfo formatı için Aras Kargo'dan dokümantasyon alınması gerekiyor.
         
         Args:
             tenant: Tenant instance
@@ -503,28 +515,41 @@ class ArasCargoService:
                 setorder_endpoint = ArasCargoService.DEFAULT_API_ENDPOINT
         
         # Gönderi bilgilerini hazırla (SetDataXML API formatına göre)
-        # Not: SetDataXML için queryInfo içindeki field isimleri Aras Kargo dokümantasyonuna göre olmalı
+        # ÖNEMLI: SetDataXML için queryInfo içindeki field isimleri ve format Aras Kargo dokümantasyonunda belirtilmiş olmalı
+        # Şu an kullandığımız field mapping tahminidir ve test edilmelidir
+        
+        # Gönderen adresi bilgileri (integration config'den veya tenant'tan)
+        sender_address_config = integration.config.get('sender_address', {})
+        
+        # Ağırlık ve desi hesaplama
+        total_weight = float(order.items.aggregate(total_weight=models.Sum('product__weight'))['total_weight'] or 1.0)
+        total_weight = max(0.1, total_weight)
+        
+        # Desi hesaplama (basit formül: kg * 3, gerçekte hacim bazlı olmalı)
+        desi = total_weight * 3.0  # Basit hesaplama, gerçekte hacim gerekli
+        
         shipment_data = {
-            'orderNumber': order.order_number,  # IntegrationCode olarak map edilecek - Müşteri özel kodu (M.Ö.K)
-            'senderName': tenant.name,
-            'senderPhone': tenant.owner.phone or '',
-            'senderAddress': integration.config.get('sender_address', {}).get('address_line_1', ''),
-            'senderCity': integration.config.get('sender_address', {}).get('city', ''),
-            'senderPostalCode': integration.config.get('sender_address', {}).get('postal_code', ''),
-            'receiverName': f"{shipping_address.get('first_name', '')} {shipping_address.get('last_name', '')}",
-            'receiverPhone': shipping_address.get('phone', ''),
-            'receiverAddress': shipping_address.get('address_line_1', ''),
-            'receiverAddress2': shipping_address.get('address_line_2', ''),
-            'receiverCity': shipping_address.get('city', ''),
-            'receiverState': shipping_address.get('state', ''),
-            'receiverPostalCode': shipping_address.get('postal_code', ''),
-            'receiverCountry': shipping_address.get('country', 'TR'),
-            'weight': float(order.items.aggregate(total_weight=models.Sum('product__weight'))['total_weight'] or 1.0),
-            'pieceCount': order.items.count(),
-            'content': ', '.join([item.product.name for item in order.items.all()[:3]]),
-            'paymentType': 'prepaid',  # Ön ödemeli (OdemeTipi olarak map edilecek)
-            'serviceType': integration.config.get('service_type', 'standard'),
+            'orderNumber': order.order_number,  # orgReceiverCustId olarak map edilecek - Müşteri özel kodu (M.Ö.K)
+            'receiverName': f"{shipping_address.get('first_name', '').strip()} {shipping_address.get('last_name', '').strip()}".strip()[:100],  # receiverCustName (max 100)
+            'receiverPhone': shipping_address.get('phone', '').strip()[:32],  # receiverPhone1 (max 32)
+            'receiverAddress': shipping_address.get('address_line_1', '').strip()[:250],  # receiverAddress (max 250)
+            'receiverCity': shipping_address.get('city', '').strip()[:32],  # cityName (max 32)
+            'receiverState': shipping_address.get('state', '').strip()[:32] if shipping_address.get('state') else '',  # townName (max 32)
+            'weight': total_weight,  # kg (Double 6,2)
+            'desi': round(desi, 2),  # desi (Double 6,2)
+            'pieceCount': min(99, max(1, order.items.count())),  # cargoCount (Integer 2, max 99)
+            'content': ', '.join([item.product.name for item in order.items.all()[:3]])[:255],  # description (max 255)
         }
+        
+        # Opsiyonel alanlar (eğer varsa)
+        if shipping_address.get('phone2'):
+            shipment_data['receiverPhone2'] = shipping_address.get('phone2', '').strip()[:15]
+        
+        if shipping_address.get('phone3'):
+            shipment_data['receiverPhone3'] = shipping_address.get('phone3', '').strip()[:15]
+        
+        # Boş değerleri temizle
+        shipment_data = {k: v for k, v in shipment_data.items() if v and str(v).strip()}
         
         # SetDataXML API metod adı (WSDL'de SetOrder yok, SetDataXML var)
         service_method = integration.config.get('setorder', {}).get('method', 'SetDataXML')
