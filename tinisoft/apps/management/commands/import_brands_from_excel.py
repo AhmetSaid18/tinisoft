@@ -150,40 +150,47 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING("DRY RUN MODE - Veritabanına yazılmayacak"))
             self.stdout.write(f"\nVeritabanında eşleşen ürünler kontrol ediliyor...")
             
-            # Dry-run'da da eşleşen ürünleri kontrol et
+            # Toplu sorgu ile performansı artır
+            match_values_list = list(brand_data.keys())
+            
+            if match_by == 'sku':
+                # Tüm SKU'ları bir kerede çek
+                products_qs = Product.objects.filter(
+                    tenant=tenant,
+                    sku__in=match_values_list,
+                    is_deleted=False
+                ).values('id', 'sku', 'name')
+            else:  # barcode
+                # Tüm barcode'ları bir kerede çek
+                products_qs = Product.objects.filter(
+                    tenant=tenant,
+                    barcode__in=match_values_list,
+                    is_deleted=False
+                ).values('id', 'barcode', 'name')
+            
+            # Eşleşen ürünleri dict'e çevir
+            products_dict = {}
+            for product in products_qs:
+                key = product['sku'] if match_by == 'sku' else product['barcode']
+                products_dict[key] = product
+            
+            # Eşleştirmeleri kontrol et
             matched_products = []
             matched_count = 0
             unmatched_count = 0
             
             for match_value, brand_value in brand_data.items():
-                try:
-                    if match_by == 'sku':
-                        product = Product.objects.filter(
-                            tenant=tenant,
-                            sku=match_value,
-                            is_deleted=False
-                        ).first()
-                    else:  # barcode
-                        product = Product.objects.filter(
-                            tenant=tenant,
-                            barcode=match_value,
-                            is_deleted=False
-                        ).first()
-                    
-                    if product:
-                        matched_count += 1
-                        if len(matched_products) < 10:
-                            matched_products.append((match_value, brand_value, product.name))
-                    else:
-                        unmatched_count += 1
-                        if unmatched_count <= 5:  # İlk 5 bulunamayanı göster
-                            self.stdout.write(
-                                self.style.WARNING(f"  ⚠ Bulunamadı: {match_by}={match_value}, marka={brand_value}")
-                            )
-                except Exception as e:
-                    self.stdout.write(
-                        self.style.ERROR(f"  ✗ Hata ({match_value}): {str(e)}")
-                    )
+                product = products_dict.get(match_value)
+                if product:
+                    matched_count += 1
+                    if len(matched_products) < 10:
+                        matched_products.append((match_value, brand_value, product['name']))
+                else:
+                    unmatched_count += 1
+                    if unmatched_count <= 5:  # İlk 5 bulunamayanı göster
+                        self.stdout.write(
+                            self.style.WARNING(f"  ⚠ Bulunamadı: {match_by}={match_value}, marka={brand_value}")
+                        )
             
             self.stdout.write(f"\n✓ Eşleşen ürün sayısı: {matched_count}")
             if unmatched_count > 0:
@@ -194,24 +201,37 @@ class Command(BaseCommand):
                 for match_val, brand_val, product_name in matched_products:
                     self.stdout.write(f"  {match_val} → {brand_val} (Ürün: {product_name})")
         else:
-            # Veritabanına yaz
+            # Veritabanına yaz - Toplu sorgu ile optimize edildi
+            self.stdout.write(f"\nÜrünler güncelleniyor...")
+            
+            match_values_list = list(brand_data.keys())
+            
+            # Toplu sorgu ile tüm ürünleri al
+            if match_by == 'sku':
+                products = Product.objects.filter(
+                    tenant=tenant,
+                    sku__in=match_values_list,
+                    is_deleted=False
+                )
+            else:  # barcode
+                products = Product.objects.filter(
+                    tenant=tenant,
+                    barcode__in=match_values_list,
+                    is_deleted=False
+                )
+            
+            # Ürünleri dict'e çevir (key: sku/barcode, value: product)
+            products_dict = {}
+            for product in products:
+                key = product.sku if match_by == 'sku' else product.barcode
+                products_dict[key] = product
+            
+            # Güncellemeleri yap
             with transaction.atomic():
                 for match_value, brand_value in brand_data.items():
                     try:
-                        # Ürünü bul
-                        if match_by == 'sku':
-                            product = Product.objects.filter(
-                                tenant=tenant,
-                                sku=match_value,
-                                is_deleted=False
-                            ).first()
-                        else:  # barcode
-                            product = Product.objects.filter(
-                                tenant=tenant,
-                                barcode=match_value,
-                                is_deleted=False
-                            ).first()
-
+                        product = products_dict.get(match_value)
+                        
                         if product:
                             # Metadata'ya marka ekle/güncelle
                             if not product.metadata:
