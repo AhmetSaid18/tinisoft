@@ -323,6 +323,47 @@ class ProductListSerializer(serializers.ModelSerializer):
         if obj.metadata and isinstance(obj.metadata, dict):
             return obj.metadata.get('brand')
         return None
+    
+    def get_available_quantity(self, obj):
+        """Toplam mevcut stok miktarını döndür (gerçek + sanal)."""
+        if not obj.track_inventory:
+            return None  # Stok takibi yoksa None döndür (sınırsız)
+        
+        real_stock = obj.inventory_quantity
+        
+        # Sanal stok kontrolü
+        if obj.allow_backorder:
+            if obj.virtual_stock_quantity is not None and obj.virtual_stock_quantity > 0:
+                # Limitli sanal stok: gerçek + sanal
+                return real_stock + obj.virtual_stock_quantity
+            else:
+                # Sınırsız sanal stok
+                return None  # None = sınırsız
+        else:
+            # Sadece gerçek stok
+            return real_stock
+    
+    def get_is_in_stock(self, obj):
+        """Ürün stokta var mı? (frontend için boolean)."""
+        if not obj.track_inventory:
+            return True  # Stok takibi yoksa her zaman mevcut
+        
+        # Gerçek stok varsa True
+        if obj.inventory_quantity > 0:
+            return True
+        
+        # Gerçek stok yoksa, sanal stok kontrolü
+        if obj.allow_backorder:
+            # Sanal stok varsa (sınırsız veya limitli) True
+            if obj.virtual_stock_quantity is None or obj.virtual_stock_quantity == 0:
+                # Sınırsız sanal stok
+                return True
+            elif obj.virtual_stock_quantity > 0:
+                # Limitli sanal stok
+                return True
+        
+        # Hiç stok yok
+        return False
 
 
 class ProductDetailSerializer(serializers.ModelSerializer):
