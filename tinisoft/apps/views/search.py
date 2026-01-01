@@ -34,6 +34,7 @@ def search_products(request):
         - min_price: Minimum fiyat
         - max_price: Maximum fiyat
         - in_stock: Stokta var mı? (true/false)
+        - brand: Marka (virgülle ayrılmış birden fazla marka desteklenir, örn: "Remta,Arzum")
         - attributes: JSON string (örn: {"color": ["red", "blue"], "size": ["m"]})
         - tags: Etiketler (virgülle ayrılmış)
         - collections: Koleksiyonlar (virgülle ayrılmış)
@@ -111,6 +112,11 @@ def search_products(request):
     is_bestseller = request.query_params.get('is_bestseller')
     if is_bestseller:
         filters['is_bestseller'] = is_bestseller.lower() == 'true'
+    
+    # Marka filtresi
+    brand = request.query_params.get('brand')
+    if brand:
+        filters['brand'] = brand
     
     # Sıralama
     ordering = request.query_params.get('ordering', 'newest')

@@ -23,6 +23,84 @@ class CartService:
     CART_TIMEOUT = 60 * 60 * 24 * 30  # 30 gün (saniye)
     
     @staticmethod
+    def _check_stock_availability(product, variant, quantity):
+        """
+        Stok kontrolü yap (gerçek stok + sanal stok).
+        
+        Args:
+            product: Product instance
+            variant: ProductVariant instance (opsiyonel)
+            quantity: İstenen miktar
+        
+        Returns:
+            tuple: (is_available: bool, available_quantity: int, message: str)
+        """
+        # Varyantlı ürün kontrolü
+        if variant:
+            if not variant.track_inventory:
+                # Stok takibi yapılmıyorsa, her zaman mevcut
+                return True, None, None
+            
+            # Gerçek stok
+            real_stock = variant.inventory_quantity
+            available_qty = real_stock
+            
+            # Sanal stok kontrolü
+            if variant.allow_backorder:
+                # Sanal stok aktif
+                if variant.virtual_stock_quantity is not None and variant.virtual_stock_quantity > 0:
+                    # Limitli sanal stok: gerçek stok + sanal stok
+                    available_qty = real_stock + variant.virtual_stock_quantity
+                else:
+                    # Sınırsız sanal stok (backorder açık, limit yok)
+                    available_qty = None  # Sınırsız
+                    return True, None, None
+            else:
+                # Sanal stok yok, sadece gerçek stok
+                pass
+            
+            # Miktar kontrolü
+            if available_qty is not None and available_qty < quantity:
+                message = f"Yeterli stok yok. Mevcut stok: {real_stock}"
+                if variant.allow_backorder and variant.virtual_stock_quantity and variant.virtual_stock_quantity > 0:
+                    message += f" (Toplam: {available_qty} - Gerçek: {real_stock}, Sanal: {variant.virtual_stock_quantity})"
+                return False, available_qty, message
+            
+            return True, available_qty, None
+        else:
+            # Basit ürün kontrolü
+            if not product.track_inventory:
+                # Stok takibi yapılmıyorsa, her zaman mevcut
+                return True, None, None
+            
+            # Gerçek stok
+            real_stock = product.inventory_quantity
+            available_qty = real_stock
+            
+            # Sanal stok kontrolü
+            if product.allow_backorder:
+                # Sanal stok aktif
+                if product.virtual_stock_quantity is not None and product.virtual_stock_quantity > 0:
+                    # Limitli sanal stok: gerçek stok + sanal stok
+                    available_qty = real_stock + product.virtual_stock_quantity
+                else:
+                    # Sınırsız sanal stok (backorder açık, limit yok)
+                    available_qty = None  # Sınırsız
+                    return True, None, None
+            else:
+                # Sanal stok yok, sadece gerçek stok
+                pass
+            
+            # Miktar kontrolü
+            if available_qty is not None and available_qty < quantity:
+                message = f"Yeterli stok yok. Mevcut stok: {real_stock}"
+                if product.allow_backorder and product.virtual_stock_quantity and product.virtual_stock_quantity > 0:
+                    message += f" (Toplam: {available_qty} - Gerçek: {real_stock}, Sanal: {product.virtual_stock_quantity})"
+                return False, available_qty, message
+            
+            return True, available_qty, None
+    
+    @staticmethod
     def _get_redis_cart_key(tenant_id, session_id):
         """Redis cart key oluştur."""
         return f"cart:{tenant_id}:{session_id}"
@@ -155,6 +233,15 @@ class CartService:
                 )
             except ProductVariant.DoesNotExist:
                 raise ValueError("Varyant bulunamadı.")
+        
+        # Stok kontrolü (gerçek + sanal stok)
+        is_available, available_qty, message = CartService._check_stock_availability(
+            product,
+            variant,
+            quantity
+        )
+        if not is_available:
+            raise ValueError(message)
         
         # Fiyat belirleme
         if variant:
@@ -321,13 +408,14 @@ class CartService:
             
             cart_item = CartItem.objects.get(id=item_id, cart=cart, is_deleted=False)
             
-            # Stok kontrolü
-            if cart_item.variant:
-                if cart_item.variant.track_inventory and cart_item.variant.inventory_quantity < quantity:
-                    raise ValueError(f"Yeterli stok yok. Mevcut stok: {cart_item.variant.inventory_quantity}")
-            else:
-                if cart_item.product.track_inventory and cart_item.product.inventory_quantity < quantity:
-                    raise ValueError(f"Yeterli stok yok. Mevcut stok: {cart_item.product.inventory_quantity}")
+            # Stok kontrolü (gerçek + sanal stok)
+            is_available, available_qty, message = CartService._check_stock_availability(
+                cart_item.product,
+                cart_item.variant,
+                quantity
+            )
+            if not is_available:
+                raise ValueError(message)
             
             cart_item.quantity = quantity
             cart_item.save()

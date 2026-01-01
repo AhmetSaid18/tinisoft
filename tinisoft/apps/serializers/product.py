@@ -77,6 +77,7 @@ class ProductVariantSerializer(serializers.ModelSerializer):
             'id', 'name', 'price', 'compare_at_price',
             'display_price', 'display_compare_at_price',
             'track_inventory', 'inventory_quantity',
+            'allow_backorder', 'virtual_stock_quantity',
             'sku', 'barcode', 'option_values', 'is_default',
             'image_url', 'created_at',
         ]
@@ -158,6 +159,9 @@ class ProductListSerializer(serializers.ModelSerializer):
     inventoryQuantity = serializers.IntegerField(source='inventory_quantity', read_only=True)
     compareAtPrice = serializers.DecimalField(source='compare_at_price', max_digits=10, decimal_places=2, read_only=True, allow_null=True)
     isActive = serializers.BooleanField(source='is_visible', read_only=True)
+    # Stok durumu (frontend için)
+    available_quantity = serializers.SerializerMethodField()
+    is_in_stock = serializers.SerializerMethodField()
     
     class Meta:
         model = Product
@@ -167,10 +171,11 @@ class ProductListSerializer(serializers.ModelSerializer):
             'display_price', 'display_compare_at_price',
             'display_min_price', 'display_max_price',
             'sku', 'inventory_quantity', 'inventoryQuantity', 'track_inventory',
+            'allow_backorder', 'virtual_stock_quantity',
             'primary_image', 'images', 'category_names', 'min_price', 'max_price',
             'has_variants', 'is_featured', 'is_new', 'is_bestseller',
             'status', 'is_visible', 'isActive', 'view_count', 'sale_count',
-            'brand', 'created_at',
+            'brand', 'available_quantity', 'is_in_stock', 'created_at',
         ]
         read_only_fields = ['id', 'created_at', 'price_with_vat', 'display_price', 'display_compare_at_price', 'display_min_price', 'display_max_price']
     
@@ -329,6 +334,9 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     display_price = serializers.SerializerMethodField()
     display_compare_at_price = serializers.SerializerMethodField()
     brand = serializers.SerializerMethodField()
+    # Stok durumu (frontend için)
+    available_quantity = serializers.SerializerMethodField()
+    is_in_stock = serializers.SerializerMethodField()
     category_ids = serializers.PrimaryKeyRelatedField(
         many=True,
         queryset=Category.objects.all(),
@@ -350,6 +358,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             'display_price', 'display_compare_at_price',
             'sku', 'barcode',
             'track_inventory', 'inventory_quantity', 'inventoryQuantity',
+            'allow_backorder', 'virtual_stock_quantity',
             'is_variant_product',
             'status', 'is_visible', 'isActive',
             'meta_title', 'meta_description', 'meta_keywords',
@@ -362,6 +371,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             'images', 'options', 'variants', 'categories',
             'category_ids',
             'brand', 'metadata',
+            'available_quantity', 'is_in_stock',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'view_count', 'sale_count', 'price_with_vat', 'display_price', 'display_compare_at_price']
@@ -502,4 +512,45 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         if obj.metadata and isinstance(obj.metadata, dict):
             return obj.metadata.get('brand')
         return None
+    
+    def get_available_quantity(self, obj):
+        """Toplam mevcut stok miktarını döndür (gerçek + sanal)."""
+        if not obj.track_inventory:
+            return None  # Stok takibi yoksa None döndür (sınırsız)
+        
+        real_stock = obj.inventory_quantity
+        
+        # Sanal stok kontrolü
+        if obj.allow_backorder:
+            if obj.virtual_stock_quantity is not None and obj.virtual_stock_quantity > 0:
+                # Limitli sanal stok: gerçek + sanal
+                return real_stock + obj.virtual_stock_quantity
+            else:
+                # Sınırsız sanal stok
+                return None  # None = sınırsız
+        else:
+            # Sadece gerçek stok
+            return real_stock
+    
+    def get_is_in_stock(self, obj):
+        """Ürün stokta var mı? (frontend için boolean)."""
+        if not obj.track_inventory:
+            return True  # Stok takibi yoksa her zaman mevcut
+        
+        # Gerçek stok varsa True
+        if obj.inventory_quantity > 0:
+            return True
+        
+        # Gerçek stok yoksa, sanal stok kontrolü
+        if obj.allow_backorder:
+            # Sanal stok varsa (sınırsız veya limitli) True
+            if obj.virtual_stock_quantity is None or obj.virtual_stock_quantity == 0:
+                # Sınırsız sanal stok
+                return True
+            elif obj.virtual_stock_quantity > 0:
+                # Limitli sanal stok
+                return True
+        
+        # Hiç stok yok
+        return False
 

@@ -106,11 +106,36 @@ class OrderService:
                 product_image_url=product_image_url,
             )
             
-            # Stok düşür
+            # Stok düşür (gerçek stok önce, sonra sanal stok)
             if cart_item.variant:
                 if cart_item.variant.track_inventory:
                     previous_qty = cart_item.variant.inventory_quantity
-                    cart_item.variant.inventory_quantity -= cart_item.quantity
+                    order_quantity = cart_item.quantity
+                    
+                    # Önce gerçek stoktan düş
+                    if cart_item.variant.inventory_quantity >= order_quantity:
+                        # Gerçek stok yeterli
+                        cart_item.variant.inventory_quantity -= order_quantity
+                        real_stock_used = order_quantity
+                        virtual_stock_used = 0
+                    else:
+                        # Gerçek stok yetmiyor, sanal stoktan düş
+                        real_stock_used = cart_item.variant.inventory_quantity
+                        remaining_qty = order_quantity - real_stock_used
+                        cart_item.variant.inventory_quantity = 0
+                        
+                        # Sanal stok varsa düş
+                        if cart_item.variant.allow_backorder:
+                            if cart_item.variant.virtual_stock_quantity is not None:
+                                # Limitli sanal stok varsa düş
+                                virtual_stock_used = min(remaining_qty, cart_item.variant.virtual_stock_quantity)
+                                cart_item.variant.virtual_stock_quantity -= virtual_stock_used
+                            else:
+                                # Sınırsız sanal stok
+                                virtual_stock_used = remaining_qty
+                        else:
+                            virtual_stock_used = 0
+                    
                     cart_item.variant.save()
                     
                     # Stok hareketi kaydet
@@ -119,18 +144,43 @@ class OrderService:
                         product=cart_item.product,
                         variant=cart_item.variant,
                         movement_type=InventoryMovement.MovementType.OUT,
-                        quantity=cart_item.quantity,
+                        quantity=order_quantity,
                         previous_quantity=previous_qty,
                         new_quantity=cart_item.variant.inventory_quantity,
                         order=order,
                         order_item=order_item,
-                        reason='Sipariş',
+                        reason=f'Sipariş (Gerçek: {real_stock_used}, Sanal: {virtual_stock_used})',
                         created_by=customer_user,
                     )
             else:
                 if cart_item.product.track_inventory:
                     previous_qty = cart_item.product.inventory_quantity
-                    cart_item.product.inventory_quantity -= cart_item.quantity
+                    order_quantity = cart_item.quantity
+                    
+                    # Önce gerçek stoktan düş
+                    if cart_item.product.inventory_quantity >= order_quantity:
+                        # Gerçek stok yeterli
+                        cart_item.product.inventory_quantity -= order_quantity
+                        real_stock_used = order_quantity
+                        virtual_stock_used = 0
+                    else:
+                        # Gerçek stok yetmiyor, sanal stoktan düş
+                        real_stock_used = cart_item.product.inventory_quantity
+                        remaining_qty = order_quantity - real_stock_used
+                        cart_item.product.inventory_quantity = 0
+                        
+                        # Sanal stok varsa düş
+                        if cart_item.product.allow_backorder:
+                            if cart_item.product.virtual_stock_quantity is not None:
+                                # Limitli sanal stok varsa düş
+                                virtual_stock_used = min(remaining_qty, cart_item.product.virtual_stock_quantity)
+                                cart_item.product.virtual_stock_quantity -= virtual_stock_used
+                            else:
+                                # Sınırsız sanal stok
+                                virtual_stock_used = remaining_qty
+                        else:
+                            virtual_stock_used = 0
+                    
                     cart_item.product.save()
                     
                     # Stok hareketi kaydet
@@ -139,12 +189,12 @@ class OrderService:
                         product=cart_item.product,
                         variant=None,
                         movement_type=InventoryMovement.MovementType.OUT,
-                        quantity=cart_item.quantity,
+                        quantity=order_quantity,
                         previous_quantity=previous_qty,
                         new_quantity=cart_item.product.inventory_quantity,
                         order=order,
                         order_item=order_item,
-                        reason='Sipariş',
+                        reason=f'Sipariş (Gerçek: {real_stock_used}, Sanal: {virtual_stock_used})',
                         created_by=customer_user,
                     )
         

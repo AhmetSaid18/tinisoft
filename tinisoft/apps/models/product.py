@@ -76,6 +76,18 @@ class Product(BaseModel):
     # Stok bilgileri (basit ürünler için)
     track_inventory = models.BooleanField(default=True)
     inventory_quantity = models.IntegerField(default=0)
+    
+    # Sanal stok (Drop-shipping, sipariş üzerine üretim, vb.)
+    allow_backorder = models.BooleanField(
+        default=False,
+        help_text="Stok bittiğinde satışa devam edilsin mi? (Sanal stok - backorder)"
+    )
+    virtual_stock_quantity = models.IntegerField(
+        default=0,
+        null=True,
+        blank=True,
+        help_text="Sanal stok miktarı (opsiyonel - takip edilmek istenirse). 0 = sınırsız, >0 = limitli sanal stok"
+    )
 
     # Ürün özellikleri
     is_variant_product = models.BooleanField(
@@ -468,6 +480,18 @@ class ProductVariant(BaseModel):
     # Stok
     track_inventory = models.BooleanField(default=True)
     inventory_quantity = models.IntegerField(default=0)
+    
+    # Sanal stok (Drop-shipping, sipariş üzerine üretim, vb.)
+    allow_backorder = models.BooleanField(
+        default=False,
+        help_text="Stok bittiğinde satışa devam edilsin mi? (Sanal stok - backorder)"
+    )
+    virtual_stock_quantity = models.IntegerField(
+        default=0,
+        null=True,
+        blank=True,
+        help_text="Sanal stok miktarı (opsiyonel - takip edilmek istenirse). 0 = sınırsız, >0 = limitli sanal stok"
+    )
 
     # Kimlik
     sku = models.CharField(max_length=100, blank=True, db_index=True)

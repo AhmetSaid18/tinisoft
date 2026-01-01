@@ -121,6 +121,21 @@ class SearchService:
             
             if 'is_bestseller' in filters:
                 queryset = queryset.filter(is_bestseller=filters['is_bestseller'])
+            
+            # Marka filtresi
+            if 'brand' in filters:
+                brand = filters['brand']
+                # Eğer liste ise birden fazla marka, string ise tek marka
+                if isinstance(brand, list):
+                    queryset = queryset.filter(metadata__brand__in=brand)
+                elif isinstance(brand, str):
+                    # Virgülle ayrılmış birden fazla marka destekle
+                    brands = [b.strip() for b in brand.split(',') if b.strip()]
+                    if brands:
+                        if len(brands) == 1:
+                            queryset = queryset.filter(metadata__brand=brands[0])
+                        else:
+                            queryset = queryset.filter(metadata__brand__in=brands)
         
         # Sıralama
         if ordering:

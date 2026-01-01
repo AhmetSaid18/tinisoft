@@ -69,6 +69,17 @@ def product_list_create(request):
         if category_id:
             queryset = queryset.filter(categories__id=category_id)
         
+        # Marka filtresi
+        brand = request.query_params.get('brand')
+        if brand:
+            # Virgülle ayrılmış birden fazla marka destekle
+            brands = [b.strip() for b in brand.split(',') if b.strip()]
+            if brands:
+                if len(brands) == 1:
+                    queryset = queryset.filter(metadata__brand=brands[0])
+                else:
+                    queryset = queryset.filter(metadata__brand__in=brands)
+        
         # Arama
         search = request.query_params.get('search')
         if search:
@@ -413,6 +424,17 @@ def product_list_public(request, tenant_slug=None):
                     categories__id__in=all_category_ids,
                     categories__is_active=True
                 ).distinct()
+        
+        # Marka filtresi
+        brand = request.query_params.get('brand')
+        if brand:
+            # Virgülle ayrılmış birden fazla marka destekle
+            brands = [b.strip() for b in brand.split(',') if b.strip()]
+            if brands:
+                if len(brands) == 1:
+                    queryset = queryset.filter(metadata__brand=brands[0])
+                else:
+                    queryset = queryset.filter(metadata__brand__in=brands)
         
         # Arama
         search = request.query_params.get('search')
