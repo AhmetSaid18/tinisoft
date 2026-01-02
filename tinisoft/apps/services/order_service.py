@@ -36,17 +36,68 @@ class OrderService:
         billing_address=None,
         customer_user=None,
         request=None,
+        selected_cart_item_ids=None,
     ):
         """
         Sepetten sipariş oluştur.
+        
+        Args:
+            cart: Cart instance
+            selected_cart_item_ids: Seçili sepet kalemlerinin ID'leri (liste). 
+                                   None veya boşsa tüm sepet eklenir.
         
         Returns:
             Order: Oluşturulan sipariş
         """
         # Sepet kontrolü - sepet boş mu?
-        cart_items = cart.items.filter(is_deleted=False)
-        if not cart_items.exists():
+        all_cart_items = cart.items.filter(is_deleted=False)
+        if not all_cart_items.exists():
             raise ValueError("Sepet boş.")
+        
+        # Seçili item'ları filtrele
+        if selected_cart_item_ids:
+            cart_items = all_cart_items.filter(id__in=selected_cart_item_ids)
+            if not cart_items.exists():
+                raise ValueError("Seçili sepet kalemleri bulunamadı.")
+        else:
+            # Seçim yapılmamışsa tüm sepet
+            cart_items = all_cart_items
+        
+        # Seçili item'lara göre toplamları hesapla
+        selected_subtotal = sum(item.total_price for item in cart_items)
+        
+        # Kargo ücreti hesaplama
+        selected_shipping_cost = Decimal('0.00')
+        if shipping_method:
+            if shipping_method.free_shipping_threshold:
+                if selected_subtotal >= shipping_method.free_shipping_threshold:
+                    selected_shipping_cost = Decimal('0.00')
+                else:
+                    selected_shipping_cost = shipping_method.price
+            else:
+                selected_shipping_cost = shipping_method.price
+        
+        # Vergi hesaplama (basit %18 KDV)
+        selected_tax_amount = selected_subtotal * Decimal('0.18')
+        
+        # Kupon indirimi hesapla (seçili item'lara göre)
+        selected_discount_amount = Decimal('0.00')
+        if cart.coupon:
+            try:
+                selected_discount_amount = cart.coupon.calculate_discount(selected_subtotal)
+                # Ücretsiz kargo kontrolü
+                if cart.coupon.discount_type == cart.coupon.DiscountType.FREE_SHIPPING:
+                    selected_shipping_cost = Decimal('0.00')
+            except:
+                pass
+        
+        # Toplam
+        selected_total = (
+            selected_subtotal +
+            selected_shipping_cost +
+            selected_tax_amount -
+            selected_discount_amount
+        )
         
         # Sipariş numarası oluştur
         order_number = OrderService.generate_order_number(cart.tenant)
@@ -64,12 +115,15 @@ class OrderService:
             shipping_method=shipping_method,
             customer_note=customer_note,
             billing_address=billing_address or {},
-            subtotal=cart.subtotal,
-            shipping_cost=cart.shipping_cost,
-            tax_amount=cart.tax_amount,
-            discount_amount=cart.discount_amount,
-            total=cart.total,
+            subtotal=selected_subtotal,
+            shipping_cost=selected_shipping_cost,
+            tax_amount=selected_tax_amount,
+            discount_amount=selected_discount_amount,
+            total=selected_total,
             currency=cart.currency,
+            coupon=cart.coupon,
+            coupon_code=cart.coupon_code,
+            coupon_discount=selected_discount_amount,
             ip_address=request.META.get('REMOTE_ADDR') if request else None,
             user_agent=request.META.get('HTTP_USER_AGENT', '') if request else '',
         )

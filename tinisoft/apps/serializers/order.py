@@ -114,6 +114,12 @@ class OrderDetailSerializer(serializers.ModelSerializer):
 class CreateOrderSerializer(serializers.Serializer):
     """Create order serializer."""
     cart_id = serializers.UUIDField(required=False)
+    selected_cart_item_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        required=False,
+        allow_null=True,
+        help_text="Siparişe eklenecek sepet kalemlerinin ID'leri. Boşsa tüm sepet eklenir."
+    )
     customer_email = serializers.EmailField()
     customer_first_name = serializers.CharField(max_length=100)
     customer_last_name = serializers.CharField(max_length=100)

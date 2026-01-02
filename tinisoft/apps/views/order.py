@@ -401,6 +401,13 @@ def order_list_create(request):
                     )
                     
                     try:
+                        # Seçili sepet kalemlerini al
+                        selected_cart_item_ids = data.get('selected_cart_item_ids')
+                        if selected_cart_item_ids:
+                            logger.info(
+                                f"[ORDERS] POST /api/orders/ | Selected cart items: {len(selected_cart_item_ids)} items"
+                            )
+                        
                         order = OrderService.create_order_from_cart(
                             cart=cart,
                             customer_email=data['customer_email'],
@@ -413,6 +420,7 @@ def order_list_create(request):
                             billing_address=data.get('billing_address', {}),
                             customer_user=customer_user,
                             request=request,
+                            selected_cart_item_ids=selected_cart_item_ids,
                         )
                         
                         logger.info(
