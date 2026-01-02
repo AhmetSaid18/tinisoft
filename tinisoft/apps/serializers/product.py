@@ -368,7 +368,14 @@ class ProductListSerializer(serializers.ModelSerializer):
 
 class ProductDetailSerializer(serializers.ModelSerializer):
     """Product detail serializer (full)."""
-    images = ProductImageSerializer(many=True, required=False)
+    images = serializers.ListField(
+        child=serializers.DictField(),
+        required=False,
+        allow_null=True,
+        allow_empty=True,
+        write_only=True,
+        help_text="Ürün görselleri (array of objects: image_url, alt_text, position, is_primary)"
+    )
     options = ProductOptionSerializer(many=True, read_only=True)
     variants = ProductVariantSerializer(many=True, read_only=True)
     categories = CategorySerializer(many=True, read_only=True)
@@ -451,14 +458,42 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         if 'compare_at_price' not in attrs and 'compareAtPrice' in attrs:
             attrs['compare_at_price'] = attrs.pop('compareAtPrice')
         
+        # Images validation - image_url eksik olanları filtrele
+        if 'images' in attrs:
+            images_data = attrs['images']
+            if images_data:
+                # image_url olmayan item'ları filtrele
+                attrs['images'] = [img for img in images_data if img.get('image_url')]
+        
         return attrs
     
     def create(self, validated_data):
         """Ürün oluştur."""
         category_ids = validated_data.pop('category_ids', [])
+        images_data = validated_data.pop('images', None)
+        
         product = Product.objects.create(**validated_data)
+        
+        # Kategorileri ekle
         if category_ids:
             product.categories.set(category_ids)
+        
+        # Görselleri ekle (eğer gönderilmişse)
+        if images_data:
+            for image_data in images_data:
+                # image_url zorunlu, yoksa atla
+                if not image_data.get('image_url'):
+                    continue
+                
+                # is_primary değişiyorsa, diğer görsellerin is_primary'ini False yap
+                if image_data.get('is_primary', False):
+                    ProductImage.objects.filter(product=product, is_deleted=False).update(is_primary=False)
+                
+                ProductImage.objects.create(
+                    product=product,
+                    **image_data
+                )
+        
         return product
     
     def update(self, instance, validated_data):
@@ -494,6 +529,20 @@ class ProductDetailSerializer(serializers.ModelSerializer):
                         product_image.save()
                     except ProductImage.DoesNotExist:
                         pass  # Görsel bulunamadı, atla
+                else:
+                    # Yeni görsel ekle
+                    # image_url zorunlu, yoksa atla
+                    if not image_data.get('image_url'):
+                        continue
+                    
+                    # is_primary değişiyorsa, diğer görsellerin is_primary'ini False yap
+                    if image_data.get('is_primary', False):
+                        instance.images.filter(is_deleted=False).update(is_primary=False)
+                    
+                    ProductImage.objects.create(
+                        product=instance,
+                        **image_data
+                    )
         
         return instance
     
