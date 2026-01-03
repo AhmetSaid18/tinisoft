@@ -824,7 +824,7 @@ def kuveyt_callback_ok(request):
             PaymentService.fail_payment(
                 payment,
                 error_message=error_msg,
-                error_code=provision_result.get('response_code', '')
+                error_code=provision_result.get('response_code') or ''
             )
             
             logger.error(f"Kuveyt callback FAIL: Order {merchant_order_id} - {error_msg}")

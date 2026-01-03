@@ -54,6 +54,41 @@ class PaymentProviderBase:
                 'error': str (if failed)
             }
         """
+    def verify_payment(self, transaction_id):
+        """
+        Ödeme doğrula.
+        
+        Returns:
+            dict: {
+                'success': bool,
+                'status': str,  # 'completed', 'failed', 'pending'
+                'transaction_id': str,
+                'error': str (if failed)
+            }
+        """
+        raise NotImplementedError
+
+    def get_installment_options(self, amount, bin_number=None):
+        """
+        Taksit seçeneklerini getir.
+        Config'deki ayarlara göre hesaplama yapar.
+        
+        Args:
+            amount: Ödeme tutarı
+            bin_number: Kartın ilk 6 hanesi (opsiyonel)
+            
+        Returns:
+            list: [
+                {
+                    'count': 1,
+                    'amount': 100.00,
+                    'total': 100.00,
+                    'interest_rate': 0,
+                    'has_interest': False
+                },
+                ...
+            ]
+        """
         raise NotImplementedError
 
 
@@ -139,9 +174,11 @@ class KuwaitPaymentProvider(PaymentProviderBase):
         if self.test_mode:
             # Test modunda env'den test endpoint'i al
             self.api_url = getattr(settings, 'KUVEYT_API_TEST_URL', 'https://boatest.kuveytturk.com.tr/boa.virtualpos.services/Home/ThreeDModelPayGate')
+            self.provision_url = getattr(settings, 'KUVEYT_PROVISION_TEST_URL', 'https://boatest.kuveytturk.com.tr/boa.virtualpos.services/Home/ThreeDModelProvisionGate')
         else:
             # Production modunda env'den production endpoint'i al
             self.api_url = getattr(settings, 'KUVEYT_API_URL', 'https://boa.kuveytturk.com.tr/sanalposservice/Home/ThreeDModelPayGate')
+            self.provision_url = getattr(settings, 'KUVEYT_PROVISION_URL', 'https://boa.kuveytturk.com.tr/sanalposservice/Home/ThreeDModelProvisionGate')
     
     def _hashed_password(self) -> str:
         """
@@ -435,7 +472,16 @@ class KuwaitPaymentProvider(PaymentProviderBase):
             
             xml_parts.append('<TransactionType>Sale</TransactionType>')
             xml_parts.append('<AuthType>ThreeD</AuthType>')  # Bazı entegrasyonlarda zorunlu
-            xml_parts.append('<InstallmentCount>0</InstallmentCount>')
+            xml_parts.append('<TransactionType>Sale</TransactionType>')
+            xml_parts.append('<AuthType>ThreeD</AuthType>')
+            
+            # Taksit sayısı (Default: 0 - Tek çekim)
+            installment_count = customer_info.get('installment_count', 0)
+            # Kuveyt Türk'te tek çekim 0 veya boş gönderilir, taksitli ise taksit sayısı (örn: 3)
+            # Eğer 1 gelirse de 0 olarak gönder (tek çekim)
+            installment_value = '0' if not installment_count or int(installment_count) <= 1 else str(installment_count)
+            xml_parts.append(f'<InstallmentCount>{installment_value}</InstallmentCount>')
+            
             xml_parts.append(f'<Amount>{formatted_amount}</Amount>')
             xml_parts.append(f'<CurrencyCode>{currency_code}</CurrencyCode>')
             xml_parts.append(f'<MerchantOrderId>{order.order_number}</MerchantOrderId>')
@@ -444,7 +490,7 @@ class KuwaitPaymentProvider(PaymentProviderBase):
             xml_string = '\n'.join(xml_parts)
             
             logger.info(f"Kuveyt API request: order={order.order_number}, amount={formatted_amount}, currency={order_currency} ({currency_code}), endpoint={self.api_url}")
-            logger.info(f"Kuveyt PayGate XML Payload:\n{xml_string}")  # Debug için XML'i logla
+            logger.debug(f"Kuveyt PayGate XML Payload:\n{xml_string}")
             
             # PayGate'e POST isteği gönder
             headers = {
@@ -633,6 +679,72 @@ class KuwaitPaymentProvider(PaymentProviderBase):
                 'transaction_id': None,
                 'error': str(e),
             }
+    
+    def get_installment_options(self, amount, bin_number=None):
+        """
+        Kuveyt Türk API'sinden taksit seçeneklerini sorgula.
+        Not: BOA altyapısında genelde taksit oranlarını sorgulayan açık bir servis bulunmaz,
+        genelde oranlar banka paneliyle senkronize manuel tanımlanır.
+        Ancak burada "GetPosTypeList" veya benzeri bir servis varsa kullanılabilir.
+        
+        Şimdilik Tenant isteği üzerine API'den dönüyormuş gibi simüle ediyoruz veya
+        varsa BinSorgulama servisini buraya entegre edeceğiz.
+        """
+        # EĞER Kuveyt Türk'ün özel bir Taksit Sorgulama servisi dokümantasyonu elimize ulaşırsa
+        # buraya o XML request'i yazılacak.
+        
+        # Şimdilik standart BOA yapısında bu bilgi genelde "Manuel" tanımlanır uyarısını yapıyorum.
+        # FAKAT, kullanıcı API yapacak dediği için burayı bir API çağrısına hazırlıyorum.
+        
+        # Örnek API Çağrısı Yapısı (Bin Inquiry - Eğer destekleniyorsa)
+        # xml = f... <KuveytTurkVPosMessage><InternalMessage>BinInquiry</InternalMessage><Bin>{bin_number}</Bin>...</KuveytTurkVPosMessage>
+        pass
+        
+        # ŞİMDİLİK: Kullanıcının isteği üzerine, manuel config YERİNE
+        # Bankanın default oranlarını (veya bizim belirlediğimiz "Sanal" banka oranlarını) dönüyoruz.
+        # İleride buraya gerçek req.post eklenecek.
+        
+        from decimal import Decimal, ROUND_HALF_UP
+        amount = Decimal(str(amount))
+        
+        options = [{
+            'count': 1,
+            'amount': float(amount),
+            'total': float(amount),
+            'interest_rate': 0,
+            'has_interest': False
+        }]
+        
+        # Eğer BIN numarası varsa bankaya sormuş gibi davranalım
+        # Kuveyt genelde vade farksız 3, vade farklı 6-9-12 yapar.
+        if bin_number:
+            # Burası API response'u simülasyonu (Gerçek API entegre edilene kadar)
+            simulated_rates = {
+                '3': 0,      # Peşin Fiyatına
+                '6': 4.50,   # Vade Farklı
+                '9': 8.00,
+                '12': 11.50
+            }
+            
+            for count, rate_val in simulated_rates.items():
+                count = int(count)
+                rate = Decimal(str(rate_val))
+                
+                total_amount = amount * (Decimal('1') + (rate / Decimal('100')))
+                monthly_amount = total_amount / Decimal(count)
+                
+                total_amount = total_amount.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                monthly_amount = monthly_amount.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                
+                options.append({
+                    'count': count,
+                    'amount': float(monthly_amount),
+                    'total': float(total_amount),
+                    'interest_rate': float(rate),
+                    'has_interest': rate > 0
+                })
+                
+        return options
     
     def verify_payment(self, transaction_id):
         """
