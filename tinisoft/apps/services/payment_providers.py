@@ -380,7 +380,8 @@ class KuwaitPaymentProvider(PaymentProviderBase):
             logger.info(f"Hash FailUrl: {fail_url} (same as XML)")
             
             xml_parts = ['<?xml version="1.0" encoding="ISO-8859-9"?>']
-            xml_parts.append('<KuveytTurkVPosMessage xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">')
+            # XML namespace attribute'lerini kaldır (bazı sistemlerde hata verebilir)
+            xml_parts.append('<KuveytTurkVPosMessage>')
             xml_parts.append('<APIVersion>TDV2.0.0</APIVersion>')
             xml_parts.append(f'<OkUrl>{ok_url}</OkUrl>')
             xml_parts.append(f'<FailUrl>{fail_url}</FailUrl>')
