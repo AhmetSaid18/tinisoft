@@ -433,6 +433,7 @@ class KuwaitPaymentProvider(PaymentProviderBase):
                 xml_parts.append(f'<CardType>{card_type}</CardType>')
             
             xml_parts.append('<TransactionType>Sale</TransactionType>')
+            xml_parts.append('<AuthType>ThreeD</AuthType>')  # Bazı entegrasyonlarda zorunlu
             xml_parts.append('<InstallmentCount>0</InstallmentCount>')
             xml_parts.append(f'<Amount>{formatted_amount}</Amount>')
             xml_parts.append(f'<CurrencyCode>{currency_code}</CurrencyCode>')
@@ -442,7 +443,7 @@ class KuwaitPaymentProvider(PaymentProviderBase):
             xml_string = '\n'.join(xml_parts)
             
             logger.info(f"Kuveyt API request: order={order.order_number}, amount={formatted_amount}, currency={order_currency} ({currency_code}), endpoint={self.api_url}")
-            logger.debug(f"Kuveyt PayGate XML: {xml_string}")
+            logger.info(f"Kuveyt PayGate XML Payload:\n{xml_string}")  # Debug için XML'i logla
             
             # PayGate'e POST isteği gönder
             headers = {
