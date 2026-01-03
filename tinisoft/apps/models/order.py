@@ -227,7 +227,7 @@ class OrderItem(BaseModel):
     )
     
     # Görsel (snapshot)
-    product_image_url = models.URLField(max_length=2000, blank=True)
+    product_image_url = models.TextField(blank=True, help_text="Ürün görsel URL'i (signed URL'ler için TextField kullanılıyor)")
     
     class Meta:
         db_table = 'order_items'

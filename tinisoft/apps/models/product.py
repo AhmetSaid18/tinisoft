@@ -411,7 +411,7 @@ class ProductImage(BaseModel):
         on_delete=models.CASCADE,
         related_name='images',
     )
-    image_url = models.URLField(max_length=2000)
+    image_url = models.TextField(help_text="Görsel URL'i (signed URL'ler için TextField kullanılıyor)")
     alt_text = models.CharField(max_length=255, blank=True)
     position = models.PositiveIntegerField(default=0)
     is_primary = models.BooleanField(default=False)
@@ -518,7 +518,7 @@ class ProductVariant(BaseModel):
     )
     
     # Görsel (varyanta özel görsel)
-    image_url = models.URLField(max_length=2000, blank=True, help_text="Varyanta özel görsel")
+    image_url = models.TextField(blank=True, help_text="Varyanta özel görsel URL'i (signed URL'ler için TextField kullanılıyor)")
 
     class Meta:
         db_table = 'product_variants'
