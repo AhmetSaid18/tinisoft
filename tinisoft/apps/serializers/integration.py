@@ -170,16 +170,21 @@ class IntegrationProviderCreateSerializer(serializers.ModelSerializer):
 class IntegrationProviderUpdateSerializer(serializers.ModelSerializer):
     """Integration provider update serializer."""
     
-    # API key'ler opsiyonel (sadece güncellenmek istenirse gönderilir)
+    # API key'ler opsiyonel
     api_key = serializers.CharField(write_only=True, required=False, allow_blank=True)
     api_secret = serializers.CharField(write_only=True, required=False, allow_blank=True)
     api_token = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    
+    # Frontend uyumluluğu için (status yerine bu field'lar gelebilir)
+    is_active = serializers.BooleanField(write_only=True, required=False)
+    is_test_mode = serializers.BooleanField(write_only=True, required=False)
     
     class Meta:
         model = IntegrationProvider
         fields = [
             'name', 'description',
             'status',
+            'is_active', 'is_test_mode',
             'api_key', 'api_secret', 'api_token',
             'api_endpoint', 'test_endpoint',
             'config',
@@ -192,6 +197,22 @@ class IntegrationProviderUpdateSerializer(serializers.ModelSerializer):
         api_secret = validated_data.pop('api_secret', None)
         api_token = validated_data.pop('api_token', None)
         config_data = validated_data.pop('config', None)
+        
+        # is_active ve is_test_mode alanlarını status'a çevir
+        is_active = validated_data.pop('is_active', None)
+        is_test_mode = validated_data.pop('is_test_mode', None)
+        
+        if is_test_mode is not None:
+            if is_test_mode:
+                validated_data['status'] = IntegrationProvider.Status.TEST_MODE
+            elif is_active:
+                validated_data['status'] = IntegrationProvider.Status.ACTIVE
+            elif is_active is False:
+                validated_data['status'] = IntegrationProvider.Status.INACTIVE
+            # Eğer test_mode=False geldi ama is_active gelmediyse, mevcut statuta bak
+            # ama test modundaysa active'e çek (çünkü test'ten çıkmak istiyor)
+            elif instance.status == IntegrationProvider.Status.TEST_MODE:
+                validated_data['status'] = IntegrationProvider.Status.ACTIVE
         
         # Kuveyt için: api_endpoint ve test_endpoint'i ignore et (env'den alınır)
         if provider_type == 'kuveyt':
