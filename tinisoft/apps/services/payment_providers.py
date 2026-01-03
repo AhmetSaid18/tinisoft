@@ -138,10 +138,10 @@ class KuwaitPaymentProvider(PaymentProviderBase):
         # Config'deki endpoint'i ignore et, her zaman env'den al
         if self.test_mode:
             # Test modunda env'den test endpoint'i al
-            self.api_url = getattr(settings, 'KUVEYT_API_TEST_URL', 'https://test-api.kuveyt.com/payment')
+            self.api_url = getattr(settings, 'KUVEYT_API_TEST_URL', 'https://boatest.kuveytturk.com.tr/boa.virtualpos.services/Home/ThreeDModelPayGate')
         else:
             # Production modunda env'den production endpoint'i al
-            self.api_url = getattr(settings, 'KUVEYT_API_URL', 'https://api.kuveyt.com/payment')
+            self.api_url = getattr(settings, 'KUVEYT_API_URL', 'https://boa.kuveytturk.com.tr/sanalposservice/Home/ThreeDModelPayGate')
     
     def _hashed_password(self) -> str:
         """

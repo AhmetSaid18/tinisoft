@@ -234,8 +234,8 @@ JWT_EXPIRATION_HOURS = env.int('JWT_EXPIRATION_HOURS', default=24)  # Token geç
 API_BASE_URL = env('API_BASE_URL', default='https://api.tinisoft.com.tr')
 
 # Kuveyt Payment API Endpoints (Sabit - env'den alınır)
-KUVEYT_API_URL = env('KUVEYT_API_URL', default='https://api.kuveyt.com/payment')
-KUVEYT_API_TEST_URL = env('KUVEYT_API_TEST_URL', default='https://test-api.kuveyt.com/payment')
+KUVEYT_API_URL = env('KUVEYT_API_URL', default='https://boa.kuveytturk.com.tr/sanalposservice/Home/ThreeDModelPayGate')
+KUVEYT_API_TEST_URL = env('KUVEYT_API_TEST_URL', default='https://boatest.kuveytturk.com.tr/boa.virtualpos.services/Home/ThreeDModelPayGate')
 
 # Frontend URL (Store frontend domain - callback sonrası redirect için)
 # Kuveyt callback işlendikten sonra kullanıcı bu domain'e yönlendirilir
