@@ -949,3 +949,97 @@ def category_list_public(request, tenant_slug=None):
         'categories': serializer.data,
     })
 
+
+@api_view(['GET', 'PATCH', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def category_detail(request, category_id):
+    """
+    Kategori detayı (GET), güncelleme (PATCH) veya silme (DELETE).
+    
+    GET: /api/categories/{category_id}/
+    PATCH: /api/categories/{category_id}/  (parent değiştirmek için)
+    DELETE: /api/categories/{category_id}/
+    """
+    tenant = get_tenant_from_request(request)
+    if not tenant:
+        return Response({
+            'success': False,
+            'message': 'Tenant bulunamadı.',
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        category = Category.objects.get(id=category_id, tenant=tenant, is_deleted=False)
+    except Category.DoesNotExist:
+        logger.warning(f"[CATEGORIES] {request.method} /api/categories/{category_id}/ | 404 | Category not found")
+        return Response({
+            'success': False,
+            'message': 'Kategori bulunamadı.',
+        }, status=status.HTTP_404_NOT_FOUND)
+    
+    # Permission kontrolü
+    if not (request.user.is_owner or (request.user.is_tenant_owner and request.user.tenant == tenant)):
+        logger.warning(f"[CATEGORIES] {request.method} /api/categories/{category_id}/ | 403 | Permission denied")
+        return Response({
+            'success': False,
+            'message': 'Bu işlem için yetkiniz yok.',
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    if request.method == 'GET':
+        serializer = CategorySerializer(category, context={'request': request})
+        logger.info(
+            f"[CATEGORIES] GET /api/categories/{category_id}/ - SUCCESS | "
+            f"Tenant: {tenant.name} ({tenant.id}) | "
+            f"CategoryID: {category.id} | "
+            f"CategoryName: {category.name}"
+        )
+        return Response({
+            'success': True,
+            'category': serializer.data,
+        })
+    
+    elif request.method == 'PATCH':
+        serializer = CategorySerializer(
+            category,
+            data=request.data,
+            partial=True,
+            context={'request': request}
+        )
+        if serializer.is_valid():
+            serializer.save()
+            logger.info(
+                f"[CATEGORIES] PATCH /api/categories/{category_id}/ - SUCCESS | "
+                f"Tenant: {tenant.name} ({tenant.id}) | "
+                f"User: {request.user.email} | "
+                f"CategoryID: {category.id} | "
+                f"CategoryName: {category.name}"
+            )
+            return Response({
+                'success': True,
+                'message': 'Kategori güncellendi.',
+                'category': serializer.data,
+            })
+        logger.warning(
+            f"[CATEGORIES] PATCH /api/categories/{category_id}/ - VALIDATION ERROR | "
+            f"Tenant: {tenant.name} ({tenant.id}) | "
+            f"Errors: {serializer.errors}"
+        )
+        return Response({
+            'success': False,
+            'message': 'Kategori güncellenemedi.',
+            'errors': serializer.errors,
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    elif request.method == 'DELETE':
+        category.is_deleted = True
+        category.save()
+        logger.info(
+            f"[CATEGORIES] DELETE /api/categories/{category_id}/ - SUCCESS | "
+            f"Tenant: {tenant.name} ({tenant.id}) | "
+            f"User: {request.user.email} | "
+            f"CategoryID: {category.id} | "
+            f"CategoryName: {category.name}"
+        )
+        return Response({
+            'success': True,
+            'message': 'Kategori silindi.',
+        })

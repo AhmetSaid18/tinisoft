@@ -8,7 +8,7 @@ from apps.views.domain import verify_domain, verify_domain_by_code, domain_statu
 from apps.views.product import (
     product_list_create, product_detail,
     product_list_public, product_detail_public,
-    category_list_create, category_list_public,
+    category_list_create, category_list_public, category_detail,
     product_activate, product_deactivate,
     delete_all_products
 )
@@ -135,6 +135,7 @@ urlpatterns = [
     path('public/products/<str:product_slug>/', product_detail_public, name='product_detail_public_old'),  # GET: ?tenant_slug=xxx veya header ile (eski format)
     path('public/<str:tenant_slug>/products/<str:product_slug>/', product_detail_public, name='product_detail_public_old_by_slug'),  # GET: Path parameter ile (eski format)
     path('categories/', category_list_create, name='category_list_create'),  # GET: List, POST: Create
+    path('categories/<uuid:category_id>/', category_detail, name='category_detail'),  # GET, PATCH, DELETE
     # Public category endpoints
     path('public/categories/', category_list_public, name='category_list_public'),  # GET: ?tenant_slug=xxx veya header ile
     path('public/<str:tenant_slug>/categories/', category_list_public, name='category_list_public_by_slug'),  # GET: Path parameter ile
