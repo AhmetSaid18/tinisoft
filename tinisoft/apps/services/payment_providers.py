@@ -379,7 +379,7 @@ class KuwaitPaymentProvider(PaymentProviderBase):
             logger.info(f"Hash OkUrl: {ok_url} (same as XML)")
             logger.info(f"Hash FailUrl: {fail_url} (same as XML)")
             
-            xml_parts = ['<?xml version="1.0" encoding="UTF-8"?>']
+            xml_parts = ['<?xml version="1.0" encoding="ISO-8859-9"?>']
             xml_parts.append('<KuveytTurkVPosMessage xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">')
             xml_parts.append('<APIVersion>TDV2.0.0</APIVersion>')
             xml_parts.append(f'<OkUrl>{ok_url}</OkUrl>')
@@ -437,14 +437,14 @@ class KuwaitPaymentProvider(PaymentProviderBase):
             
             # PayGate'e POST isteği gönder
             headers = {
-                'Content-Type': 'application/xml; charset=utf-8',
+                'Content-Type': 'application/xml; charset=ISO-8859-9',
             }
             
             try:
                 # Timeout'u 60 saniyeye çıkar (Kuveyt bazen yavaş yanıt verebilir)
                 response = requests.post(
                     self.api_url,
-                    data=xml_string.encode('utf-8'),
+                    data=xml_string.encode('ISO-8859-9', errors='replace'),
                     headers=headers,
                     timeout=60  # 30'dan 60'a çıkarıldı
                 )
