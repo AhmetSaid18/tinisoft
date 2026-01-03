@@ -134,40 +134,14 @@ class KuwaitPaymentProvider(PaymentProviderBase):
             f"Username: {self.username[:3] + '***' if self.username else 'None'}"
         )
         
-        # PayGate endpoints
-        # Test endpoint varsa ve doğru formatta ise kullan, yoksa default kullan
-        test_endpoint = self.config.get('test_endpoint', '')
-        test_provision = self.config.get('test_provision_endpoint', '')
-        
+        # API endpoint - ENV'den al (sabit değer, frontend'den gelmemeli)
+        # Config'deki endpoint'i ignore et, her zaman env'den al
         if self.test_mode:
-            # Test modunda: Eğer test_endpoint doğru format değilse default kullan
-            if test_endpoint and 'boatest.kuveytturk.com.tr' in test_endpoint:
-                self.paygate_url = test_endpoint
-            else:
-                # Default test endpoint
-                self.paygate_url = 'https://boatest.kuveytturk.com.tr/boa.virtualpos.services/Home/ThreeDModelPayGate'
-            
-            if test_provision and 'boatest.kuveytturk.com.tr' in test_provision:
-                self.provision_url = test_provision
-            else:
-                # Default test provision endpoint
-                self.provision_url = 'https://boatest.kuveytturk.com.tr/boa.virtualpos.services/Home/ThreeDModelProvisionGate'
+            # Test modunda env'den test endpoint'i al
+            self.api_url = getattr(settings, 'KUVEYT_API_TEST_URL', 'https://test-api.kuveyt.com/payment')
         else:
-            # Production modunda
-            prod_endpoint = self.config.get('api_endpoint', '')
-            prod_provision = self.config.get('provision_endpoint', '')
-            
-            if prod_endpoint and 'kuveytturk.com.tr' in prod_endpoint:
-                self.paygate_url = prod_endpoint
-            else:
-                # Default production endpoint
-                self.paygate_url = 'https://sanalpos.kuveytturk.com.tr/ServiceGateWay/Home/ThreeDModelPayGate'
-            
-            if prod_provision and 'kuveytturk.com.tr' in prod_provision:
-                self.provision_url = prod_provision
-            else:
-                # Default production provision endpoint
-                self.provision_url = 'https://sanalpos.kuveytturk.com.tr/ServiceGateWay/Home/ThreeDModelProvisionGate'
+            # Production modunda env'den production endpoint'i al
+            self.api_url = getattr(settings, 'KUVEYT_API_URL', 'https://api.kuveyt.com/payment')
     
     def _hashed_password(self) -> str:
         """
@@ -364,7 +338,7 @@ class KuwaitPaymentProvider(PaymentProviderBase):
             # Config'deki yanlış URL'leri override et (eğer varsa)
             # Config'den gelen return_url/cancel_url frontend URL'leri olabilir, onları kullanma
             logger.info(
-                f"Kuveyt PayGate callback URLs: "
+                f"Kuveyt callback URLs: "
                 f"OkUrl={ok_url}, "
                 f"FailUrl={fail_url} | "
                 f"Config return_url (ignored): {self.config.get('return_url', 'None')}, "
@@ -458,7 +432,7 @@ class KuwaitPaymentProvider(PaymentProviderBase):
             xml_parts.append('</KuveytTurkVPosMessage>')
             xml_string = '\n'.join(xml_parts)
             
-            logger.info(f"Kuveyt PayGate request: order={order.order_number}, amount={formatted_amount}, currency={order_currency} ({currency_code}), endpoint={self.paygate_url}")
+            logger.info(f"Kuveyt API request: order={order.order_number}, amount={formatted_amount}, currency={order_currency} ({currency_code}), endpoint={self.api_url}")
             logger.debug(f"Kuveyt PayGate XML: {xml_string}")
             
             # PayGate'e POST isteği gönder
@@ -469,13 +443,13 @@ class KuwaitPaymentProvider(PaymentProviderBase):
             try:
                 # Timeout'u 60 saniyeye çıkar (Kuveyt bazen yavaş yanıt verebilir)
                 response = requests.post(
-                    self.paygate_url,
+                    self.api_url,
                     data=xml_string.encode('utf-8'),
                     headers=headers,
                     timeout=60  # 30'dan 60'a çıkarıldı
                 )
                 
-                logger.info(f"Kuveyt PayGate response: status={response.status_code}, content-length={len(response.content)}")
+                logger.info(f"Kuveyt API response: status={response.status_code}, content-length={len(response.content)}")
                 
                 if response.status_code == 200:
                     # PayGate HTML döner (3D Secure ekranı)

@@ -92,24 +92,39 @@ class IntegrationProviderCreateSerializer(serializers.ModelSerializer):
         if not tenant:
             raise serializers.ValidationError('Tenant bulunamadı.')
         
+        provider_type = validated_data.get('provider_type', '')
         api_key = validated_data.pop('api_key', '')
         api_secret = validated_data.pop('api_secret', '')
         api_token = validated_data.pop('api_token', '')
+        config = validated_data.pop('config', {}) or {}
+        
+        # Kuveyt için: api_endpoint ve test_endpoint'i ignore et (env'den alınır)
+        if provider_type == 'kuveyt':
+            validated_data.pop('api_endpoint', None)
+            validated_data.pop('test_endpoint', None)
+            # api_key/api_secret yerine config içinde username/password kullan
+            if api_key:
+                config['username'] = api_key
+            if api_secret:
+                config['password'] = api_secret
         
         integration = IntegrationProvider.objects.create(
             tenant=tenant,
+            config=config,
             **validated_data
         )
         
-        # API key'leri şifreleyerek kaydet
-        if api_key:
-            integration.set_api_key(api_key)
-        if api_secret:
-            integration.set_api_secret(api_secret)
-        if api_token:
-            integration.set_api_token(api_token)
+        # Kuveyt için api_key/api_secret kullanma, config'de username/password var
+        # Diğer provider'lar için api_key/api_secret kullan
+        if provider_type != 'kuveyt':
+            if api_key:
+                integration.set_api_key(api_key)
+            if api_secret:
+                integration.set_api_secret(api_secret)
+            if api_token:
+                integration.set_api_token(api_token)
+            integration.save()
         
-        integration.save()
         return integration
     
     def validate_test_endpoint(self, value):
@@ -172,10 +187,25 @@ class IntegrationProviderUpdateSerializer(serializers.ModelSerializer):
     
     def update(self, instance, validated_data):
         """Update integration provider."""
+        provider_type = instance.provider_type
         api_key = validated_data.pop('api_key', None)
         api_secret = validated_data.pop('api_secret', None)
         api_token = validated_data.pop('api_token', None)
         config_data = validated_data.pop('config', None)
+        
+        # Kuveyt için: api_endpoint ve test_endpoint'i ignore et (env'den alınır)
+        if provider_type == 'kuveyt':
+            validated_data.pop('api_endpoint', None)
+            validated_data.pop('test_endpoint', None)
+            # api_key/api_secret yerine config içinde username/password kullan
+            if api_key is not None:
+                if config_data is None:
+                    config_data = instance.config.copy() if instance.config else {}
+                config_data['username'] = api_key
+            if api_secret is not None:
+                if config_data is None:
+                    config_data = instance.config.copy() if instance.config else {}
+                config_data['password'] = api_secret
         
         # Normal field'ları güncelle
         for attr, value in validated_data.items():
@@ -199,13 +229,15 @@ class IntegrationProviderUpdateSerializer(serializers.ModelSerializer):
                 deep_merge(current_config, config_data)
                 instance.config = current_config
         
-        # API key'leri güncelle (sadece gönderilmişse)
-        if api_key is not None:
-            instance.set_api_key(api_key)
-        if api_secret is not None:
-            instance.set_api_secret(api_secret)
-        if api_token is not None:
-            instance.set_api_token(api_token)
+        # Kuveyt için api_key/api_secret kullanma, config'de username/password var
+        # Diğer provider'lar için api_key/api_secret kullan
+        if provider_type != 'kuveyt':
+            if api_key is not None:
+                instance.set_api_key(api_key)
+            if api_secret is not None:
+                instance.set_api_secret(api_secret)
+            if api_token is not None:
+                instance.set_api_token(api_token)
         
         instance.save()
         return instance
