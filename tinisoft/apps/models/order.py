@@ -227,7 +227,7 @@ class OrderItem(BaseModel):
     )
     
     # Görsel (snapshot)
-    product_image_url = models.URLField(max_length=1000, blank=True)
+    product_image_url = models.URLField(max_length=2000, blank=True)
     
     class Meta:
         db_table = 'order_items'
