@@ -390,20 +390,29 @@ class KuwaitPaymentProvider(PaymentProviderBase):
             xml_parts.append(f'<CustomerId>{str(self.customer_id)}</CustomerId>')
             xml_parts.append(f'<UserName>{str(self.username)}</UserName>')
             
-            # DeviceData bloğu (TDV2.0.0 için zorunlu)
+            # DeviceData bloğu (TDV2.0.0 için zorunlu ama içeriği kontrol et)
             xml_parts.append('<DeviceData>')
             xml_parts.append(f'<DeviceChannel>{device_channel}</DeviceChannel>')
-            xml_parts.append(f'<ClientIP>{client_ip}</ClientIP>')
+            if client_ip:
+                xml_parts.append(f'<ClientIP>{client_ip}</ClientIP>')
             xml_parts.append('</DeviceData>')
             
             # CardHolderData bloğu (TDV2.0.0 için önerilen)
+            # Boş tag göndermemek için kontrol et
             xml_parts.append('<CardHolderData>')
-            xml_parts.append(f'<BillAddrCity>{bill.get("city", "")}</BillAddrCity>')
+            if bill.get("city"):
+                xml_parts.append(f'<BillAddrCity>{bill.get("city")}</BillAddrCity>')
+            # Country code boş ise varsayılan 792 (TR)
             xml_parts.append(f'<BillAddrCountry>{bill.get("country_code", "792")}</BillAddrCountry>')
-            xml_parts.append(f'<BillAddrLine1>{bill.get("line1", "")}</BillAddrLine1>')
-            xml_parts.append(f'<BillAddrPostCode>{bill.get("postcode", "")}</BillAddrPostCode>')
-            xml_parts.append(f'<BillAddrState>{bill.get("state", "")}</BillAddrState>')
-            xml_parts.append(f'<Email>{email}</Email>')
+            if bill.get("line1"):
+                xml_parts.append(f'<BillAddrLine1>{bill.get("line1")}</BillAddrLine1>')
+            if bill.get("postcode"):
+                xml_parts.append(f'<BillAddrPostCode>{bill.get("postcode")}</BillAddrPostCode>')
+            if bill.get("state"):
+                xml_parts.append(f'<BillAddrState>{bill.get("state")}</BillAddrState>')
+            if email:
+                xml_parts.append(f'<Email>{email}</Email>')
+            
             if gsm:
                 xml_parts.append('<MobilePhone>')
                 xml_parts.append('<Cc>90</Cc>')
@@ -438,15 +447,20 @@ class KuwaitPaymentProvider(PaymentProviderBase):
             # PayGate'e POST isteği gönder
             headers = {
                 'Content-Type': 'application/xml; charset=ISO-8859-9',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Tinisoft/1.0',
             }
             
             try:
-                # Timeout'u 60 saniyeye çıkar (Kuveyt bazen yavaş yanıt verebilir)
+                # Timeout'u 60 saniyeye çıkar
+                # Test modunda verify=False yap (SSL hatalarını önlemek için)
+                verify_ssl = not self.test_mode
+                
                 response = requests.post(
                     self.api_url,
                     data=xml_string.encode('ISO-8859-9', errors='replace'),
                     headers=headers,
-                    timeout=60  # 30'dan 60'a çıkarıldı
+                    timeout=60,
+                    verify=verify_ssl
                 )
                 
                 logger.info(f"Kuveyt API response: status={response.status_code}, content-length={len(response.content)}")
