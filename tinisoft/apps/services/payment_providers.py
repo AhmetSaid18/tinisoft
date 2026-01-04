@@ -874,46 +874,61 @@ class KuwaitPaymentProvider(PaymentProviderBase):
             
             if response.status_code == 200:
                 # XML parse et
-                try:
-                    root = ET.fromstring(response.text)
-                    
-                    # ResponseCode ve ResponseMessage değerlerini al
-                    response_code = root.find('ResponseCode')
-                    response_code = response_code.text if response_code is not None else None
-                    
-                    response_message = root.find('ResponseMessage')
-                    response_message = response_message.text if response_message is not None else None
-                    
-                    order_id = root.find('OrderId')
-                    order_id = order_id.text if order_id is not None else None
-                    
-                    if response_code == '00':
-                        # Ödeme başarılı
-                        return {
-                            'success': True,
-                            'response_code': response_code,
-                            'response_message': response_message or 'Başarılı',
-                            'order_id': order_id,
-                            'error': None,
-                        }
-                    else:
-                        # Ödeme başarısız
-                        return {
-                            'success': False,
-                            'response_code': response_code,
-                            'response_message': response_message or 'Bilinmeyen hata',
-                            'order_id': order_id,
-                            'error': f"ResponseCode: {response_code} - {response_message}",
-                        }
-                except ET.ParseError as e:
-                    logger.error(f"Kuveyt ProvisionGate XML parse error: {str(e)}")
+                # Namespace sorunlarını önlemek için namespace declaration'ı kaldır
+                xml_response = response.text
+                import re
+                
+                # Regex ile direct extraction (en güvenli yöntem)
+                response_code_match = re.search(r'<ResponseCode>(.*?)</ResponseCode>', xml_response, re.DOTALL)
+                response_message_match = re.search(r'<ResponseMessage>(.*?)</ResponseMessage>', xml_response, re.DOTALL)
+                order_id_match = re.search(r'<OrderId>(.*?)</OrderId>', xml_response, re.DOTALL)
+                
+                response_code = response_code_match.group(1) if response_code_match else None
+                response_message = response_message_match.group(1) if response_message_match else None
+                order_id = order_id_match.group(1) if order_id_match else None
+                
+                # Eğer regex bulamazsa XML parse ile dene (namespace temizleyip)
+                if not response_code:
+                    try:
+                        # Remove namespaces for easier parsing
+                        clean_xml = re.sub(r'\sxmlns="[^"]+"', '', xml_response, count=1)
+                        root = ET.fromstring(clean_xml)
+                        
+                        if not response_code:
+                            elem = root.find('.//ResponseCode') or root.find('ResponseCode')
+                            response_code = elem.text if elem is not None else None
+                            
+                        if not response_message:
+                            elem = root.find('.//ResponseMessage') or root.find('ResponseMessage')
+                            response_message = elem.text if elem is not None else None
+                            
+                        if not order_id:
+                            elem = root.find('.//OrderId') or root.find('OrderId')
+                            order_id = elem.text if elem is not None else None
+                    except ET.ParseError:
+                        logger.warning(f"Kuveyt ProvisionGate XML parsing failed, relying on regex result")
+                
+                logger.info(f"Kuveyt ProvisionGate parsed: ResponseCode={response_code}, Message={response_message}")
+
+                if response_code == '00':
+                    # Ödeme başarılı
+                    return {
+                        'success': True,
+                        'response_code': response_code,
+                        'response_message': response_message or 'Başarılı',
+                        'order_id': order_id,
+                        'error': None,
+                    }
+                else:
+                    # Ödeme başarısız
                     return {
                         'success': False,
-                        'response_code': None,
-                        'response_message': None,
-                        'order_id': None,
-                        'error': f"XML parse hatası: {str(e)}",
+                        'response_code': response_code,
+                        'response_message': response_message or 'Bilinmeyen hata',
+                        'order_id': order_id,
+                        'error': f"ResponseCode: {response_code} - {response_message}",
                     }
+
             else:
                 return {
                     'success': False,
