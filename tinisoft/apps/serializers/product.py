@@ -412,7 +412,13 @@ class ProductListSerializer(serializers.ModelSerializer):
             return str(converted_price)
         except Exception:
             return str(max_price)
-    
+        
+    def get_brand_name(self, obj):
+        """Marka bilgisini brand_item veya legacy brand alanından al."""
+        if obj.brand_item:
+            return obj.brand_item.name
+        return obj.brand
+        
     def get_available_quantity(self, obj):
         """Toplam mevcut stok miktarını döndür (gerçek + sanal)."""
         if not obj.track_inventory:
@@ -478,6 +484,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         write_only=True,
         required=False,
     )
+    brand_name = serializers.SerializerMethodField() # Yeni marka alanı
     
     # Frontend uyumluluğu için: field mapping
     isActive = serializers.BooleanField(write_only=True, required=False)
@@ -505,7 +512,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             'view_count', 'sale_count',
             'images', 'options', 'variants', 'categories',
             'category_ids',
-            'brand', 'metadata',
+            'brand_name', 'metadata',
             'available_quantity', 'is_in_stock',
             'created_at', 'updated_at',
         ]
@@ -551,6 +558,33 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         # compareAtPrice -> compare_at_price mapping
         if 'compare_at_price' not in attrs and 'compareAtPrice' in attrs:
             attrs['compare_at_price'] = attrs.pop('compareAtPrice')
+
+        # Brand senkronizasyonu
+        brand_name = attrs.pop('brand_name', None) # brand_name'i al ve attrs'tan çıkar
+        if brand_name:
+            from django.utils.text import slugify
+            # Request context'inden tenant'ı al
+            request = self.context.get('request')
+            tenant = request.tenant if request else None # Varsayılan olarak None, uygun bir tenant değeri olmalı
+            
+            if tenant:
+                brand_obj, _ = Brand.objects.get_or_create(
+                    tenant=tenant,
+                    name=brand_name.strip(),
+                    defaults={'slug': slugify(brand_name.strip())}
+                )
+                attrs['brand_item'] = brand_obj # brand_item'ı validated_data'ya ekle
+                attrs['brand'] = brand_name # legacy brand alanını da güncelle
+            else:
+                # Tenant yoksa sadece legacy brand alanını güncelle
+                attrs['brand'] = brand_name
+        elif 'brand_name' in self.fields and self.fields['brand_name'].read_only:
+            # Eğer brand_name read_only ise ve gönderilmediyse, mevcut brand_item'ı koru
+            pass
+        else:
+            # Eğer brand_name gönderilmediyse ve read_only değilse, brand_item'ı ve brand'ı temizle
+            attrs['brand_item'] = None
+            attrs['brand'] = None
         
         # Images validation - image_url eksik olanları filtrele
         if 'images' in attrs:
