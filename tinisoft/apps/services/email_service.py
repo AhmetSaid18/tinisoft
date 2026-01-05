@@ -124,6 +124,9 @@ class EmailService:
                     'error': 'SMTP config not found'
                 }
             
+            from email.header import Header
+            from email.utils import formataddr, formatdate, make_msgid
+            
             # Gönderen bilgileri
             from_email = from_email or smtp_config['from_email']
             from_name = from_name or smtp_config['from_name']
@@ -132,9 +135,11 @@ class EmailService:
 
             # Email oluştur
             msg = MIMEMultipart('alternative')
-            msg['From'] = f"{from_name} <{from_email}>"
+            msg['Subject'] = Header(subject, 'utf-8')
+            msg['From'] = formataddr((str(Header(from_name, 'utf-8')), from_email))
             msg['To'] = to_email
-            msg['Subject'] = subject
+            msg['Date'] = formatdate(localtime=True)
+            msg['Message-ID'] = make_msgid()
             
             if reply_to:
                 msg['Reply-To'] = reply_to
@@ -176,7 +181,8 @@ class EmailService:
             
             # Email gönder
             logger.info("Email sunucuya gonderiliyor...")
-            server.send_message(msg)
+            # server.send_message(msg) yerine daha explicit bir yontem
+            server.sendmail(from_email, [to_email], msg.as_string())
             server.quit()
             
             logger.info(f"EMAIL BASARILI: {to_email} adresine mail ulasti (SMTP sunucusu kabul etti).")
