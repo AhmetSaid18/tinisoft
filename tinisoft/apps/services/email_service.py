@@ -1,11 +1,8 @@
 import smtplib
 import time
 import logging
+import re
 from typing import List, Optional, Dict
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from email.mime.base import MIMEBase
-from email import encoders
 
 from django.conf import settings
 from django.core.mail import get_connection, EmailMultiAlternatives
@@ -84,7 +81,6 @@ class EmailService:
         """
         Email gönder - Django'nun native mail araçlarını kullanarak.
         """
-        import re
         try:
             # SMTP config al
             smtp_config = EmailService.get_smtp_config(tenant)
@@ -103,7 +99,7 @@ class EmailService:
             # Gönderen adresi formatla
             from_email_formatted = f"{from_name_str} <{from_email_addr}>" if from_name_str else from_email_addr
             
-            # Eğer plain text yoksa HTML'den tagları temizleyerek oluştur (Spam puanını düşürür)
+            # Eğer plain text yoksa HTML'den tagları temizleyerek oluştur
             if not text_content:
                 text_content = re.sub('<[^<]+?>', '', html_content).strip()
 
@@ -125,6 +121,13 @@ class EmailService:
                 timeout=25
             )
 
+            # Temel başlıklar
+            headers = {
+                'Message-ID': make_msgid(domain=from_email_addr.split('@')[-1]),
+                'Date': time.strftime("%a, %d %b %Y %H:%M:%S %z"),
+                'X-Mailer': 'Tinisoft API',
+            }
+
             # Maili oluştur
             email = EmailMultiAlternatives(
                 subject=subject,
@@ -132,13 +135,7 @@ class EmailService:
                 from_email=from_email_formatted,
                 to=[to_email],
                 connection=connection,
-                headers={
-                    'Message-ID': make_msgid(domain=from_email_addr.split('@')[-1]),
-                    'Date': time.strftime("%a, %d %b %Y %H:%M:%S %z"),
-                    'X-Mailer': 'Tinisoft API',
-                    'List-Unsubscribe': f'<mailto:unsubscribe@{from_email_addr.split("@")[-1]}>',
-                    'Precedence': 'bulk'
-                }
+                headers=headers
             )
             
             if reply_to:
@@ -154,58 +151,8 @@ class EmailService:
                         attachment.get('content_type', 'application/octet-stream')
                     )
             
-            email.send()
-            logger.info(f"EMAIL BASARILI: {to_email}")
-            
-            return {
-                'success': True,
-                'message': 'Email başarıyla gönderildi.',
-            }
-
-            # Dinamik bağlantı oluştur
-            connection = get_connection(
-                backend='django.core.mail.backends.smtp.EmailBackend',
-                host=smtp_config['host'],
-                port=smtp_config['port'],
-                username=smtp_config['username'],
-                password=smtp_config['password'],
-                use_tls=smtp_config['use_tls'],
-                use_ssl=smtp_config['use_ssl'],
-                timeout=20
-            )
-
-            # Maili oluştur
-            email = EmailMultiAlternatives(
-                subject=subject,
-                body=text_content or (html_content[:100] + "..."), # Plain text yoksa html'den kısaltma yap
-                from_email=from_email_formatted,
-                to=[to_email],
-                connection=connection,
-                headers={
-                    'Message-ID': make_msgid(domain=from_email.split('@')[-1]),
-                    'Date': time.strftime("%a, %d %b %Y %H:%M:%S %z")
-                }
-            )
-            
-            if reply_to:
-                email.extra_headers['Reply-To'] = reply_to
-
-            # HTML içeriği ekle
-            email.attach_alternative(html_content, "text/html")
-            
-            # Ek dosyalar
-            if attachments:
-                for attachment in attachments:
-                    email.attach(
-                        attachment.get('filename', 'file'),
-                        attachment.get('content', b''),
-                        attachment.get('content_type', 'application/octet-stream')
-                    )
-            
-            # Gönder
-            email.send()
-            
-            logger.info(f"EMAIL BASARILI: {to_email} adresine mail ulasti.")
+            email.send(fail_silently=False)
+            logger.info(f"EMAIL BASARILI: {to_email} (Host: {smtp_config['host']})")
             
             return {
                 'success': True,
@@ -221,18 +168,10 @@ class EmailService:
                 'error': str(e)
             }
 
-    
     @staticmethod
     def send_order_confirmation_email(tenant, order):
         """
         Sipariş onay email'i gönder.
-        
-        Args:
-            tenant: Tenant instance
-            order: Order instance
-        
-        Returns:
-            dict: Email gönderme sonucu
         """
         from apps.services.email_templates import EmailTemplateService
         
@@ -255,13 +194,6 @@ class EmailService:
     def send_order_shipped_email(tenant, order):
         """
         Sipariş kargoya verildi email'i gönder.
-        
-        Args:
-            tenant: Tenant instance
-            order: Order instance
-        
-        Returns:
-            dict: Email gönderme sonucu
         """
         from apps.services.email_templates import EmailTemplateService
         
@@ -284,13 +216,6 @@ class EmailService:
     def send_order_delivered_email(tenant, order):
         """
         Sipariş teslim edildi email'i gönder.
-        
-        Args:
-            tenant: Tenant instance
-            order: Order instance
-        
-        Returns:
-            dict: Email gönderme sonucu
         """
         from apps.services.email_templates import EmailTemplateService
         
@@ -313,13 +238,6 @@ class EmailService:
     def send_order_cancelled_email(tenant, order):
         """
         Sipariş iptal email'i gönder.
-        
-        Args:
-            tenant: Tenant instance
-            order: Order instance
-        
-        Returns:
-            dict: Email gönderme sonucu
         """
         from apps.services.email_templates import EmailTemplateService
         
@@ -368,4 +286,3 @@ class EmailService:
             html_content=html_content,
             text_content=text_content
         )
-
