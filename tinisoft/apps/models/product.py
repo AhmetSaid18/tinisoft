@@ -28,10 +28,11 @@ class Category(BaseModel):
         related_name='children',
     )
     is_active = models.BooleanField(default=True)
+    sort_order = models.IntegerField(default=0, help_text="Sıralama (küçükten büyüğe)")
 
     class Meta:
         db_table = 'categories'
-        ordering = ['name']
+        ordering = ['sort_order', 'name']
         indexes = [
             models.Index(fields=['tenant', 'slug']),
             models.Index(fields=['tenant', 'is_active']),
