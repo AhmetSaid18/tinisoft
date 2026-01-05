@@ -19,8 +19,7 @@ environ.Env.read_env(os.path.join(BASE_DIR.parent, '.env'))
 SECRET_KEY = env('SECRET_KEY', default='django-insecure-temporary-key-change-in-production-1234567890')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-# DEBUG = env('DEBUG')  # Geçici olarak kapalı
-DEBUG = True  # ⚠️ GEÇİCİ - Hata ayıklama için açıldı, production'da kapat!
+DEBUG = env('DEBUG')
 
 # Development için tüm localhost varyasyonlarına izin ver
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1', '0.0.0.0', 'api.tinisoft.com.tr', '*'])

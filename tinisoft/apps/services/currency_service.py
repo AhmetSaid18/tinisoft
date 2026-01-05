@@ -119,6 +119,12 @@ class CurrencyService:
         if not isinstance(amount, Decimal):
             amount = Decimal(str(amount))
         
+        # Normalizasyon: TRL (legacy) -> TRY
+        if from_currency == 'TRL':
+            from_currency = 'TRY'
+        if to_currency == 'TRL':
+            to_currency = 'TRY'
+            
         # Aynı para birimiyse direkt döndür
         if from_currency == to_currency:
             return amount
@@ -158,6 +164,12 @@ class CurrencyService:
         Returns:
             Decimal: Dönüşüm oranı
         """
+        # Normalizasyon: TRL (legacy) -> TRY
+        if from_currency == 'TRL':
+            from_currency = 'TRY'
+        if to_currency == 'TRL':
+            to_currency = 'TRY'
+
         if from_currency == to_currency:
             return Decimal('1.0')
         
