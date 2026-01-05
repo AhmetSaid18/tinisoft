@@ -331,17 +331,17 @@ class ProductListSerializer(serializers.ModelSerializer):
         
         real_stock = obj.inventory_quantity
         
-        # Sanal stok kontrolü
+        # 1. Sanal stok var mı? (Açıkça girilmiş pozitif bir değer)
+        # allow_backorder'a bakmaksızın, eğer sanal stok girildiyse ekle
+        if obj.virtual_stock_quantity is not None and obj.virtual_stock_quantity > 0:
+            return real_stock + obj.virtual_stock_quantity
+            
+        # 2. Allow backorder var mı? (Sanal stok girilmemiş veya 0 ama backorder açık -> Sınırsız)
         if obj.allow_backorder:
-            if obj.virtual_stock_quantity is not None and obj.virtual_stock_quantity > 0:
-                # Limitli sanal stok: gerçek + sanal
-                return real_stock + obj.virtual_stock_quantity
-            else:
-                # Sınırsız sanal stok
-                return None  # None = sınırsız
-        else:
-            # Sadece gerçek stok
-            return real_stock
+            return None  # None = sınırsız
+            
+        # 3. Sadece gerçek stok
+        return real_stock
     
     def get_is_in_stock(self, obj):
         """Ürün stokta var mı? (frontend için boolean)."""
@@ -352,15 +352,14 @@ class ProductListSerializer(serializers.ModelSerializer):
         if obj.inventory_quantity > 0:
             return True
         
-        # Gerçek stok yoksa, sanal stok kontrolü
+        # Sanal stok var mı? (>0)
+        # allow_backorder'a bakmaksızın, eğer sanal stok varsa True
+        if obj.virtual_stock_quantity is not None and obj.virtual_stock_quantity > 0:
+            return True
+        
+        # Backorder açık mı? (Sınırsız satış izni)
         if obj.allow_backorder:
-            # Sanal stok varsa (sınırsız veya limitli) True
-            if obj.virtual_stock_quantity is None or obj.virtual_stock_quantity == 0:
-                # Sınırsız sanal stok
-                return True
-            elif obj.virtual_stock_quantity > 0:
-                # Limitli sanal stok
-                return True
+            return True
         
         # Hiç stok yok
         return False

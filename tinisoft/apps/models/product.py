@@ -380,6 +380,10 @@ class Product(BaseModel):
     
     def save(self, *args, **kwargs):
         """Save metodunu override et - KDV dahil fiyatı tenant'ın aktif Tax'ından otomatik hesapla."""
+        # Sanal stok girildiyse, otomatik olarak stoksuz satışa izin ver
+        if self.virtual_stock_quantity is not None and self.virtual_stock_quantity > 0:
+            self.allow_backorder = True
+            
         from decimal import Decimal
         from apps.models import Tax
         
@@ -530,4 +534,12 @@ class ProductVariant(BaseModel):
 
     def __str__(self):
         return f"{self.product.name} - {self.name}"
+
+    def save(self, *args, **kwargs):
+        """Save metodunu override et."""
+        # Sanal stok girildiyse, otomatik olarak stoksuz satışa izin ver
+        if self.virtual_stock_quantity is not None and self.virtual_stock_quantity > 0:
+            self.allow_backorder = True
+            
+        super().save(*args, **kwargs)
 
