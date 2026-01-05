@@ -12,7 +12,7 @@ from apps.views.product import (
     product_activate, product_deactivate,
     delete_all_products
 )
-from apps.views.product_brands import product_brands
+from apps.views.product_brands import brand_list_create, brand_detail, legacy_product_brands
 from apps.views.product_import import import_products_from_excel, excel_template_download, import_status, excel_columns_info
 from apps.views.product_image_upload import (
     upload_product_image_by_slug,
@@ -118,7 +118,9 @@ urlpatterns = [
     
     # Ürün yönetimi
     path('products/', product_list_create, name='product_list_create'),  # GET: List, POST: Create
-    path('products/brands/', product_brands, name='product_brands'),  # GET: Marka listesi
+    path('brands/', brand_list_create, name='brand_list_create'),  # GET: List, POST: Create
+    path('brands/<uuid:brand_id>/', brand_detail, name='brand_detail'),  # GET, PATCH, DELETE
+    path('products/brands/legacy/', legacy_product_brands, name='legacy_product_brands'),  # Eski usül ürün markaları
     path('products/delete-all/', delete_all_products, name='delete_all_products'),  # DELETE: Tüm ürünleri sil
     path('products/<uuid:product_id>/', product_detail, name='product_detail'),  # GET, PUT, PATCH, DELETE
     path('products/<uuid:product_id>/activate/', product_activate, name='product_activate'),  # POST: Ürünü aktif yap

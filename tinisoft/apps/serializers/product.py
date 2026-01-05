@@ -4,7 +4,7 @@ Product serializers.
 from rest_framework import serializers
 from decimal import Decimal
 from apps.models import (
-    Product, Category, ProductImage, ProductOption,
+    Product, Category, Brand, ProductImage, ProductOption,
     ProductOptionValue, ProductVariant
 )
 from apps.services.currency_service import CurrencyService
@@ -63,6 +63,21 @@ def upload_base64_image(product, image_url):
         return image_url
 
 
+class BrandSerializer(serializers.ModelSerializer):
+    """Brand serializer."""
+    product_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Brand
+        fields = [
+            'id', 'name', 'slug', 'logo_url', 'description',
+            'is_active', 'product_count', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def get_product_count(self, obj):
+        """Markadaki ürün sayısı."""
+        return obj.products.filter(is_deleted=False).count()
 
 class CategorySerializer(serializers.ModelSerializer):
     """Category serializer."""

@@ -41,6 +41,35 @@ class Category(BaseModel):
         return f"{self.name} ({self.tenant.name})"
 
 
+class Brand(BaseModel):
+    """
+    Ürün markası.
+    Tenant-specific.
+    """
+    tenant = models.ForeignKey(
+        'Tenant',
+        on_delete=models.CASCADE,
+        related_name='brands',
+        db_index=True,
+    )
+    name = models.CharField(max_length=255, db_index=True)
+    slug = models.SlugField(max_length=255, db_index=True)
+    logo_url = models.CharField(max_length=500, blank=True, null=True)
+    description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'brands'
+        ordering = ['name']
+        unique_together = ('tenant', 'name')
+        indexes = [
+            models.Index(fields=['tenant', 'slug']),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.tenant.name})"
+
+
 class Product(BaseModel):
     """
     Ürün modeli.
@@ -225,11 +254,18 @@ class Product(BaseModel):
     sale_count = models.PositiveIntegerField(default=0)
     
     # Marka ve Menşei
+    brand_item = models.ForeignKey(
+        Brand,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='products'
+    )
     brand = models.CharField(
         max_length=255,
         blank=True,
         db_index=True,
-        help_text="Marka"
+        help_text="Marka (String - Legacy)"
     )
     origin = models.CharField(
         max_length=255,
