@@ -260,7 +260,7 @@ class ProductListSerializer(serializers.ModelSerializer):
             'primary_image', 'images', 'category_names', 'min_price', 'max_price',
             'has_variants', 'is_featured', 'is_new', 'is_bestseller',
             'status', 'is_visible', 'isActive', 'view_count', 'sale_count',
-            'brand', 'brand_name', 'available_quantity', 'is_in_stock', 'created_at',
+            'brand', 'brand_name', 'brand_item', 'available_quantity', 'is_in_stock', 'created_at',
         ]
         read_only_fields = ['id', 'created_at', 'price_with_vat', 'display_price', 'display_compare_at_price', 'display_min_price', 'display_max_price']
     
@@ -513,7 +513,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             'view_count', 'sale_count',
             'images', 'options', 'variants', 'categories',
             'category_ids',
-            'brand', 'brand_name', 'metadata',
+            'brand', 'brand_name', 'brand_item', 'metadata',
             'available_quantity', 'is_in_stock',
             'created_at', 'updated_at',
         ]
@@ -561,23 +561,32 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             attrs['compare_at_price'] = attrs.pop('compareAtPrice')
 
         # Brand senkronizasyonu
-        # Hem 'brand' hem de 'brandName' (eğer gelirse) kontrol et
-        brand_name = attrs.get('brand')
-        
-        if brand_name:
-            from django.utils.text import slugify
-            # Request context'inden tenant'ı al
-            request = self.context.get('request')
-            tenant = request.tenant if request and hasattr(request, 'tenant') else None
+        if 'brand' in attrs:
+            brand_name = attrs.get('brand')
             
-            if tenant:
-                brand_obj, _ = Brand.objects.get_or_create(
-                    tenant=tenant,
-                    name=brand_name.strip(),
-                    defaults={'slug': slugify(brand_name.strip())}
-                )
-                attrs['brand_item'] = brand_obj # brand_item'ı validated_data'ya ekle
-                attrs['brand'] = brand_name.strip()
+            if brand_name and brand_name.strip():
+                from django.utils.text import slugify
+                # Request context'inden veya instance'tan tenant'ı al
+                request = self.context.get('request')
+                tenant = None
+                
+                if request and hasattr(request, 'tenant'):
+                    tenant = request.tenant
+                elif self.instance:
+                    tenant = self.instance.tenant
+                
+                if tenant:
+                    brand_obj, _ = Brand.objects.get_or_create(
+                        tenant=tenant,
+                        name=brand_name.strip(),
+                        defaults={'slug': slugify(brand_name.strip())}
+                    )
+                    attrs['brand_item'] = brand_obj
+                    attrs['brand'] = brand_name.strip()
+            else:
+                # Marka ismi silindiyse veya boşsa, bağı kopar
+                attrs['brand_item'] = None
+                attrs['brand'] = ''
         
         # Images validation - image_url eksik olanları filtrele
         if 'images' in attrs:
