@@ -1,16 +1,17 @@
-"""
-Email gönderme servisi - SMTP ile email gönderimi.
-Tenant'ların kendi SMTP ayarlarını kullanarak email gönderme.
-"""
 import smtplib
+import time
+import logging
+from typing import List, Optional, Dict
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
+
 from django.conf import settings
+from django.core.mail import get_connection, EmailMultiAlternatives
+from django.core.mail.message import make_msgid
+
 from apps.models import IntegrationProvider
-import logging
-from typing import List, Optional, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -22,12 +23,6 @@ class EmailService:
     def get_email_integration(tenant):
         """
         Tenant'ın aktif email entegrasyonunu al.
-        
-        Args:
-            tenant: Tenant instance
-        
-        Returns:
-            IntegrationProvider instance veya None
         """
         try:
             integration = IntegrationProvider.objects.filter(
@@ -44,12 +39,6 @@ class EmailService:
     def get_smtp_config(tenant):
         """
         Tenant'ın SMTP ayarlarını al.
-        
-        Args:
-            tenant: Tenant instance
-        
-        Returns:
-            dict: SMTP config veya None
         """
         integration = EmailService.get_email_integration(tenant)
         if not integration:
@@ -61,7 +50,7 @@ class EmailService:
             # SMTP ayarları
             smtp_config = {
                 'host': config.get('smtp_host', ''),
-                'port': config.get('smtp_port', 587),
+                'port': int(config.get('smtp_port', 587)),
                 'username': integration.get_api_key() or config.get('smtp_username') or config.get('from_email', ''),
                 'password': integration.get_api_secret() or config.get('smtp_password', ''),
                 'use_tls': config.get('smtp_use_tls', True),
@@ -93,131 +82,141 @@ class EmailService:
         attachments: Optional[List[Dict]] = None,
     ):
         """
-        Email gönder.
-        
-        Args:
-            tenant: Tenant instance
-            to_email: Alıcı email adresi
-            subject: Email konusu
-            html_content: HTML içerik
-            text_content: Plain text içerik (opsiyonel)
-            from_email: Gönderen email (opsiyonel, config'den alınır)
-            from_name: Gönderen adı (opsiyonel, config'den alınır)
-            reply_to: Reply-to adresi (opsiyonel)
-            attachments: Ek dosyalar (opsiyonel) [{'filename': 'file.pdf', 'content': bytes, 'content_type': 'application/pdf'}]
-        
-        Returns:
-            dict: {
-                'success': bool,
-                'message': str,
-                'error': str (optional)
-            }
+        Email gönder - Django'nun native mail araçlarını kullanarak.
         """
+        import re
         try:
             # SMTP config al
             smtp_config = EmailService.get_smtp_config(tenant)
             if not smtp_config:
-                logger.error(f"EMail Hata: SMTP config bulunamadı (Host: {tenant.slug})")
+                logger.error(f"Email Hata: SMTP config bulunamadı (Host: {tenant.slug})")
                 return {
                     'success': False,
                     'message': 'Email entegrasyonu bulunamadı veya aktif değil.',
                     'error': 'SMTP config not found'
                 }
             
-            from email.header import Header
-            from email.utils import formataddr, formatdate, make_msgid
-            
             # Gönderen bilgileri
-            from_email = from_email or smtp_config['from_email']
-            from_name = from_name or smtp_config['from_name']
+            from_email_addr = from_email or smtp_config['from_email']
+            from_name_str = from_name or smtp_config['from_name']
             
-            logger.info(f"Email Hazirlaniyor: To={to_email}, From={from_email}, SMTP_Host={smtp_config['host']}")
+            # Gönderen adresi formatla
+            from_email_formatted = f"{from_name_str} <{from_email_addr}>" if from_name_str else from_email_addr
+            
+            # Eğer plain text yoksa HTML'den tagları temizleyerek oluştur (Spam puanını düşürür)
+            if not text_content:
+                text_content = re.sub('<[^<]+?>', '', html_content).strip()
 
-            # Email oluştur
-            msg = MIMEMultipart('alternative')
-            msg['Subject'] = Header(subject, 'utf-8')
-            msg['From'] = formataddr((str(Header(from_name, 'utf-8')), from_email))
-            msg['To'] = to_email
-            msg['Date'] = formatdate(localtime=True)
-            msg['Message-ID'] = make_msgid()
+            logger.info(f"Email Gonderiliyor: To={to_email}, From={from_email_formatted}")
+
+            # Bağlantı
+            connection = get_connection(
+                backend='django.core.mail.backends.smtp.EmailBackend',
+                host=smtp_config['host'],
+                port=smtp_config['port'],
+                username=smtp_config['username'],
+                password=smtp_config['password'],
+                use_tls=smtp_config['use_tls'],
+                use_ssl=smtp_config['use_ssl'],
+                timeout=25
+            )
+
+            # Maili oluştur
+            email = EmailMultiAlternatives(
+                subject=subject,
+                body=text_content,
+                from_email=from_email_formatted,
+                to=[to_email],
+                connection=connection,
+                headers={
+                    'Message-ID': make_msgid(domain=from_email_addr.split('@')[-1]),
+                    'Date': time.strftime("%a, %d %b %Y %H:%M:%S %z"),
+                    'X-Mailer': 'Tinisoft API',
+                    'List-Unsubscribe': f'<mailto:unsubscribe@{from_email_addr.split("@")[-1]}>',
+                    'Precedence': 'bulk'
+                }
+            )
             
             if reply_to:
-                msg['Reply-To'] = reply_to
+                email.extra_headers['Reply-To'] = reply_to
+
+            email.attach_alternative(html_content, "text/html")
             
-            # İçerik ekle
-            if text_content:
-                part1 = MIMEText(text_content, 'plain', 'utf-8')
-                msg.attach(part1)
-            
-            part2 = MIMEText(html_content, 'html', 'utf-8')
-            msg.attach(part2)
-            
-            # Ek dosyalar ekle
             if attachments:
                 for attachment in attachments:
-                    part = MIMEBase('application', 'octet-stream')
-                    part.set_payload(attachment.get('content', b''))
-                    encoders.encode_base64(part)
-                    part.add_header(
-                        'Content-Disposition',
-                        f'attachment; filename= {attachment.get("filename", "file")}'
+                    email.attach(
+                        attachment.get('filename', 'file'),
+                        attachment.get('content', b''),
+                        attachment.get('content_type', 'application/octet-stream')
                     )
-                    msg.attach(part)
             
-            # SMTP bağlantısı
-            logger.info(f"SMTP Baglantisi Kuruluyor: {smtp_config['host']}:{smtp_config['port']} (SSL: {smtp_config['use_ssl']})")
+            email.send()
+            logger.info(f"EMAIL BASARILI: {to_email}")
             
-            if smtp_config['use_ssl']:
-                server = smtplib.SMTP_SSL(smtp_config['host'], smtp_config['port'], timeout=15)
-            else:
-                server = smtplib.SMTP(smtp_config['host'], smtp_config['port'], timeout=15)
-                if smtp_config['use_tls']:
-                    logger.info("STARTTLS baslatiliyor...")
-                    server.starttls()
+            return {
+                'success': True,
+                'message': 'Email başarıyla gönderildi.',
+            }
+
+            # Dinamik bağlantı oluştur
+            connection = get_connection(
+                backend='django.core.mail.backends.smtp.EmailBackend',
+                host=smtp_config['host'],
+                port=smtp_config['port'],
+                username=smtp_config['username'],
+                password=smtp_config['password'],
+                use_tls=smtp_config['use_tls'],
+                use_ssl=smtp_config['use_ssl'],
+                timeout=20
+            )
+
+            # Maili oluştur
+            email = EmailMultiAlternatives(
+                subject=subject,
+                body=text_content or (html_content[:100] + "..."), # Plain text yoksa html'den kısaltma yap
+                from_email=from_email_formatted,
+                to=[to_email],
+                connection=connection,
+                headers={
+                    'Message-ID': make_msgid(domain=from_email.split('@')[-1]),
+                    'Date': time.strftime("%a, %d %b %Y %H:%M:%S %z")
+                }
+            )
             
-            # Giriş yap
-            logger.info(f"SMTP Login Yapiliyor: User={smtp_config['username']}")
-            server.login(smtp_config['username'], smtp_config['password'])
+            if reply_to:
+                email.extra_headers['Reply-To'] = reply_to
+
+            # HTML içeriği ekle
+            email.attach_alternative(html_content, "text/html")
             
-            # Email gönder
-            logger.info("Email sunucuya gonderiliyor...")
-            # server.send_message(msg) yerine daha explicit bir yontem
-            server.sendmail(from_email, [to_email], msg.as_string())
-            server.quit()
+            # Ek dosyalar
+            if attachments:
+                for attachment in attachments:
+                    email.attach(
+                        attachment.get('filename', 'file'),
+                        attachment.get('content', b''),
+                        attachment.get('content_type', 'application/octet-stream')
+                    )
             
-            logger.info(f"EMAIL BASARILI: {to_email} adresine mail ulasti (SMTP sunucusu kabul etti).")
+            # Gönder
+            email.send()
+            
+            logger.info(f"EMAIL BASARILI: {to_email} adresine mail ulasti.")
             
             return {
                 'success': True,
                 'message': 'Email başarıyla gönderildi.',
             }
         
-        except smtplib.SMTPAuthenticationError as e:
-            error_msg = f"SMTP authentication error: {str(e)}"
-            logger.error(error_msg)
-            return {
-                'success': False,
-                'message': 'Email gönderim hatası: Kimlik doğrulama başarısız.',
-                'error': error_msg
-            }
-        
-        except smtplib.SMTPException as e:
-            error_msg = f"SMTP error: {str(e)}"
-            logger.error(error_msg)
-            return {
-                'success': False,
-                'message': f'Email gönderim hatası: {str(e)}',
-                'error': error_msg
-            }
-        
         except Exception as e:
-            error_msg = f"Email send error: {str(e)}"
-            logger.error(error_msg)
+            error_msg = f"Email gönderim hatası: {str(e)}"
+            logger.error(error_msg, exc_info=True)
             return {
                 'success': False,
-                'message': f'Email gönderim hatası: {str(e)}',
-                'error': error_msg
+                'message': 'Email gönderilemedi.',
+                'error': str(e)
             }
+
     
     @staticmethod
     def send_order_confirmation_email(tenant, order):
