@@ -1,7 +1,7 @@
 from .auth import User, Tenant
 from .domain import Domain
 from .product import (
-    Product, Category, ProductImage, ProductOption,
+    Product, Category, Brand, ProductImage, ProductOption,
     ProductOptionValue, ProductVariant
 )
 from .shipping import ShippingMethod, ShippingAddress
@@ -32,6 +32,7 @@ __all__ = [
     'Domain',
     'Product',
     'Category',
+    'Brand',
     'ProductImage',
     'ProductOption',
     'ProductOptionValue',
