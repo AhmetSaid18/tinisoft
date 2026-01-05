@@ -403,7 +403,10 @@ def apply_coupon(request):
     
     if request.method == 'POST':
         coupon_code = request.data.get('coupon_code')
+        logger.info(f"[COUPON] Applying coupon '{coupon_code}' to cart {cart.id}")
+        
         if not coupon_code:
+            logger.warning(f"[COUPON] Coupon code missing in request")
             return Response({
                 'success': False,
                 'message': 'Kupon kodu gereklidir.',
@@ -419,6 +422,7 @@ def apply_coupon(request):
                 is_deleted=False
             )
         except Coupon.DoesNotExist:
+            logger.warning(f"[COUPON] Coupon not found: '{coupon_code}' for tenant {tenant.slug}")
             return Response({
                 'success': False,
                 'message': 'Kupon bulunamadı.',
@@ -430,8 +434,10 @@ def apply_coupon(request):
             customer_email = customer.email
         
         is_valid, message = coupon.is_valid(customer_email, cart.subtotal)
+        logger.info(f"[COUPON] Validation result for '{coupon_code}': {is_valid} - {message} (Amount: {cart.subtotal})")
         
         if not is_valid:
+            logger.warning(f"[COUPON] Coupon invalid: '{coupon_code}' - Reason: {message}")
             return Response({
                 'success': False,
                 'message': message,
@@ -442,6 +448,8 @@ def apply_coupon(request):
         cart.coupon_code = coupon.code
         cart.save()
         cart.calculate_totals()
+        
+        logger.info(f"[COUPON] Coupon '{coupon_code}' successfully applied to cart {cart.id}. New total: {cart.total}")
         
         serializer = CartSerializer(cart)
         return Response({
