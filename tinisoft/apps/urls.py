@@ -18,6 +18,10 @@ from apps.views.product_image_upload import (
     bulk_upload_product_images,
     upload_product_image_by_sku
 )
+from apps.views.product_image_delete import (
+    delete_product_image,
+    bulk_delete_product_images
+)
 from apps.views.product_image_from_excel import upload_images_from_excel_paths
 from apps.views.order import order_list_create, order_detail, order_track
 from apps.views.aras_cargo import aras_create_shipment, aras_track_shipment, aras_print_label, aras_cancel_shipment
@@ -125,6 +129,8 @@ urlpatterns = [
     path('products/images/bulk-upload/', bulk_upload_product_images, name='bulk_upload_product_images'),  # POST: Toplu görsel yükle
     path('products/images/upload-by-sku/', upload_product_image_by_sku, name='upload_product_image_by_sku'),  # POST: SKU ile görsel yükle
     path('products/images/upload-from-excel/', upload_images_from_excel_paths, name='upload_images_from_excel_paths'),  # POST: Excel'den resim yollarını yükle
+    path('products/<uuid:product_id>/images/<uuid:image_id>/', delete_product_image, name='delete_product_image'),  # DELETE: Tek görsel sil
+    path('products/<uuid:product_id>/images/bulk-delete/', bulk_delete_product_images, name='bulk_delete_product_images'),  # DELETE: Toplu görsel sil
     # Public product endpoints (tenant_slug ile)
     path('public/products/', product_list_public, name='product_list_public'),  # GET: ?tenant_slug=xxx veya header ile
     path('public/<str:tenant_slug>/products/', product_list_public, name='product_list_public_by_slug'),  # GET: Path parameter ile
