@@ -17,6 +17,53 @@ from django.core.files.storage import default_storage
 logger = logging.getLogger(__name__)
 
 
+def upload_base64_image(product, image_url):
+    """
+    Base64 formatındaki görseli storage'a yükler ve URL döndürür.
+    """
+    if not image_url or not image_url.startswith('data:image'):
+        return image_url
+        
+    try:
+        # Base64 format: data:image/[format];base64,[data]
+        if ';base64,' in image_url:
+            format_part, imgstr = image_url.split(';base64,')
+            ext = format_part.split('/')[-1]
+        else:
+            return image_url
+            
+        if ext == 'svg+xml':
+            ext = 'svg'
+        
+        # uzantı temizliği
+        if ext == 'jpeg':
+            ext = 'jpg'
+            
+        data = base64.b64decode(imgstr)
+        
+        # Benzersiz dosya adı oluştur
+        filename = f"{uuid.uuid4()}.{ext}"
+        
+        # Tenant bazlı klasör yapısı: {tenant_id}/products/{product_id}/{filename}
+        # product.tenant might be a lazy relation, ensures ID is accesssed safely
+        if hasattr(product, 'tenant_id'):
+            tenant_id = str(product.tenant_id)
+        else:
+            tenant_id = str(product.tenant.id)
+            
+        file_path = f'{tenant_id}/products/{product.id}/{filename}'
+        
+        # Storage'a kaydet
+        saved_path = default_storage.save(file_path, ContentFile(data))
+        file_url = default_storage.url(saved_path)
+        
+        return file_url
+    except Exception as e:
+        logger.error(f"Base64 upload error: {e}")
+        return image_url
+
+
+
 class CategorySerializer(serializers.ModelSerializer):
     """Category serializer."""
     children = serializers.SerializerMethodField()
@@ -43,6 +90,7 @@ class CategorySerializer(serializers.ModelSerializer):
 
 class ProductImageSerializer(serializers.ModelSerializer):
     """Product image serializer."""
+    image_url = serializers.SerializerMethodField()
     
     class Meta:
         model = ProductImage
@@ -51,6 +99,21 @@ class ProductImageSerializer(serializers.ModelSerializer):
             'created_at',
         ]
         read_only_fields = ['id', 'created_at']
+
+    def get_image_url(self, obj):
+        """
+        Görsel URL'ini döndür. Eğer veritabanında base64 varsa,
+        otomatik olarak storage'a yükle ve güncelle (Lazy Migration).
+        """
+        url = obj.image_url
+        if url and url.startswith('data:image'):
+            new_url = upload_base64_image(obj.product, url)
+            if new_url != url:
+                # DB'yi güncelle
+                obj.image_url = new_url
+                obj.save(update_fields=['image_url'])
+                return new_url
+        return url
 
 
 class ProductOptionValueSerializer(serializers.ModelSerializer):
@@ -191,7 +254,18 @@ class ProductListSerializer(serializers.ModelSerializer):
         image = obj.images.filter(is_primary=True, is_deleted=False).first()
         if not image:
             image = obj.images.filter(is_deleted=False).first()
-        return image.image_url if image else None
+        
+        if image:
+            # Lazy migration check
+            if image.image_url and image.image_url.startswith('data:image'):
+                new_url = upload_base64_image(obj, image.image_url)
+                if new_url != image.image_url:
+                    image.image_url = new_url
+                    image.save(update_fields=['image_url'])
+                return new_url
+            return image.image_url
+            
+        return None
     
     def get_images(self, obj):
         """Tüm görselleri döndür (sıralı)."""
@@ -442,43 +516,8 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         """
         Görsel URL'ini işle.
         Eğer base64 ise storage'a yükle ve URL döndür.
-        Değilse olduğu gibi döndür.
         """
-        if not image_url or not image_url.startswith('data:image'):
-            return image_url
-            
-        try:
-            # Base64 format: data:image/[format];base64,[data]
-            if ';base64,' in image_url:
-                format_part, imgstr = image_url.split(';base64,')
-                ext = format_part.split('/')[-1]
-            else:
-                return image_url
-                
-            if ext == 'svg+xml':
-                ext = 'svg'
-            
-            # uzantı temizliği
-            if ext == 'jpeg':
-                ext = 'jpg'
-                
-            data = base64.b64decode(imgstr)
-            
-            # Benzersiz dosya adı oluştur
-            filename = f"{uuid.uuid4()}.{ext}"
-            
-            # Tenant bazlı klasör yapısı: {tenant_id}/products/{product_id}/{filename}
-            tenant_id = str(product.tenant.id)
-            file_path = f'{tenant_id}/products/{product.id}/{filename}'
-            
-            # Storage'a kaydet
-            saved_path = default_storage.save(file_path, ContentFile(data))
-            file_url = default_storage.url(saved_path)
-            
-            return file_url
-        except Exception as e:
-            logger.error(f"Base64 upload error: {e}")
-            return image_url
+        return upload_base64_image(product, image_url)
     
     def validate(self, attrs):
         """Frontend'den gelen field'ları backend field'larına map et."""
