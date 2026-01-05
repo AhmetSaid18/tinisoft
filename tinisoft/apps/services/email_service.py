@@ -117,6 +117,7 @@ class EmailService:
             # SMTP config al
             smtp_config = EmailService.get_smtp_config(tenant)
             if not smtp_config:
+                logger.error(f"EMail Hata: SMTP config bulunamadı (Host: {tenant.slug})")
                 return {
                     'success': False,
                     'message': 'Email entegrasyonu bulunamadı veya aktif değil.',
@@ -127,6 +128,8 @@ class EmailService:
             from_email = from_email or smtp_config['from_email']
             from_name = from_name or smtp_config['from_name']
             
+            logger.info(f"Email Hazirlaniyor: To={to_email}, From={from_email}, SMTP_Host={smtp_config['host']}")
+
             # Email oluştur
             msg = MIMEMultipart('alternative')
             msg['From'] = f"{from_name} <{from_email}>"
@@ -157,21 +160,26 @@ class EmailService:
                     msg.attach(part)
             
             # SMTP bağlantısı
+            logger.info(f"SMTP Baglantisi Kuruluyor: {smtp_config['host']}:{smtp_config['port']} (SSL: {smtp_config['use_ssl']})")
+            
             if smtp_config['use_ssl']:
-                server = smtplib.SMTP_SSL(smtp_config['host'], smtp_config['port'])
+                server = smtplib.SMTP_SSL(smtp_config['host'], smtp_config['port'], timeout=15)
             else:
-                server = smtplib.SMTP(smtp_config['host'], smtp_config['port'])
+                server = smtplib.SMTP(smtp_config['host'], smtp_config['port'], timeout=15)
                 if smtp_config['use_tls']:
+                    logger.info("STARTTLS baslatiliyor...")
                     server.starttls()
             
             # Giriş yap
+            logger.info(f"SMTP Login Yapiliyor: User={smtp_config['username']}")
             server.login(smtp_config['username'], smtp_config['password'])
             
             # Email gönder
+            logger.info("Email sunucuya gonderiliyor...")
             server.send_message(msg)
             server.quit()
             
-            logger.info(f"Email sent successfully to {to_email} from tenant {tenant.id}")
+            logger.info(f"EMAIL BASARILI: {to_email} adresine mail ulasti (SMTP sunucusu kabul etti).")
             
             return {
                 'success': True,
@@ -326,7 +334,9 @@ class EmailService:
         """
         Kayıt için doğrulama kodu gönder.
         """
-        subject = f"Giriş Doğrulama Kodu: {code}"
+        subject = f"Doğrulama Kodunuz: {code}"
+        
+        text_content = f"Merhaba, Mağazamıza kayıt olmak için doğrulama kodunuz: {code}. Bu kod 10 dakika geçerlidir. {tenant.name}"
         
         html_content = f"""
         <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px; max-width: 600px; margin: auto;">
@@ -346,6 +356,7 @@ class EmailService:
             tenant=tenant,
             to_email=to_email,
             subject=subject,
-            html_content=html_content
+            html_content=html_content,
+            text_content=text_content
         )
 
