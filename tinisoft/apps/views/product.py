@@ -112,6 +112,9 @@ def product_list_create(request):
         
         queryset = queryset.order_by(ordering)
         
+        # Optimization
+        queryset = queryset.prefetch_related('images', 'categories', 'variants')
+        
         # Pagination
         paginator = ProductPagination()
         page = paginator.paginate_queryset(queryset, request)
@@ -165,7 +168,10 @@ def product_detail(request, product_id):
         }, status=status.HTTP_400_BAD_REQUEST)
     
     try:
-        product = Product.objects.get(id=product_id, tenant=tenant, is_deleted=False)
+        queryset = Product.objects.filter(id=product_id, tenant=tenant, is_deleted=False)
+        if request.method == 'GET':
+            queryset = queryset.prefetch_related('images', 'categories', 'options', 'options__values', 'variants', 'variants__option_values')
+        product = queryset.get()
     except Product.DoesNotExist:
         logger.warning(f"[PRODUCTS] {request.method} /api/products/{product_id}/ | 404 | Product not found")
         return Response({
@@ -467,6 +473,9 @@ def product_list_public(request, tenant_slug=None):
         
         queryset = queryset.order_by(ordering)
         
+        # Optimization
+        queryset = queryset.prefetch_related('images', 'categories', 'variants')
+        
         # Pagination
         paginator = ProductPagination()
         page = paginator.paginate_queryset(queryset, request)
@@ -690,7 +699,14 @@ def product_detail_public(request, urun_slug=None, tenant_slug=None, product_slu
     decoded_slug = unquote(product_slug)
     
     try:
-        product = Product.objects.get(
+        product = Product.objects.prefetch_related(
+            'images',
+            'categories',
+            'options',
+            'options__values',
+            'variants',
+            'variants__option_values',
+        ).get(
             slug=decoded_slug,
             tenant=tenant,
             is_deleted=False,
@@ -700,7 +716,14 @@ def product_detail_public(request, urun_slug=None, tenant_slug=None, product_slu
     except Product.DoesNotExist:
         # Slug bulunamazsa, name ile de dene (geriye dönük uyumluluk için)
         try:
-            product = Product.objects.get(
+            product = Product.objects.prefetch_related(
+                'images',
+                'categories',
+                'options',
+                'options__values',
+                'variants',
+                'variants__option_values',
+            ).get(
                 name=decoded_slug,
                 tenant=tenant,
                 is_deleted=False,
