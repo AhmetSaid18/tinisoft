@@ -238,6 +238,7 @@ class ProductListSerializer(serializers.ModelSerializer):
     display_compare_at_price = serializers.SerializerMethodField()
     display_min_price = serializers.SerializerMethodField()
     display_max_price = serializers.SerializerMethodField()
+    brand_name = serializers.SerializerMethodField()
     has_variants = serializers.BooleanField(source='is_variant_product', read_only=True)
     # Frontend uyumluluğu için camelCase field'lar
     inventoryQuantity = serializers.IntegerField(source='inventory_quantity', read_only=True)
@@ -259,7 +260,7 @@ class ProductListSerializer(serializers.ModelSerializer):
             'primary_image', 'images', 'category_names', 'min_price', 'max_price',
             'has_variants', 'is_featured', 'is_new', 'is_bestseller',
             'status', 'is_visible', 'isActive', 'view_count', 'sale_count',
-            'brand', 'available_quantity', 'is_in_stock', 'created_at',
+            'brand', 'brand_name', 'available_quantity', 'is_in_stock', 'created_at',
         ]
         read_only_fields = ['id', 'created_at', 'price_with_vat', 'display_price', 'display_compare_at_price', 'display_min_price', 'display_max_price']
     
@@ -512,7 +513,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             'view_count', 'sale_count',
             'images', 'options', 'variants', 'categories',
             'category_ids',
-            'brand_name', 'metadata',
+            'brand', 'brand_name', 'metadata',
             'available_quantity', 'is_in_stock',
             'created_at', 'updated_at',
         ]
@@ -560,12 +561,14 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             attrs['compare_at_price'] = attrs.pop('compareAtPrice')
 
         # Brand senkronizasyonu
-        brand_name = attrs.pop('brand_name', None) # brand_name'i al ve attrs'tan çıkar
+        # Hem 'brand' hem de 'brandName' (eğer gelirse) kontrol et
+        brand_name = attrs.get('brand')
+        
         if brand_name:
             from django.utils.text import slugify
             # Request context'inden tenant'ı al
             request = self.context.get('request')
-            tenant = request.tenant if request else None # Varsayılan olarak None, uygun bir tenant değeri olmalı
+            tenant = request.tenant if request and hasattr(request, 'tenant') else None
             
             if tenant:
                 brand_obj, _ = Brand.objects.get_or_create(
@@ -574,17 +577,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
                     defaults={'slug': slugify(brand_name.strip())}
                 )
                 attrs['brand_item'] = brand_obj # brand_item'ı validated_data'ya ekle
-                attrs['brand'] = brand_name # legacy brand alanını da güncelle
-            else:
-                # Tenant yoksa sadece legacy brand alanını güncelle
-                attrs['brand'] = brand_name
-        elif 'brand_name' in self.fields and self.fields['brand_name'].read_only:
-            # Eğer brand_name read_only ise ve gönderilmediyse, mevcut brand_item'ı koru
-            pass
-        else:
-            # Eğer brand_name gönderilmediyse ve read_only değilse, brand_item'ı ve brand'ı temizle
-            attrs['brand_item'] = None
-            attrs['brand'] = None
+                attrs['brand'] = brand_name.strip()
         
         # Images validation - image_url eksik olanları filtrele
         if 'images' in attrs:
@@ -736,45 +729,40 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             return str(converted_price)
         except Exception:
             return str(obj.compare_at_price)
-    
     def get_available_quantity(self, obj):
         """Toplam mevcut stok miktarını döndür (gerçek + sanal)."""
         if not obj.track_inventory:
-            return None  # Stok takibi yoksa None döndür (sınırsız)
+            return None
         
         real_stock = obj.inventory_quantity
         
-        # Sanal stok kontrolü
+        if obj.virtual_stock_quantity is not None and obj.virtual_stock_quantity > 0:
+            return real_stock + obj.virtual_stock_quantity
+            
         if obj.allow_backorder:
-            if obj.virtual_stock_quantity is not None and obj.virtual_stock_quantity > 0:
-                # Limitli sanal stok: gerçek + sanal
-                return real_stock + obj.virtual_stock_quantity
-            else:
-                # Sınırsız sanal stok
-                return None  # None = sınırsız
-        else:
-            # Sadece gerçek stok
-            return real_stock
+            return None
+            
+        return real_stock
     
     def get_is_in_stock(self, obj):
         """Ürün stokta var mı? (frontend için boolean)."""
         if not obj.track_inventory:
-            return True  # Stok takibi yoksa her zaman mevcut
+            return True
         
-        # Gerçek stok varsa True
         if obj.inventory_quantity > 0:
             return True
         
-        # Gerçek stok yoksa, sanal stok kontrolü
-        if obj.allow_backorder:
-            # Sanal stok varsa (sınırsız veya limitli) True
-            if obj.virtual_stock_quantity is None or obj.virtual_stock_quantity == 0:
-                # Sınırsız sanal stok
-                return True
-            elif obj.virtual_stock_quantity > 0:
-                # Limitli sanal stok
-                return True
+        if obj.virtual_stock_quantity is not None and obj.virtual_stock_quantity > 0:
+            return True
         
-        # Hiç stok yok
+        if obj.allow_backorder:
+            return True
+        
         return False
+
+    def get_brand_name(self, obj):
+        """Marka bilgisini brand_item veya legacy brand alanından al."""
+        if obj.brand_item:
+            return obj.brand_item.name
+        return obj.brand or None
 
