@@ -8,6 +8,7 @@ from apps.models import (
     ProductOptionValue, ProductVariant
 )
 from apps.services.currency_service import CurrencyService
+from django.utils.html import strip_tags
 import base64
 import uuid
 import logging
@@ -625,7 +626,16 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             if images_data:
                 # image_url olmayan item'ları filtrele
                 attrs['images'] = [img for img in images_data if img.get('image_url')]
+
+        # Açıklama Senkronizasyonu (HTML -> Plain Text)
+        # Eğer description_html geldi ama description gelmediyse (veya boşsa),
+        # HTML'den tagleri temizleyip description oluştur.
+        desc_html = attrs.get('description_html')
+        desc_plain = attrs.get('description')
         
+        if desc_html and not desc_plain:
+            attrs['description'] = strip_tags(desc_html)
+            
         return attrs
     
     def create(self, validated_data):
