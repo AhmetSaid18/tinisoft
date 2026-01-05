@@ -102,6 +102,37 @@ class CategorySerializer(serializers.ModelSerializer):
         """Kategorideki ürün sayısı."""
         return obj.products.filter(is_deleted=False, status='active').count()
 
+    def validate(self, attrs):
+        """Döngüsel kategori kontrolü."""
+        parent = attrs.get('parent')
+        instance = self.instance
+
+        # Eğer yeni oluşturuluyorsa instance None'dır, o yüzden döngü olamaz (henüz çocukları yok)
+        # Sadece güncelleme yaparken kontrol etmemiz lazım
+        if instance and parent:
+            # 1. Kendisini parent olarak seçemez
+            if parent.id == instance.id:
+                raise serializers.ValidationError({"parent": "Kategori kendisinin üst kategorisi olamaz."})
+
+            # 2. Döngü kontrolü (Seçilen parent'ın ataları arasında kendisi var mı?)
+            # Parent yolunda yukarı çık, eğer instance'a rastlarsak döngü var demektir.
+            current = parent
+            # Sonsuz döngüden kaçınmak için visited seti (zaten veride hata varsa diye)
+            visited = set()
+            
+            while current:
+                if current.id == instance.id:
+                    raise serializers.ValidationError({"parent": "Döngüsel kategori ilişkisi algılandı. Bir kategoriyi kendi alt kategorisinin altına taşıyamazsınız."})
+                
+                if current.id in visited:
+                    # Veritabanında zaten döngü varmış, burada keselim
+                    break
+                visited.add(current.id)
+                
+                current = current.parent
+        
+        return attrs
+
 
 class ProductImageSerializer(serializers.ModelSerializer):
     """Product image serializer."""
