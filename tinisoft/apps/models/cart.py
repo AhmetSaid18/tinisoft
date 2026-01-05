@@ -167,6 +167,11 @@ class Cart(BaseModel):
             self.tax_amount -
             self.discount_amount
         )
+        logger.info(
+            f"[CART_CALC] Cart {self.id} | Subtotal: {self.subtotal} | "
+            f"Tax Rate: {tax_rate}% | Tax: {self.tax_amount} | "
+            f"Discount: {self.discount_amount} | Total: {self.total}"
+        )
         self.save()
         return self.total
 

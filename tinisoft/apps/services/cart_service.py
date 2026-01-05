@@ -341,8 +341,20 @@ class CartService:
         shipping_cost = Decimal(cart_data.get('shipping_cost', '0.00'))
         cart_data['shipping_cost'] = str(shipping_cost)
         
-        # Vergi (basit %18 KDV)
-        tax_amount = subtotal * Decimal('0.18')
+        # Vergi (Dinamik - Tenant bazlı)
+        from apps.models import Tax, Tenant
+        try:
+            tenant = Tenant.objects.get(id=cart_data.get('tenant_id'))
+            active_tax = Tax.objects.filter(
+                tenant=tenant,
+                is_active=True,
+                is_deleted=False
+            ).order_by('-is_default', '-created_at').first()
+            tax_rate = active_tax.rate if active_tax else Decimal('0.00')
+        except:
+            tax_rate = Decimal('0.00')
+            
+        tax_amount = subtotal * (tax_rate / Decimal('100'))
         cart_data['tax_amount'] = str(tax_amount)
         
         # İndirim
