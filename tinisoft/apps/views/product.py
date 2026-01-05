@@ -13,6 +13,7 @@ from apps.serializers.product import (
     CategorySerializer
 )
 from apps.permissions import IsTenantOwnerOfObject
+from django.core.exceptions import ValidationError
 from core.middleware import get_tenant_from_request
 import logging
 
@@ -67,7 +68,10 @@ def product_list_create(request):
         # Kategori filtresi
         category_id = request.query_params.get('category_id')
         if category_id:
-            queryset = queryset.filter(categories__id=category_id)
+            try:
+                queryset = queryset.filter(categories__id=category_id)
+            except (ValidationError, ValueError):
+                queryset = queryset.filter(categories__slug=category_id)
         
         # Marka filtresi
         brand = request.query_params.get('brand')
@@ -383,6 +387,8 @@ def product_list_public(request, tenant_slug=None):
         if category_id or category_slug:
             # Kategoriyi bul
             category = None
+            
+            # category_id bir UUID mi kontrol et? Değilse slug olarak değerlendir.
             if category_id:
                 try:
                     category = Category.objects.get(
@@ -391,8 +397,11 @@ def product_list_public(request, tenant_slug=None):
                         is_deleted=False,
                         is_active=True
                     )
-                except Category.DoesNotExist:
-                    pass
+                except (Category.DoesNotExist, ValidationError, ValueError):
+                    # Eğer category_id geçerli bir UUID değilse veya bulunamadıysa, 
+                    # slug olarak denemek için category_slug'a ata (eğer category_slug boşsa)
+                    if not category_slug:
+                        category_slug = category_id
             
             if not category and category_slug:
                 try:
