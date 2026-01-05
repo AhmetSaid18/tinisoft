@@ -8,6 +8,13 @@ from apps.models import (
     ProductOptionValue, ProductVariant
 )
 from apps.services.currency_service import CurrencyService
+import base64
+import uuid
+import logging
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
+
+logger = logging.getLogger(__name__)
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -430,6 +437,48 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         images = instance.images.filter(is_deleted=False).order_by('position', 'created_at')
         data['images'] = ProductImageSerializer(images, many=True).data
         return data
+
+    def _handle_image_url(self, product, image_url):
+        """
+        Görsel URL'ini işle.
+        Eğer base64 ise storage'a yükle ve URL döndür.
+        Değilse olduğu gibi döndür.
+        """
+        if not image_url or not image_url.startswith('data:image'):
+            return image_url
+            
+        try:
+            # Base64 format: data:image/[format];base64,[data]
+            if ';base64,' in image_url:
+                format_part, imgstr = image_url.split(';base64,')
+                ext = format_part.split('/')[-1]
+            else:
+                return image_url
+                
+            if ext == 'svg+xml':
+                ext = 'svg'
+            
+            # uzantı temizliği
+            if ext == 'jpeg':
+                ext = 'jpg'
+                
+            data = base64.b64decode(imgstr)
+            
+            # Benzersiz dosya adı oluştur
+            filename = f"{uuid.uuid4()}.{ext}"
+            
+            # Tenant bazlı klasör yapısı: {tenant_id}/products/{product_id}/{filename}
+            tenant_id = str(product.tenant.id)
+            file_path = f'{tenant_id}/products/{product.id}/{filename}'
+            
+            # Storage'a kaydet
+            saved_path = default_storage.save(file_path, ContentFile(data))
+            file_url = default_storage.url(saved_path)
+            
+            return file_url
+        except Exception as e:
+            logger.error(f"Base64 upload error: {e}")
+            return image_url
     
     def validate(self, attrs):
         """Frontend'den gelen field'ları backend field'larına map et."""
@@ -484,6 +533,9 @@ class ProductDetailSerializer(serializers.ModelSerializer):
                 if not image_data.get('image_url'):
                     continue
                 
+                # Base64 ise yükle
+                image_data['image_url'] = self._handle_image_url(product, image_data['image_url'])
+                
                 # is_primary değişiyorsa, diğer görsellerin is_primary'ini False yap
                 if image_data.get('is_primary', False):
                     ProductImage.objects.filter(product=product, is_deleted=False).update(is_primary=False)
@@ -511,7 +563,11 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         
         # Görselleri güncelle (eğer gönderilmişse)
         if images_data is not None:
-            # Mevcut görselleri güncelle veya yeni ekle
+            # 1. Silinenleri işle: Gelen listede OLMAYAN mevcut görselleri sil
+            incoming_ids = [item.get('id') for item in images_data if item.get('id')]
+            instance.images.filter(is_deleted=False).exclude(id__in=incoming_ids).update(is_deleted=True)
+
+            # 2. Mevcut görselleri güncelle veya yeni ekle
             for image_data in images_data:
                 image_id = image_data.get('id')
                 if image_id:
@@ -524,6 +580,8 @@ class ProductDetailSerializer(serializers.ModelSerializer):
                         # Görseli güncelle
                         for key, value in image_data.items():
                             if key != 'id' and hasattr(product_image, key):
+                                if key == 'image_url':
+                                    value = self._handle_image_url(instance, value)
                                 setattr(product_image, key, value)
                         product_image.save()
                     except ProductImage.DoesNotExist:
@@ -533,6 +591,9 @@ class ProductDetailSerializer(serializers.ModelSerializer):
                     # image_url zorunlu, yoksa atla
                     if not image_data.get('image_url'):
                         continue
+                    
+                    # Base64 ise yükle
+                    image_data['image_url'] = self._handle_image_url(instance, image_data['image_url'])
                     
                     # is_primary değişiyorsa, diğer görsellerin is_primary'ini False yap
                     if image_data.get('is_primary', False):
