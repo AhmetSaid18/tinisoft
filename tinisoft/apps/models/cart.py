@@ -148,7 +148,7 @@ class Cart(BaseModel):
         if self.coupon:
             try:
                 # Kupon geçerliliğini kontrol et (hata durumunda indirim 0 kalsın)
-                is_valid, _ = self.coupon.is_valid(
+                is_valid, msg = self.coupon.is_valid(
                     customer_email=self.customer.email if self.customer else None,
                     order_amount=self.subtotal
                 )
@@ -157,19 +157,28 @@ class Cart(BaseModel):
                     # Ücretsiz kargo kontrolü
                     if self.coupon.discount_type == self.coupon.DiscountType.FREE_SHIPPING:
                         self.shipping_cost = Decimal('0.00')
+                else:
+                    logger.warning(f"[CART_CALC] Coupon {self.coupon.code} invalid for cart {self.id}: {msg}")
             except Exception as e:
-                logger.warning(f"Error calculating coupon discount: {e}")
+                logger.warning(f"[CART_CALC] Error calculating coupon discount: {e}")
                 pass
         
         self.discount_amount = coupon_discount
         
-        # Toplam
+        # Toplam ve Yuvarlama (Financial rounding)
+        TWOPLACES = Decimal('0.01')
+        self.subtotal = self.subtotal.quantize(TWOPLACES)
+        self.shipping_cost = self.shipping_cost.quantize(TWOPLACES)
+        self.tax_amount = self.tax_amount.quantize(TWOPLACES)
+        self.discount_amount = self.discount_amount.quantize(TWOPLACES)
+        
         self.total = (
             self.subtotal +
             self.shipping_cost +
             self.tax_amount -
             self.discount_amount
-        )
+        ).quantize(TWOPLACES)
+        
         logger.info(
             f"[CART_CALC] Cart {self.id} | Subtotal: {self.subtotal} | "
             f"Tax Rate: {tax_rate}% | Tax: {self.tax_amount} | "
@@ -235,12 +244,31 @@ class CartItem(BaseModel):
         return f"{self.product.name}{variant_str} x{self.quantity}"
     
     def save(self, *args, **kwargs):
-        """Toplam fiyatı otomatik hesapla."""
-        # Fiyat belirleme: varyant varsa varyant fiyatı, yoksa ürün fiyatı
+        """Toplam fiyatı otomatik hesapla ve para birimi dönüşümü yap."""
+        from apps.services.currency_service import CurrencyService
+        
+        # Fiyat belirleme
         if self.variant:
-            self.unit_price = self.variant.price
+            price = self.variant.price
         else:
-            self.unit_price = self.product.price
+            price = self.product.price
+            
+        product_currency = self.product.currency or 'TRY'
+        cart_currency = self.cart.currency or 'TRY'
+        
+        # Para birimi farklıysa sepet para birimine çevir
+        if product_currency != cart_currency:
+            try:
+                self.unit_price = CurrencyService.convert_amount(
+                    price,
+                    product_currency,
+                    cart_currency
+                )
+            except Exception as e:
+                logger.warning(f"Currency conversion failed for {self.product.name}: {e}")
+                self.unit_price = price
+        else:
+            self.unit_price = price
         
         self.total_price = self.unit_price * self.quantity
         super().save(*args, **kwargs)
