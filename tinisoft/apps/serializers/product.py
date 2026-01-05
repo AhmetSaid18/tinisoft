@@ -223,7 +223,6 @@ class ProductListSerializer(serializers.ModelSerializer):
     display_compare_at_price = serializers.SerializerMethodField()
     display_min_price = serializers.SerializerMethodField()
     display_max_price = serializers.SerializerMethodField()
-    brand = serializers.SerializerMethodField()
     has_variants = serializers.BooleanField(source='is_variant_product', read_only=True)
     # Frontend uyumluluğu için camelCase field'lar
     inventoryQuantity = serializers.IntegerField(source='inventory_quantity', read_only=True)
@@ -399,12 +398,6 @@ class ProductListSerializer(serializers.ModelSerializer):
         except Exception:
             return str(max_price)
     
-    def get_brand(self, obj):
-        """Marka bilgisini metadata'dan al."""
-        if obj.metadata and isinstance(obj.metadata, dict):
-            return obj.metadata.get('brand')
-        return None
-    
     def get_available_quantity(self, obj):
         """Toplam mevcut stok miktarını döndür (gerçek + sanal)."""
         if not obj.track_inventory:
@@ -461,7 +454,6 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     categories = CategorySerializer(many=True, read_only=True)
     display_price = serializers.SerializerMethodField()
     display_compare_at_price = serializers.SerializerMethodField()
-    brand = serializers.SerializerMethodField()
     # Stok durumu (frontend için)
     available_quantity = serializers.SerializerMethodField()
     is_in_stock = serializers.SerializerMethodField()
@@ -695,12 +687,6 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             return str(converted_price)
         except Exception:
             return str(obj.compare_at_price)
-    
-    def get_brand(self, obj):
-        """Marka bilgisini metadata'dan al."""
-        if obj.metadata and isinstance(obj.metadata, dict):
-            return obj.metadata.get('brand')
-        return None
     
     def get_available_quantity(self, obj):
         """Toplam mevcut stok miktarını döndür (gerçek + sanal)."""
