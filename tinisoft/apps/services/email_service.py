@@ -109,6 +109,10 @@ class EmailService:
 
             logger.info(f"Email Gonderiliyor: To={to_email}, From={from_email_formatted}")
 
+            # SSL ve TLS aynı anda True olamaz, SSL önceliklidir
+            use_ssl = smtp_config.get('use_ssl', False)
+            use_tls = smtp_config.get('use_tls', True) if not use_ssl else False
+
             # Bağlantı
             connection = get_connection(
                 backend='django.core.mail.backends.smtp.EmailBackend',
@@ -116,8 +120,8 @@ class EmailService:
                 port=smtp_config['port'],
                 username=smtp_config['username'],
                 password=smtp_config['password'],
-                use_tls=smtp_config['use_tls'],
-                use_ssl=smtp_config['use_ssl'],
+                use_tls=use_tls,
+                use_ssl=use_ssl,
                 timeout=25
             )
 
