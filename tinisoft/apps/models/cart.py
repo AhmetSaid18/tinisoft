@@ -129,18 +129,33 @@ class Cart(BaseModel):
         else:
             self.shipping_cost = Decimal('0.00')
         
-        # Vergi hesaplama (basit %18 KDV)
-        self.tax_amount = self.subtotal * Decimal('0.18')
+        # Vergi hesaplama (Dinamik - Tenant bazlı)
+        from apps.models import Tax
+        active_tax = Tax.objects.filter(
+            tenant=self.tenant,
+            is_active=True,
+            is_deleted=False
+        ).order_by('-is_default', '-created_at').first()
+        
+        tax_rate = active_tax.rate if active_tax else Decimal('0.00')
+        self.tax_amount = self.subtotal * (tax_rate / Decimal('100'))
         
         # Kupon indirimi hesapla
         coupon_discount = Decimal('0.00')
         if self.coupon:
             try:
-                coupon_discount = self.coupon.calculate_discount(self.subtotal)
-                # Ücretsiz kargo kontrolü
-                if self.coupon.discount_type == self.coupon.DiscountType.FREE_SHIPPING:
-                    self.shipping_cost = Decimal('0.00')
-            except:
+                # Kupon geçerliliğini kontrol et (hata durumunda indirim 0 kalsın)
+                is_valid, _ = self.coupon.is_valid(
+                    customer_email=self.customer.email if self.customer else None,
+                    order_amount=self.subtotal
+                )
+                if is_valid:
+                    coupon_discount = self.coupon.calculate_discount(self.subtotal)
+                    # Ücretsiz kargo kontrolü
+                    if self.coupon.discount_type == self.coupon.DiscountType.FREE_SHIPPING:
+                        self.shipping_cost = Decimal('0.00')
+            except Exception as e:
+                logger.warning(f"Error calculating coupon discount: {e}")
                 pass
         
         self.discount_amount = coupon_discount

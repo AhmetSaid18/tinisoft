@@ -77,8 +77,16 @@ class OrderService:
             else:
                 selected_shipping_cost = shipping_method.price
         
-        # Vergi hesaplama (basit %18 KDV)
-        selected_tax_amount = selected_subtotal * Decimal('0.18')
+        # Vergi hesaplama (Dinamik - Tenant bazlı)
+        from apps.models import Tax
+        active_tax = Tax.objects.filter(
+            tenant=cart.tenant,
+            is_active=True,
+            is_deleted=False
+        ).order_by('-is_default', '-created_at').first()
+        
+        tax_rate = active_tax.rate if active_tax else Decimal('0.00')
+        selected_tax_amount = selected_subtotal * (tax_rate / Decimal('100'))
         
         # Kupon indirimi hesapla (seçili item'lara göre)
         selected_discount_amount = Decimal('0.00')
