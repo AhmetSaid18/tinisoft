@@ -6,6 +6,9 @@ from django.db import models
 from django.core.validators import MinValueValidator
 from decimal import Decimal
 from core.models import BaseModel
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Cart(BaseModel):
