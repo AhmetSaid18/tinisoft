@@ -167,12 +167,12 @@ urlpatterns = [
     path('basket/', basket, name='basket'),  # GET: Sepeti getir, POST: Sepete ürün ekle
     path('basket/<uuid:item_id>/', basket_item, name='basket_item'),  # PATCH: Güncelle, DELETE: Sil
     
-    # Eski cart endpoint'leri (geriye dönük uyumluluk için - kaldırılabilir)
-    # path('cart/', cart_detail, name='cart_detail'),
-    # path('cart/add/', add_to_cart, name='add_to_cart'),
-    # path('cart/items/<uuid:item_id>/', cart_item_detail, name='cart_item_detail'),
-    # path('cart/shipping/', update_shipping_method, name='update_shipping_method'),
-    # path('cart/coupon/', apply_coupon, name='apply_coupon'),
+    # Cart endpoint'leri
+    path('cart/', cart_detail, name='cart_detail'),
+    path('cart/add/', add_to_cart, name='add_to_cart'),
+    path('cart/items/<uuid:item_id>/', cart_item_detail, name='cart_item_detail'),
+    path('cart/shipping/', update_shipping_method, name='update_shipping_method'),
+    path('cart/coupon/', apply_coupon, name='apply_coupon'),
     
     # Ödeme yönetimi
     path('payments/', payment_list_create, name='payment_list_create'),  # GET: List, POST: Create
