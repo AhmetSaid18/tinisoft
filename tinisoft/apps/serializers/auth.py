@@ -132,7 +132,6 @@ class UserSerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'email',
-            'username',
             'first_name',
             'last_name',
             'phone',
@@ -142,7 +141,6 @@ class UserSerializer(serializers.ModelSerializer):
             'date_joined',
         ]
         read_only_fields = ['id', 'date_joined', 'role_display']
-        read_only_fields = ['id', 'date_joined']
     
     def get_tenant(self, obj):
         """Tenant bilgisini döndür."""

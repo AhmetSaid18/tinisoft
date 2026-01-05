@@ -19,24 +19,37 @@ class TenantUserRegisterSerializer(serializers.Serializer):
     phone = serializers.CharField(max_length=20, required=False)
     
     def validate_email(self, value):
-        """Email kontrolü - tenant context'inde yapılacak."""
-        # Validation view'da tenant_id ile kontrol edilecek
+        """Email kontrolü."""
+        if User.objects.filter(email=value, is_active=True).exists():
+            raise serializers.ValidationError("Bu email adresi zaten kullanımda.")
         return value
     
     def create(self, validated_data):
-        """TenantUser oluştur."""
+        """TenantUser oluştur (Pasif) ve kod gönder."""
         tenant_id = self.context.get('tenant_id')
         if not tenant_id:
             raise serializers.ValidationError("Tenant ID gerekli.")
         
-        return TenantUserService.register_tenant_user(
+        try:
+            tenant = Tenant.objects.get(id=tenant_id)
+        except Tenant.DoesNotExist:
+            raise serializers.ValidationError("Mağaza bulunamadı.")
+
+        # 1. Kullanıcıyı oluştur (Pasif olarak)
+        result = TenantUserService.register_tenant_user(
             tenant_id=tenant_id,
             email=validated_data['email'],
             password=validated_data['password'],
             first_name=validated_data.get('first_name', ''),
             last_name=validated_data.get('last_name', ''),
             phone=validated_data.get('phone'),
+            is_active=False  # Hesabı pasif oluşturuyoruz
         )
+        
+        # 2. Doğrulama kodunu gönder
+        TenantUserService.send_registration_code(tenant, validated_data['email'])
+        
+        return result
 
 
 class TenantUserLoginSerializer(serializers.Serializer):

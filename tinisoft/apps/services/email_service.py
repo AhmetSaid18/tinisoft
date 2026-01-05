@@ -62,11 +62,11 @@ class EmailService:
             smtp_config = {
                 'host': config.get('smtp_host', ''),
                 'port': config.get('smtp_port', 587),
-                'username': integration.get_api_key() or config.get('smtp_username', ''),
+                'username': integration.get_api_key() or config.get('smtp_username') or config.get('from_email', ''),
                 'password': integration.get_api_secret() or config.get('smtp_password', ''),
                 'use_tls': config.get('smtp_use_tls', True),
                 'use_ssl': config.get('smtp_use_ssl', False),
-                'from_email': config.get('from_email', integration.get_api_key() or ''),
+                'from_email': config.get('from_email') or integration.get_api_key() or '',
                 'from_name': config.get('from_name', tenant.name),
             }
             
@@ -319,5 +319,33 @@ class EmailService:
             subject=subject,
             html_content=html_content,
             text_content=text_content,
+        )
+
+    @staticmethod
+    def send_verification_email(tenant, to_email: str, code: str):
+        """
+        Kayıt için doğrulama kodu gönder.
+        """
+        subject = f"Giriş Doğrulama Kodu: {code}"
+        
+        html_content = f"""
+        <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px; max-width: 600px; margin: auto;">
+            <h2 style="color: #333; text-align: center;">Doğrulama Kodu</h2>
+            <p style="font-size: 16px; color: #555;">Merhaba,</p>
+            <p style="font-size: 16px; color: #555;">Mağazamıza kayıt olmak için kullanmanız gereken 6 haneli doğrulama kodunuz aşağıdadır:</p>
+            <div style="background-color: #f9f9f9; padding: 20px; text-align: center; border-radius: 10px; margin: 20px 0;">
+                <span style="font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #007bff;">{code}</span>
+            </div>
+            <p style="font-size: 14px; color: #999; text-align: center;">Bu kod 10 dakika boyunca geçerlidir.</p>
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+            <p style="font-size: 12px; color: #aaa; text-align: center;">{tenant.name} - Tinisoft Altyapısıyla Güçlendirilmiştir</p>
+        </div>
+        """
+        
+        return EmailService.send_email(
+            tenant=tenant,
+            to_email=to_email,
+            subject=subject,
+            html_content=html_content
         )
 

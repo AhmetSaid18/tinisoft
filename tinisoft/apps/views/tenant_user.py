@@ -20,26 +20,58 @@ logger = logging.getLogger(__name__)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
-def register_tenant_user(request, tenant_slug=None):
+def send_verification_code_tenant_user(request, tenant_slug=None):
     """
-    Tenant'ın sitesinde müşteri kaydı.
+    Kayıt öncesi email doğrulama kodu gönder.
     
-    URL: /api/tenant/{tenant_slug}/users/register/
+    URL: /api/tenant/{tenant_slug}/users/send-code/
     
     Request body:
     {
-        "email": "customer@example.com",
-        "password": "password123",
-        "first_name": "John",
-        "last_name": "Doe",
-        "phone": "+905551234567"
+        "email": "customer@example.com"
     }
+    """
+    email = request.data.get('email')
+    if not email:
+        return Response({
+            'success': False,
+            'message': 'Email adresi gereklidir.',
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    # Tenant'ı bul
+    try:
+        tenant = Tenant.objects.get(slug=tenant_slug)
+    except Tenant.DoesNotExist:
+        return Response({
+            'success': False,
+            'message': 'Mağaza bulunamadı.',
+        }, status=status.HTTP_404_NOT_FOUND)
+
+    # Kod gönder
+    result = TenantUserService.send_registration_code(tenant, email)
+    
+    if result.get('success'):
+        return Response({
+            'success': True,
+            'message': 'Doğrulama kodu e-posta adresinize gönderildi.',
+        }, status=status.HTTP_200_OK)
+    else:
+        return Response({
+            'success': False,
+            'message': 'Kod gönderilirken bir hata oluştu.',
+            'error': result.get('message'),
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def register_tenant_user(request, tenant_slug=None):
+    """
+    Tenant'ın sitesinde müşteri kaydı.
     """
     # Tenant'ı slug'dan bul
     if tenant_slug:
         try:
-            # Yeni kayıt olan mağazalar genelde 'pending' durumunda olacağından
-            # burada status'e göre filtreleme yapmıyoruz.
             tenant = Tenant.objects.get(slug=tenant_slug)
         except Tenant.DoesNotExist:
             return Response({
@@ -47,8 +79,6 @@ def register_tenant_user(request, tenant_slug=None):
                 'message': 'Mağaza bulunamadı.',
             }, status=status.HTTP_404_NOT_FOUND)
     else:
-        # Header'dan veya subdomain'den tenant bulunabilir
-        # Şimdilik tenant_slug zorunlu
         return Response({
             'success': False,
             'message': 'Tenant slug gerekli.',
@@ -61,13 +91,10 @@ def register_tenant_user(request, tenant_slug=None):
     
     if serializer.is_valid():
         try:
-            result = serializer.save()
-            
+            serializer.save()
             return Response({
                 'success': True,
-                'message': 'Kayıt başarılı!',
-                'user': UserSerializer(result['user']).data,
-                'tenant': TenantSerializer(result['tenant']).data,
+                'message': 'Kayıt alındı. Lütfen e-posta adresinize gönderilen kodu girerek hesabınızı onaylayın.',
             }, status=status.HTTP_201_CREATED)
         except ValueError as e:
             return Response({
@@ -86,6 +113,71 @@ def register_tenant_user(request, tenant_slug=None):
         'success': False,
         'errors': serializer.errors,
     }, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def verify_registration_tenant_user(request, tenant_slug=None):
+    """
+    Kayıt sonrası e-posta doğrulama.
+    
+    URL: /api/tenant/{tenant_slug}/users/verify/
+    
+    Request body:
+    {
+        "email": "customer@example.com",
+        "code": "123456"
+    }
+    """
+    email = request.data.get('email')
+    code = request.data.get('code')
+    
+    if not email or not code:
+        return Response({
+            'success': False,
+            'message': 'Email ve kod gereklidir.',
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    # Tenant'ı bul
+    try:
+        tenant = Tenant.objects.get(slug=tenant_slug)
+    except Tenant.DoesNotExist:
+        return Response({
+            'success': False,
+            'message': 'Mağaza bulunamadı.',
+        }, status=status.HTTP_404_NOT_FOUND)
+
+    # Kod doğrula
+    is_valid, msg = TenantUserService.verify_registration_code(tenant, email, code)
+    
+    if not is_valid:
+        return Response({
+            'success': False,
+            'message': msg,
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    # Kullanıcıyı bul ve aktif et
+    try:
+        user = User.objects.get(email=email, tenant=tenant)
+        user.is_active = True
+        user.save()
+        
+        # Giriş yap ve token üret
+        from apps.utils.jwt_utils import generate_jwt_token
+        token = generate_jwt_token(user)
+        
+        return Response({
+            'success': True,
+            'message': 'Hesabınız başarıyla doğrulandı!',
+            'token': token,
+            'user': UserSerializer(user).data,
+        }, status=status.HTTP_200_OK)
+        
+    except User.DoesNotExist:
+        return Response({
+            'success': False,
+            'message': 'Kullanıcı bulunamadı.',
+        }, status=status.HTTP_404_NOT_FOUND)
 
 
 @api_view(['POST'])

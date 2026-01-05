@@ -7,12 +7,49 @@ from django.db import transaction
 from apps.models import Tenant
 import logging
 
-logger = logging.getLogger(__name__)
+import logging
+import random
+from django.core.cache import cache
+from apps.services.email_service import EmailService
+
 User = get_user_model()
 
 
 class TenantUserService:
     """TenantUser yönetim servisi."""
+
+    @staticmethod
+    def send_registration_code(tenant, email: str):
+        """
+        Kayıt için doğrulama kodu üretir ve mail gönderir.
+        """
+        # 6 haneli kod üret
+        code = str(random.randint(100000, 999999))
+        
+        # Cache'e kaydet (10 dakika geçerli)
+        cache_key = f"reg_code_{tenant.id}_{email}"
+        cache.set(cache_key, code, timeout=600)
+        
+        # Mail gönder
+        return EmailService.send_verification_email(tenant, email, code)
+
+    @staticmethod
+    def verify_registration_code(tenant, email: str, code: str):
+        """
+        Doğrulama kodunu kontrol eder.
+        """
+        cache_key = f"reg_code_{tenant.id}_{email}"
+        stored_code = cache.get(cache_key)
+        
+        if not stored_code:
+            return False, "Doğrulama kodu süresi dolmuş veya hiç gönderilmemiş."
+        
+        if str(stored_code) != str(code):
+            return False, "Geçersiz doğrulama kodu."
+        
+        # Kod doğru, cache'den sil
+        cache.delete(cache_key)
+        return True, "Kod doğrulandı."
     
     @staticmethod
     @transaction.atomic
@@ -23,14 +60,10 @@ class TenantUserService:
         first_name: str = '',
         last_name: str = '',
         phone: str = None,
+        is_active: bool = True,
     ):
         """
         Tenant'ın sitesinde müşteri kaydı yapar.
-        
-        Adımlar:
-        1. Tenant'ı bul
-        2. Email kontrolü (aynı tenant içinde unique olmalı)
-        3. TenantUser oluştur (role=tenant_user)
         """
         # 1. Tenant'ı bul
         try:
@@ -38,11 +71,22 @@ class TenantUserService:
         except Tenant.DoesNotExist:
             raise ValueError(f"Tenant bulunamadı: {tenant_id}")
         
-        # 2. Email kontrolü (aynı tenant içinde unique)
-        if User.objects.filter(email=email, tenant=tenant).exists():
-            raise ValueError("Bu email adresi bu mağazada zaten kayıtlı.")
+        # 2. Mevcut kullanıcı kontrolü
+        user = User.objects.filter(email=email, tenant=tenant).first()
         
-        # 3. TenantUser oluştur
+        if user:
+            if user.is_active:
+                raise ValueError("Bu email adresi bu mağazada zaten kayıtlı.")
+            else:
+                # Eğer daha önce kayıt olmuş ama onaylamamışsa, bilgilerini güncelle
+                user.set_password(password)
+                user.first_name = first_name
+                user.last_name = last_name
+                user.phone = phone
+                user.save()
+                return {'user': user, 'tenant': tenant}
+        
+        # 3. Yeni TenantUser oluştur
         user = User.objects.create_user(
             username=email,
             email=email,
@@ -52,8 +96,9 @@ class TenantUserService:
             phone=phone,
             role=User.UserRole.TENANT_USER,
             tenant=tenant,
+            is_active=is_active
         )
-        logger.info(f"TenantUser created: {user.email} for tenant: {tenant.name}")
+        logger.info(f"TenantUser created: {user.email} (Active: {is_active})")
         
         return {
             'user': user,

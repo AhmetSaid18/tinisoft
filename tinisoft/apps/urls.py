@@ -3,7 +3,7 @@ URL configuration for Tinisoft apps.
 """
 from django.urls import path
 from apps.views.auth import register, login, tenant_detail
-from apps.views.tenant_user import register_tenant_user, login_tenant_user
+from apps.views.tenant_user import register_tenant_user, login_tenant_user, send_verification_code_tenant_user, verify_registration_tenant_user
 from apps.views.domain import verify_domain, verify_domain_by_code, domain_status, list_domains, deploy_domain, retry_verification, create_domain
 from apps.views.product import (
     product_list_create, product_detail,
@@ -105,7 +105,9 @@ urlpatterns = [
     path('tenant/', tenant_detail, name='tenant_detail'),  # GET: Tenant bilgilerini getir, PATCH: Güncelle
     
     # TenantUser kayıt/giriş (tenant'ın sitesinde müşteriler)
+    path('tenant/<str:tenant_slug>/users/send-code/', send_verification_code_tenant_user, name='send_verification_code_tenant_user'),
     path('tenant/<str:tenant_slug>/users/register/', register_tenant_user, name='register_tenant_user'),
+    path('tenant/<str:tenant_slug>/users/verify/', verify_registration_tenant_user, name='verify_registration_tenant_user'),
     path('tenant/<str:tenant_slug>/users/login/', login_tenant_user, name='login_tenant_user'),
     
     # Domain yönetimi
