@@ -292,7 +292,7 @@ class ProductListSerializer(serializers.ModelSerializer):
             'primary_image', 'images', 'category_names', 'min_price', 'max_price',
             'has_variants', 'is_featured', 'is_new', 'is_bestseller',
             'status', 'is_visible', 'isActive', 'view_count', 'sale_count',
-            'brand', 'brand_name', 'brand_item', 'available_quantity', 'is_in_stock', 'created_at',
+            'brand', 'brand_name', 'brand_item', 'specifications', 'available_quantity', 'is_in_stock', 'created_at',
         ]
         read_only_fields = ['id', 'created_at', 'price_with_vat', 'display_price', 'display_compare_at_price', 'display_min_price', 'display_max_price']
     
@@ -545,7 +545,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             'view_count', 'sale_count',
             'images', 'options', 'variants', 'categories',
             'category_ids',
-            'brand', 'brand_name', 'brand_item', 'metadata',
+            'brand', 'brand_name', 'brand_item', 'metadata', 'specifications',
             'available_quantity', 'is_in_stock',
             'created_at', 'updated_at',
         ]

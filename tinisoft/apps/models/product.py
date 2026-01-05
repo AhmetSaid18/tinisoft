@@ -397,7 +397,15 @@ class Product(BaseModel):
     # Metadata
     metadata = models.JSONField(
         default=dict,
+        blank=True,
         help_text="Ek bilgiler (JSON format) - Uyumluluk bilgileri, vb."
+    )
+    
+    # Teknik Özellikler (Esnek Yapı)
+    specifications = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Teknik özellikler (JSON list: [{'key': 'Başlık', 'value': 'Değer'}])"
     )
 
     class Meta:
