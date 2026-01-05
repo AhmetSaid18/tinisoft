@@ -6,11 +6,11 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from apps.models import Tenant
 import logging
-
-import logging
 import random
 from django.core.cache import cache
 from apps.services.email_service import EmailService
+
+logger = logging.getLogger(__name__)
 
 User = get_user_model()
 
