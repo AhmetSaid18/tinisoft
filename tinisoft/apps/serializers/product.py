@@ -182,11 +182,9 @@ class ProductOptionSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at']
 
 
-class ProductVariantSerializer(serializers.ModelSerializer):
-    """Product variant serializer."""
-    option_values = ProductOptionValueSerializer(many=True, read_only=True)
-    display_price = serializers.SerializerMethodField()
-    display_compare_at_price = serializers.SerializerMethodField()
+    name = serializers.CharField(required=False, allow_blank=True)
+    price = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
+    option_values = serializers.ListField(child=serializers.DictField(), required=False, write_only=True)
     
     class Meta:
         model = ProductVariant
@@ -199,6 +197,12 @@ class ProductVariantSerializer(serializers.ModelSerializer):
             'image_url', 'created_at',
         ]
         read_only_fields = ['id', 'created_at', 'display_price', 'display_compare_at_price']
+    
+    def to_representation(self, instance):
+        """Varyantın option value'larını detaylı göster (READ)."""
+        data = super().to_representation(instance)
+        data['option_values'] = ProductOptionValueSerializer(instance.option_values.all(), many=True).data
+        return data
     
     def get_display_price(self, obj):
         """Kullanıcının seçtiği para birimine göre fiyat göster."""
@@ -742,8 +746,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
                         instance.images.filter(is_deleted=False).update(is_primary=False)
                     ProductImage.objects.create(product=instance, **image_data)
         
-        # Opsiyonları ve Varyantları güncellemek karmaşıktır, 
-        # şimdilik mevcutları silip yenilerini ekleme (replace) mantığıyla gidelim
+        # Opsiyonları güncelle
         if options_data is not None:
             instance.options.all().delete()
             option_map = {}
@@ -756,22 +759,35 @@ class ProductDetailSerializer(serializers.ModelSerializer):
                     val_obj = ProductOptionValue.objects.create(option=option, **val_data)
                     value_map[(option.name, val_obj.value)] = val_obj
             
-            # Varyantları da güncelle (Options silindiyse bunlar da silinmeli/güncellenmeli)
-            if variants_data is not None:
-                instance.variants.all().delete()
-                for var_data in variants_data:
-                    incoming_values = var_data.pop('option_values', [])
-                    if not var_data.get('price'):
-                        var_data['price'] = instance.price
-                    if var_data.get('image_url'):
-                        var_data['image_url'] = self._handle_image_url(instance, var_data['image_url'])
-                        
-                    variant = ProductVariant.objects.create(product=instance, **var_data)
-                    for val_in in incoming_values:
-                        opt_name = val_in.get('option_name')
-                        val_text = val_in.get('value')
-                        if (opt_name, val_text) in value_map:
-                            variant.option_values.add(value_map[(opt_name, val_text)])
+            # Eğer opsiyonlar güncellendiyse ve varyantlar gelmediyse, 
+            # mevcut varyantların option_values bağlantıları kopmuş olabilir.
+            # Bu yüzden opsiyon güncellenince varyantların da güncellenmesi beklenir.
+
+        # Varyantları güncelle
+        if variants_data is not None:
+            # Mevcut varyantları silip yenilerini ekleyelim (basitlik için)
+            instance.variants.all().delete()
+            
+            # Eğer options_data gelmediyse, mevcut opsiyonlardan value_map çıkaralım
+            if options_data is None:
+                value_map = {}
+                for opt in instance.options.all():
+                    for val in opt.values.all():
+                        value_map[(opt.name, val.value)] = val
+
+            for var_data in variants_data:
+                incoming_values = var_data.pop('option_values', [])
+                if not var_data.get('price'):
+                    var_data['price'] = instance.price
+                if var_data.get('image_url'):
+                    var_data['image_url'] = self._handle_image_url(instance, var_data['image_url'])
+                    
+                variant = ProductVariant.objects.create(product=instance, **var_data)
+                for val_in in incoming_values:
+                    opt_name = val_in.get('option_name')
+                    val_text = val_in.get('value')
+                    if (opt_name, val_text) in value_map:
+                        variant.option_values.add(value_map[(opt_name, val_text)])
         
         return instance
     
