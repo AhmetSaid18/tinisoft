@@ -186,6 +186,8 @@ class ProductVariantSerializer(serializers.ModelSerializer):
     """Product variant serializer."""
     name = serializers.CharField(required=False, allow_blank=True)
     price = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
+    display_price = serializers.SerializerMethodField()
+    display_compare_at_price = serializers.SerializerMethodField()
     option_values = serializers.ListField(child=serializers.DictField(), required=False, write_only=True)
     
     class Meta:
