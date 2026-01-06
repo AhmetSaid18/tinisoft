@@ -225,6 +225,11 @@ class Product(BaseModel):
         db_index=True,
         help_text="Çok satan ürün mü?"
     )
+    is_reviewed = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="Yönetici tarafından incelendi mi/güncellendi mi?"
+    )
     
     # Sıralama
     sort_order = models.IntegerField(
