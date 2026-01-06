@@ -182,6 +182,8 @@ class ProductOptionSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at']
 
 
+class ProductVariantSerializer(serializers.ModelSerializer):
+    """Product variant serializer."""
     name = serializers.CharField(required=False, allow_blank=True)
     price = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
     option_values = serializers.ListField(child=serializers.DictField(), required=False, write_only=True)
