@@ -99,10 +99,9 @@ class CouponSerializer(serializers.ModelSerializer):
         write_only=True
     )
     currency = serializers.CharField(
-        required=False,
-        write_only=True,
-        allow_blank=True,
-        help_text="Para birimi (opsiyonel, şimdilik kullanılmıyor)"
+        max_length=3,
+        default='TRY',
+        help_text="Para birimi (TRY, USD, EUR, vb.)"
     )
     
     def validate(self, data):
@@ -122,9 +121,6 @@ class CouponSerializer(serializers.ModelSerializer):
                 data['customer_groups'] = []
             # applies_to_all_customers'ı data'dan kaldır (model'de yok)
             data.pop('applies_to_all_customers', None)
-        
-        # currency'yi kaldır (model'de yok, şimdilik)
-        data.pop('currency', None)
         
         # valid_from için default değer (eğer yoksa)
         if 'valid_from' not in data:

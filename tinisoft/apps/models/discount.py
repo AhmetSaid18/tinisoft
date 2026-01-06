@@ -87,6 +87,12 @@ class Coupon(BaseModel):
         help_text="Minimum sipariş tutarı"
     )
     
+    currency = models.CharField(
+        max_length=3,
+        default='TRY',
+        help_text="Kuponun para birimi (ISO 4217 kodu: TRY, USD, EUR, vb.)"
+    )
+    
     # Kullanım limitleri
     usage_limit = models.PositiveIntegerField(
         null=True,
@@ -129,8 +135,10 @@ class Coupon(BaseModel):
     def __str__(self):
         return f"{self.code} - {self.name} ({self.tenant.name})"
     
-    def is_valid(self, customer_email=None, order_amount=Decimal('0.00')):
+    def is_valid(self, customer_email=None, order_amount=Decimal('0.00'), target_currency='TRY'):
         """Kupon geçerli mi?"""
+        from apps.services.currency_service import CurrencyService
+        
         if not self.is_active:
             return False, "Kupon aktif değil."
         
@@ -143,25 +151,56 @@ class Coupon(BaseModel):
         if self.usage_limit and self.usage_count >= self.usage_limit:
             return False, "Kupon kullanım limitine ulaşıldı."
         
-        if order_amount < self.minimum_order_amount:
-            return False, f"Minimum sipariş tutarı {self.minimum_order_amount} TL olmalıdır."
+        # Minimum tutar kontrolü (Para birimi dönüşümü yaparak)
+        min_order_converted = self.minimum_order_amount
+        if self.currency != target_currency:
+            min_order_converted = CurrencyService.convert_amount(
+                self.minimum_order_amount,
+                self.currency,
+                target_currency
+            )
+        
+        if order_amount < min_order_converted:
+            return False, f"Minimum sipariş tutarı {min_order_converted:.2f} {target_currency} olmalıdır."
         
         if self.customer_emails and customer_email not in self.customer_emails:
             return False, "Bu kupon sizin için geçerli değil."
         
         return True, "Kupon geçerli."
     
-    def calculate_discount(self, order_amount):
+    def calculate_discount(self, order_amount, target_currency='TRY'):
         """İndirim tutarını hesapla."""
+        from apps.services.currency_service import CurrencyService
+        
         if self.discount_type == self.DiscountType.PERCENTAGE:
             discount = order_amount * (self.discount_value / Decimal('100'))
+            
+            # Max indirim tutarı kontrolü (Para birimi dönüşümü yaparak)
             if self.max_discount_amount:
-                discount = min(discount, self.max_discount_amount)
+                max_discount_converted = self.max_discount_amount
+                if self.currency != target_currency:
+                    max_discount_converted = CurrencyService.convert_amount(
+                        self.max_discount_amount,
+                        self.currency,
+                        target_currency
+                    )
+                discount = min(discount, max_discount_converted)
             return discount
+            
         elif self.discount_type == self.DiscountType.FIXED:
-            return min(self.discount_value, order_amount)
+            # Sabit tutar (Para birimi dönüşümü yaparak)
+            discount_value_converted = self.discount_value
+            if self.currency != target_currency:
+                discount_value_converted = CurrencyService.convert_amount(
+                    self.discount_value,
+                    self.currency,
+                    target_currency
+                )
+            return min(discount_value_converted, order_amount)
+            
         elif self.discount_type == self.DiscountType.FREE_SHIPPING:
             return Decimal('0.00')  # Kargo ücreti ayrı hesaplanır
+            
         return Decimal('0.00')
 
 

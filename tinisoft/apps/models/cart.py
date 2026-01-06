@@ -150,10 +150,14 @@ class Cart(BaseModel):
                 # Kupon geçerliliğini kontrol et (hata durumunda indirim 0 kalsın)
                 is_valid, msg = self.coupon.is_valid(
                     customer_email=self.customer.email if self.customer else None,
-                    order_amount=self.subtotal
+                    order_amount=self.subtotal,
+                    target_currency=self.currency or 'TRY'
                 )
                 if is_valid:
-                    coupon_discount = self.coupon.calculate_discount(self.subtotal)
+                    coupon_discount = self.coupon.calculate_discount(
+                        self.subtotal,
+                        target_currency=self.currency or 'TRY'
+                    )
                     # Ücretsiz kargo kontrolü
                     if self.coupon.discount_type == self.coupon.DiscountType.FREE_SHIPPING:
                         self.shipping_cost = Decimal('0.00')
