@@ -505,8 +505,8 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         write_only=True,
         help_text="Ürün görselleri (array of objects: image_url, alt_text, position, is_primary)"
     )
-    options = ProductOptionSerializer(many=True, read_only=True)
-    variants = ProductVariantSerializer(many=True, read_only=True)
+    options = ProductOptionSerializer(many=True, required=False)
+    variants = ProductVariantSerializer(many=True, required=False)
     categories = CategorySerializer(many=True, read_only=True)
     display_price = serializers.SerializerMethodField()
     display_compare_at_price = serializers.SerializerMethodField()
@@ -646,6 +646,8 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         """Ürün oluştur."""
         category_ids = validated_data.pop('category_ids', [])
         images_data = validated_data.pop('images', None)
+        options_data = validated_data.pop('options', [])
+        variants_data = validated_data.pop('variants', [])
         
         product = Product.objects.create(**validated_data)
         
@@ -656,21 +658,46 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         # Görselleri ekle (eğer gönderilmişse)
         if images_data:
             for image_data in images_data:
-                # image_url zorunlu, yoksa atla
                 if not image_data.get('image_url'):
                     continue
-                
-                # Base64 ise yükle
                 image_data['image_url'] = self._handle_image_url(product, image_data['image_url'])
-                
-                # is_primary değişiyorsa, diğer görsellerin is_primary'ini False yap
                 if image_data.get('is_primary', False):
                     ProductImage.objects.filter(product=product, is_deleted=False).update(is_primary=False)
+                ProductImage.objects.create(product=product, **image_data)
+        
+        # Opsiyonları ve Değerleri işle
+        option_map = {} # {'Renk': OptionObject}
+        value_map = {}  # {('Renk', 'Mavi'): ValueObject}
+        
+        for opt_data in options_data:
+            values_list = opt_data.pop('values', [])
+            option = ProductOption.objects.create(product=product, **opt_data)
+            option_map[option.name] = option
+            
+            for val_data in values_list:
+                val_obj = ProductOptionValue.objects.create(option=option, **val_data)
+                value_map[(option.name, val_obj.value)] = val_obj
+        
+        # Varyantları işle
+        for var_data in variants_data:
+            incoming_values = var_data.pop('option_values', [])
+            # Fiyat boşsa ana ürün fiyatını kullan
+            if not var_data.get('price'):
+                var_data['price'] = product.price
+            
+            # Base64 image check for variant
+            if var_data.get('image_url'):
+                var_data['image_url'] = self._handle_image_url(product, var_data['image_url'])
                 
-                ProductImage.objects.create(
-                    product=product,
-                    **image_data
-                )
+            variant = ProductVariant.objects.create(product=product, **var_data)
+            
+            # Varyantın option value'larını bağla
+            for val_in in incoming_values:
+                # { "option_name": "Renk", "value": "Mavi" } gibi bir yapı bekliyoruz
+                opt_name = val_in.get('option_name')
+                val_text = val_in.get('value')
+                if (opt_name, val_text) in value_map:
+                    variant.option_values.add(value_map[(opt_name, val_text)])
         
         return product
     
@@ -678,6 +705,8 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         """Ürün güncelle."""
         category_ids = validated_data.pop('category_ids', None)
         images_data = validated_data.pop('images', None)
+        options_data = validated_data.pop('options', None)
+        variants_data = validated_data.pop('variants', None)
         
         # Ürün field'larını güncelle
         for attr, value in validated_data.items():
@@ -688,48 +717,61 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         if category_ids is not None:
             instance.categories.set(category_ids)
         
-        # Görselleri güncelle (eğer gönderilmişse)
+        # Görselleri güncelle
         if images_data is not None:
-            # 1. Silinenleri işle: Gelen listede OLMAYAN mevcut görselleri sil
             incoming_ids = [item.get('id') for item in images_data if item.get('id')]
             instance.images.filter(is_deleted=False).exclude(id__in=incoming_ids).update(is_deleted=True)
-
-            # 2. Mevcut görselleri güncelle veya yeni ekle
             for image_data in images_data:
                 image_id = image_data.get('id')
                 if image_id:
-                    # Mevcut görseli güncelle
                     try:
                         product_image = instance.images.get(id=image_id, is_deleted=False)
-                        # is_primary değişiyorsa, diğer görsellerin is_primary'ini False yap
                         if image_data.get('is_primary', False):
                             instance.images.filter(is_deleted=False).exclude(id=image_id).update(is_primary=False)
-                        # Görseli güncelle
                         for key, value in image_data.items():
                             if key != 'id' and hasattr(product_image, key):
                                 if key == 'image_url':
                                     value = self._handle_image_url(instance, value)
                                 setattr(product_image, key, value)
                         product_image.save()
-                    except ProductImage.DoesNotExist:
-                        pass  # Görsel bulunamadı, atla
+                    except ProductImage.DoesNotExist: pass
                 else:
-                    # Yeni görsel ekle
-                    # image_url zorunlu, yoksa atla
-                    if not image_data.get('image_url'):
-                        continue
-                    
-                    # Base64 ise yükle
+                    if not image_data.get('image_url'): continue
                     image_data['image_url'] = self._handle_image_url(instance, image_data['image_url'])
-                    
-                    # is_primary değişiyorsa, diğer görsellerin is_primary'ini False yap
                     if image_data.get('is_primary', False):
                         instance.images.filter(is_deleted=False).update(is_primary=False)
-                    
-                    ProductImage.objects.create(
-                        product=instance,
-                        **image_data
-                    )
+                    ProductImage.objects.create(product=instance, **image_data)
+        
+        # Opsiyonları ve Varyantları güncellemek karmaşıktır, 
+        # şimdilik mevcutları silip yenilerini ekleme (replace) mantığıyla gidelim
+        if options_data is not None:
+            instance.options.all().delete()
+            option_map = {}
+            value_map = {}
+            for opt_data in options_data:
+                values_list = opt_data.pop('values', [])
+                option = ProductOption.objects.create(product=instance, **opt_data)
+                option_map[option.name] = option
+                for val_data in values_list:
+                    val_obj = ProductOptionValue.objects.create(option=option, **val_data)
+                    value_map[(option.name, val_obj.value)] = val_obj
+            
+            # Varyantları da güncelle (Options silindiyse bunlar da silinmeli/güncellenmeli)
+            if variants_data is not None:
+                instance.variants.all().delete()
+                for var_data in variants_data:
+                    incoming_values = var_data.pop('option_values', [])
+                    if not var_data.get('price'):
+                        var_data['price'] = instance.price
+                    if var_data.get('image_url'):
+                        var_data['image_url'] = self._handle_image_url(instance, var_data['image_url'])
+                        
+                    variant = ProductVariant.objects.create(product=instance, **var_data)
+                    for val_in in incoming_values:
+                        opt_name = val_in.get('option_name')
+                        val_text = val_in.get('value')
+                        if (opt_name, val_text) in value_map:
+                            variant.option_values.add(value_map[(opt_name, val_text)])
         
         return instance
     
