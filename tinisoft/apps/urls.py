@@ -12,7 +12,10 @@ from apps.views.product import (
     product_activate, product_deactivate,
     delete_all_products
 )
-from apps.views.product_brands import brand_list_create, brand_detail, legacy_product_brands
+from apps.views.product_brands import (
+    brand_list_create, brand_detail, legacy_product_brands,
+    brand_list_public, brand_detail_public
+)
 from apps.views.product_import import import_products_from_excel, excel_template_download, import_status, excel_columns_info
 from apps.views.product_image_upload import (
     upload_product_image_by_slug,
@@ -151,6 +154,11 @@ urlpatterns = [
     # Public category endpoints
     path('public/categories/', category_list_public, name='category_list_public'),  # GET: ?tenant_slug=xxx veya header ile
     path('public/<str:tenant_slug>/categories/', category_list_public, name='category_list_public_by_slug'),  # GET: Path parameter ile
+    # Public brand endpoints
+    path('public/brands/', brand_list_public, name='brand_list_public'),
+    path('public/<str:tenant_slug>/brands/', brand_list_public, name='brand_list_public_by_slug'),
+    path('public/brands/<str:brand_slug>/', brand_detail_public, name='brand_detail_public'),
+    path('public/<str:tenant_slug>/brands/<str:brand_slug>/', brand_detail_public, name='brand_detail_public_by_slug'),
     
     # Sipariş yönetimi
     path('orders/', order_list_create, name='order_list_create'),  # GET: List, POST: Create

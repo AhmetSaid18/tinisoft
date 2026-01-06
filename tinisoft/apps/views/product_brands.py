@@ -1,6 +1,6 @@
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from django.utils.text import slugify
 from apps.models import Brand, Product
@@ -92,3 +92,51 @@ def legacy_product_brands(request):
     tenant = get_tenant_from_request(request)
     brands = Product.objects.filter(tenant=tenant, is_deleted=False).exclude(brand='').values_list('brand', flat=True).distinct()
     return Response({'success': True, 'brands': list(brands)})
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def brand_list_public(request, tenant_slug=None):
+    """
+    Public marka listesi.
+    """
+    from apps.models import Tenant
+    tenant = None
+    
+    # Tenant belirleme (header veya query)
+    t_slug = tenant_slug or request.headers.get('X-Tenant-Slug') or request.query_params.get('tenant_slug')
+    
+    if t_slug:
+        tenant = Tenant.objects.filter(slug=t_slug, is_deleted=False).first()
+    
+    if not tenant:
+        return Response({'success': False, 'message': 'Mağaza bulunamadı.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+    brands = Brand.objects.filter(tenant=tenant, is_active=True)
+    serializer = BrandSerializer(brands, many=True)
+    return Response({
+        'success': True,
+        'brands': serializer.data
+    })
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def brand_detail_public(request, brand_slug, tenant_slug=None):
+    """
+    Public marka detayı (slug ile).
+    """
+    from apps.models import Tenant
+    tenant = None
+    t_slug = tenant_slug or request.headers.get('X-Tenant-Slug') or request.query_params.get('tenant_slug')
+    
+    if t_slug:
+        tenant = Tenant.objects.filter(slug=t_slug, is_deleted=False).first()
+    
+    if not tenant:
+        return Response({'success': False, 'message': 'Mağaza bulunamadı.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+    try:
+        brand = Brand.objects.get(slug=brand_slug, tenant=tenant, is_active=True)
+        serializer = BrandSerializer(brand)
+        return Response({'success': True, 'brand': serializer.data})
+    except Brand.DoesNotExist:
+        return Response({'success': False, 'message': 'Marka bulunamadı.'}, status=status.HTTP_404_NOT_FOUND)
