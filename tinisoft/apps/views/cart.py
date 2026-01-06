@@ -433,8 +433,12 @@ def apply_coupon(request):
         if customer:
             customer_email = customer.email
         
-        is_valid, message = coupon.is_valid(customer_email, cart.subtotal)
-        logger.info(f"[COUPON] Validation result for '{coupon_code}': {is_valid} - {message} (Amount: {cart.subtotal})")
+        is_valid, message = coupon.is_valid(
+            customer_email,
+            cart.subtotal,
+            target_currency=cart.currency or 'TRY'
+        )
+        logger.info(f"[COUPON] Validation result for '{coupon_code}': {is_valid} - {message} (Amount: {cart.subtotal}, Currency: {cart.currency})")
         
         if not is_valid:
             logger.warning(f"[COUPON] Coupon invalid: '{coupon_code}' - Reason: {message}")

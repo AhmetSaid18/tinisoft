@@ -118,7 +118,45 @@ class Cart(BaseModel):
     def calculate_totals(self):
         """Sepet toplamlarını hesapla."""
         items = self.items.filter(is_deleted=False)
-        self.subtotal = sum(item.total_price for item in items)
+        
+        # Her hesaplamada ürün fiyatlarını güncelle (güncel kur ve fiyat için)
+        temp_subtotal = Decimal('0.00')
+        for item in items:
+            # Ürün veya varyant fiyatını al
+            if item.variant:
+                base_price = item.variant.price
+            else:
+                base_price = item.product.price
+            
+            product_currency = item.product.currency or 'TRY'
+            cart_currency = self.currency or 'TRY'
+            
+            # Para birimi dönüşümü yap
+            if product_currency != cart_currency:
+                from apps.services.currency_service import CurrencyService
+                try:
+                    current_unit_price = CurrencyService.convert_amount(
+                        base_price,
+                        product_currency,
+                        cart_currency
+                    )
+                except Exception:
+                    current_unit_price = base_price
+            else:
+                current_unit_price = base_price
+            
+            # Item'ı güncelle (DB'ye yazmadan sadece toplama ekle)
+            item.unit_price = current_unit_price
+            item.total_price = current_unit_price * item.quantity
+            temp_subtotal += item.total_price
+            
+            # DB'deki snapshot'ı da güncelle
+            CartItem.objects.filter(id=item.id).update(
+                unit_price=item.unit_price,
+                total_price=item.total_price
+            )
+
+        self.subtotal = temp_subtotal
         
         # Kargo ücreti hesaplama
         if self.shipping_method:
@@ -176,17 +214,13 @@ class Cart(BaseModel):
         self.tax_amount = self.tax_amount.quantize(TWOPLACES)
         self.discount_amount = self.discount_amount.quantize(TWOPLACES)
         
-        self.total = (
-            self.subtotal +
-            self.shipping_cost +
-            self.tax_amount -
-            self.discount_amount
-        ).quantize(TWOPLACES)
+        # Toplam hesapla (Eksiye düşmesini engelle)
+        gross_total = (self.subtotal + self.shipping_cost + self.tax_amount)
+        self.total = max(Decimal('0.00'), (gross_total - self.discount_amount)).quantize(TWOPLACES)
         
         logger.info(
-            f"[CART_CALC] Cart {self.id} | Subtotal: {self.subtotal} | "
-            f"Tax Rate: {tax_rate}% | Tax: {self.tax_amount} | "
-            f"Discount: {self.discount_amount} | Total: {self.total}"
+            f"[CART_CALC] Cart {self.id} | Subtotal: {self.subtotal} {self.currency} | "
+            f"Tax: {self.tax_amount} | Discount: {self.discount_amount} | Total: {self.total}"
         )
         self.save()
         return self.total
