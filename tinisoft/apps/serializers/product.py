@@ -288,6 +288,15 @@ class ProductListSerializer(serializers.ModelSerializer):
     available_quantity = serializers.SerializerMethodField()
     is_in_stock = serializers.SerializerMethodField()
     
+    def to_representation(self, instance):
+        """Varyant kontrolü ekle."""
+        data = super().to_representation(instance)
+        # Eğer varyantlı ürün değilse, varyant listesini temizle ki front-end şaşırmasın
+        if not instance.is_variant_product:
+            data['variants'] = []
+            data['has_variants'] = False
+        return data
+
     class Meta:
         model = Product
         fields = [
@@ -564,11 +573,16 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at', 'view_count', 'sale_count', 'price_with_vat', 'display_price', 'display_compare_at_price']
     
     def to_representation(self, instance):
-        """Representation'ı override et - images'ı doğru sırala."""
+        """Representation'ı override et - images'ı doğru sırala ve varyant kontrolü yap."""
         data = super().to_representation(instance)
         # Images'ı silinmemiş ve sıralı olarak göster
         images = instance.images.filter(is_deleted=False).order_by('position', 'created_at')
         data['images'] = ProductImageSerializer(images, many=True).data
+        
+        # Eğer varyantlı ürün değilse, varyant listesini gizle
+        if not instance.is_variant_product:
+            data['variants'] = []
+        
         return data
 
     def _handle_image_url(self, product, image_url):
