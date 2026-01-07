@@ -48,11 +48,12 @@ def bulk_update_products(request):
     
     product_ids = request.data.get('product_ids', [])
     updates = request.data.get('updates', {})
+    update_all = request.data.get('all', False)
     
-    if not product_ids:
+    if not update_all and not product_ids:
         return Response({
             'success': False,
-            'message': 'Ürün ID\'leri gereklidir.',
+            'message': 'Ürün ID\'leri gereklidir veya "all": true parametresi gönderilmelidir.',
         }, status=status.HTTP_400_BAD_REQUEST)
     
     if not updates:
@@ -78,11 +79,18 @@ def bulk_update_products(request):
     
     try:
         with transaction.atomic():
-            products = Product.objects.filter(
-                id__in=product_ids,
-                tenant=tenant,
-                is_deleted=False,
-            )
+            # Ürünleri filtrele
+            if update_all:
+                products = Product.objects.filter(
+                    tenant=tenant,
+                    is_deleted=False,
+                )
+            else:
+                products = Product.objects.filter(
+                    id__in=product_ids,
+                    tenant=tenant,
+                    is_deleted=False,
+                )
             
             updated_count = products.update(**filtered_updates)
             
