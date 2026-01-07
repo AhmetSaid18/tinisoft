@@ -61,8 +61,8 @@ class User(AbstractUser):
         related_query_name='user',
     )
     
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['username']  # Username'i de zorunlu yapalım ki Django backend'leri üzülmesin
+    USERNAME_FIELD = 'username'
+    REQUIRED_FIELDS = ['email']
     
     class Meta:
         db_table = 'users'
