@@ -143,48 +143,84 @@ class CartService:
         logger.debug(f"Cart deleted from Redis: {cache_key}")
     
     @staticmethod
-    def get_or_create_cart(tenant, customer, session_id=None, currency='TRY'):
+    def get_or_create_cart(tenant, customer=None, session_id=None, currency='TRY'):
         """
         Sepeti al veya oluştur.
-        Sadece giriş yapan kullanıcılar için çalışır (customer zorunlu).
-        
-        Args:
-            tenant: Tenant instance
-            customer: User instance (zorunlu)
-            session_id: Artık kullanılmıyor (geriye uyumluluk için)
-            currency: Para birimi kodu (default: TRY)
-        
-        Returns:
-            Cart: Sepet instance (DB'den)
+        Giriş yapan kullanıcı için DB, guest için Redis kullanılır.
         """
-        if not customer:
-            raise ValueError("Sepet işlemleri için giriş yapmanız gerekiyor.")
-        
-        # Müşteri sepeti - DB'de tutulur
-        # En son oluşturulan sepeti al (silinmemiş olan)
-        cart = Cart.objects.filter(
-            tenant=tenant,
-            customer=customer,
-            is_deleted=False
-        ).order_by('-created_at').first()
-        
-        if not cart:
-            # Yeni sepet oluştur
-            cart = Cart.objects.create(
+        if customer:
+            # Müşteri sepeti - DB'de tutulur
+            cart = Cart.objects.filter(
                 tenant=tenant,
                 customer=customer,
-                currency=currency,
-                expires_at=timezone.now() + timedelta(days=30),
-            )
-            logger.info(f"Cart created for tenant {tenant.name}, customer {customer.email}")
-        else:
-            # Mevcut sepeti güncelle (para birimi ve süre)
-            cart.currency = currency
-            cart.expires_at = timezone.now() + timedelta(days=30)
-            cart.save()
-            logger.info(f"Cart reactivated for tenant {tenant.name}, customer {customer.email}")
+                is_deleted=False
+            ).order_by('-created_at').first()
+            
+            if not cart:
+                cart = Cart.objects.create(
+                    tenant=tenant,
+                    customer=customer,
+                    currency=currency,
+                    expires_at=timezone.now() + timedelta(days=30),
+                )
+            else:
+                cart.currency = currency
+                cart.expires_at = timezone.now() + timedelta(days=30)
+                cart.save()
+            return cart
+            
+        elif session_id:
+            # Guest sepeti - Redis'te tutulur
+            cart_data = CartService._get_redis_cart(tenant.id, session_id)
+            if not cart_data:
+                cart_data = {
+                    'id': str(uuid.uuid4()),
+                    'tenant_id': str(tenant.id),
+                    'session_id': session_id,
+                    'items': [],
+                    'subtotal': '0.00',
+                    'total': '0.00',
+                    'currency': currency,
+                    'created_at': timezone.now().isoformat(),
+                    'updated_at': timezone.now().isoformat(),
+                }
+                CartService._save_redis_cart(tenant.id, session_id, cart_data)
+            return cart_data
         
-        return cart
+        raise ValueError("Sepet için müşteri bilgisi veya oturum ID gereklidir.")
+
+    @staticmethod
+    def merge_carts(tenant, customer, session_id):
+        """
+        Guest sepetini (Redis) kullanıcı sepetine (DB) aktar.
+        """
+        if not customer or not session_id:
+            return
+            
+        guest_cart = CartService._get_redis_cart(tenant.id, session_id)
+        if not guest_cart or not guest_cart.get('items'):
+            return
+            
+        # Kullanıcı sepetini al
+        user_cart = CartService.get_or_create_cart(tenant, customer=customer)
+        
+        # Öğeleri aktar
+        for item in guest_cart.get('items', []):
+            try:
+                CartService.add_to_cart(
+                    cart=user_cart,
+                    product_id=item['product_id'],
+                    variant_id=item.get('variant_id'),
+                    quantity=int(item['quantity']),
+                    target_currency=user_cart.currency
+                )
+            except Exception as e:
+                logger.error(f"Error merging cart item: {e}")
+        
+        # Guest sepetini sil
+        CartService._delete_redis_cart(tenant.id, session_id)
+        user_cart.calculate_totals()
+        return user_cart
     
     @staticmethod
     def add_to_cart(cart, product_id, variant_id=None, quantity=1, target_currency=None):

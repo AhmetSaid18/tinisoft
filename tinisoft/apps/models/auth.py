@@ -21,7 +21,7 @@ class User(AbstractUser):
         SYSTEM_ADMIN = 'system_admin', 'System Admin'  # Sistem yöneticisi
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    email = models.EmailField(unique=True, db_index=True)
+    email = models.EmailField(db_index=True)
     phone = models.CharField(max_length=20, blank=True, null=True)
     
     # Tenant ilişkisi (TenantOwner, TenantUser, TenantBayii için)
@@ -62,11 +62,12 @@ class User(AbstractUser):
     )
     
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = []
+    REQUIRED_FIELDS = ['username']  # Username'i de zorunlu yapalım ki Django backend'leri üzülmesin
     
     class Meta:
         db_table = 'users'
         ordering = ['-date_joined']
+        unique_together = ('email', 'tenant') # Aynı email aynı tenant'ta 2 kere olamaz ama farklı tenant'larda olabilir.
         indexes = [
             models.Index(fields=['tenant', 'role']),
             models.Index(fields=['email']),

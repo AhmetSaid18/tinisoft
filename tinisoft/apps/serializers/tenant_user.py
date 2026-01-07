@@ -19,9 +19,13 @@ class TenantUserRegisterSerializer(serializers.Serializer):
     phone = serializers.CharField(max_length=20, required=False)
     
     def validate_email(self, value):
-        """Email kontrolü."""
-        if User.objects.filter(email=value, is_active=True).exists():
-            raise serializers.ValidationError("Bu email adresi zaten kullanımda.")
+        """Email kontrolü - Sadece ilgili tenant içinde benzersiz olmalı."""
+        tenant_id = self.context.get('tenant_id')
+        if not tenant_id:
+            raise serializers.ValidationError("Tenant ID gerekli.")
+            
+        if User.objects.filter(email=value, tenant_id=tenant_id, is_active=True).exists():
+            raise serializers.ValidationError("Bu email adresi bu mağazada zaten kullanımda.")
         return value
     
     def create(self, validated_data):

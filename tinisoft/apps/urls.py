@@ -32,7 +32,7 @@ from apps.views.aras_cargo import aras_create_shipment, aras_track_shipment, ara
 from apps.views.aras_cargo import aras_create_shipment, aras_track_shipment, aras_print_label, aras_cancel_shipment
 from apps.views.cart import (
     cart_detail, add_to_cart, cart_item_detail,
-    update_shipping_method, apply_coupon
+    update_shipping_method, apply_coupon, merge_cart
 )
 from apps.views.payment import (
     payment_list_create, payment_detail, payment_create_with_provider, payment_verify,
@@ -179,6 +179,7 @@ urlpatterns = [
     path('cart/', cart_detail, name='cart_detail'),
     path('cart/add/', add_to_cart, name='add_to_cart'),
     path('cart/items/<uuid:item_id>/', cart_item_detail, name='cart_item_detail'),
+    path('cart/merge/', merge_cart, name='merge_cart'),
     path('cart/shipping/', update_shipping_method, name='update_shipping_method'),
     path('cart/coupon/', apply_coupon, name='apply_coupon'),
     

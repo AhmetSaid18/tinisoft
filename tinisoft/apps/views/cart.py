@@ -475,3 +475,46 @@ def apply_coupon(request):
             'message': 'Kupon sepetten kaldırıldı.',
             'cart': serializer.data,
         })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def merge_cart(request):
+    """
+    Guest sepetini kullanıcı sepetine aktar.
+    
+    POST: /api/cart/merge/
+    Body: {"session_id": "guest-session-uuid"}
+    """
+    tenant = get_tenant_from_request(request)
+    if not tenant:
+        return Response({
+            'success': False,
+            'message': 'Tenant bulunamadı.',
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    session_id = request.data.get('session_id')
+    if not session_id:
+        return Response({
+            'success': False,
+            'message': 'Session ID gereklidir.',
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        cart = CartService.merge_carts(tenant, request.user, session_id)
+        if not cart:
+            # Belki sepet boştu veya bulunamadı, mevcut sepeti dönelim
+            cart = CartService.get_or_create_cart(tenant, customer=request.user)
+            
+        serializer = CartSerializer(cart, context={'request': request})
+        return Response({
+            'success': True,
+            'message': 'Sepetler birleştirildi.',
+            'cart': serializer.data,
+        })
+    except Exception as e:
+        logger.error(f"Cart merge error: {e}")
+        return Response({
+            'success': False,
+            'message': f'Birleştirme hatası: {str(e)}',
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

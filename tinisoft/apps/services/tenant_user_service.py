@@ -71,7 +71,7 @@ class TenantUserService:
         except Tenant.DoesNotExist:
             raise ValueError(f"Tenant bulunamadı: {tenant_id}")
         
-        # 2. Mevcut kullanıcı kontrolü
+        # 2. Mevcut kullanıcı kontrolü (Sadece bu mağaza için)
         user = User.objects.filter(email=email, tenant=tenant).first()
         
         if user:
@@ -87,8 +87,11 @@ class TenantUserService:
                 return {'user': user, 'tenant': tenant}
         
         # 3. Yeni TenantUser oluştur
+        # Username global olarak unique olmalı, bu yüzden email + tenant_id kullanıyoruz
+        unique_username = f"{email}_{tenant.id}"
+        
         user = User.objects.create_user(
-            username=email,
+            username=unique_username,
             email=email,
             password=password,
             first_name=first_name,
@@ -98,7 +101,7 @@ class TenantUserService:
             tenant=tenant,
             is_active=is_active
         )
-        logger.info(f"TenantUser created: {user.email} (Active: {is_active})")
+        logger.info(f"TenantUser created: {user.email} (Tenant: {tenant.slug}, Active: {is_active})")
         
         return {
             'user': user,
@@ -109,31 +112,35 @@ class TenantUserService:
     def login_tenant_user(email: str, password: str, tenant_id: str = None):
         """
         TenantUser girişi.
-        Tenant ID verilirse, sadece o tenant'a ait user'lar giriş yapabilir.
-        JWT token döndürür.
         """
         from django.contrib.auth import authenticate
         from apps.utils.jwt_utils import generate_jwt_token
         
-        # User'ı bul
+        if not tenant_id:
+            raise ValueError("Mağaza bilgisi (tenant_id) gerekli.")
+
+        # 1. User'ı bu tenant içinde bul
         try:
-            user = User.objects.get(email=email)
+            user = User.objects.get(email=email, tenant_id=tenant_id)
         except User.DoesNotExist:
             raise ValueError("Email veya şifre hatalı.")
         
-        # Tenant kontrolü
-        if tenant_id:
-            if str(user.tenant_id) != tenant_id:
-                raise ValueError("Bu email adresi bu mağazaya ait değil.")
-        
-        # TenantUser kontrolü
+        # 2. TenantUser kontrolü
         if user.role != User.UserRole.TENANT_USER:
             raise ValueError("Bu hesap müşteri hesabı değil.")
         
-        # Authentication
-        authenticated_user = authenticate(username=email, password=password)
+        # 3. Authentication
+        # Django'nun authenticate fonksiyonu USERNAME_FIELD (email) kullanır.
+        # Ama email artık unique değil. Bu yüzden user.username (email_tenantid) üzerinden authenticate yapıyoruz.
+        authenticated_user = authenticate(username=user.username, password=password)
+        
         if not authenticated_user:
-            raise ValueError("Email veya şifre hatalı.")
+            # Eğer email ile authenticate edilemezse (USERNAME_FIELD email olduğu için), 
+            # manuel şifre kontrolü yapalım (veya custom backend yazılmalı)
+            if user.check_password(password):
+                authenticated_user = user
+            else:
+                raise ValueError("Email veya şifre hatalı.")
         
         if not authenticated_user.is_active:
             raise ValueError("Hesabınız aktif değil.")
