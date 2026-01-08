@@ -22,7 +22,7 @@ class WishlistItemSerializer(serializers.ModelSerializer):
 
 class WishlistSerializer(serializers.ModelSerializer):
     """Wishlist serializer."""
-    items = WishlistItemSerializer(many=True, read_only=True)
+    items = serializers.SerializerMethodField()
     item_count = serializers.SerializerMethodField()
     
     class Meta:
@@ -32,6 +32,12 @@ class WishlistSerializer(serializers.ModelSerializer):
             'items', 'item_count', 'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'customer', 'created_at', 'updated_at']
+    
+    def get_items(self, obj):
+        """Active wishlist items."""
+        # Sadece silinmemiş item'ları getir
+        items = obj.items.filter(is_deleted=False).select_related('product', 'variant')
+        return WishlistItemSerializer(items, many=True, context=self.context).data
     
     def get_item_count(self, obj):
         """Wishlist'teki ürün sayısı."""

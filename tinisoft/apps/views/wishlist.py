@@ -425,7 +425,7 @@ def wishlist_clear_generic(request):
     
     return Response({
         'success': True,
-        'message': f'İstek listesindeki {total_count} ürün temizlendi.',
+        'message': 'İstek listesi temizlendi.',
         'wishlist_count': len(wishlist_ids),
         'cleared_item_count': total_count
     }, status=status.HTTP_200_OK)
