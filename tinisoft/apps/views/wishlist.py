@@ -11,6 +11,7 @@ from apps.serializers.wishlist import (
     WishlistSerializer, WishlistCreateSerializer,
     WishlistItemSerializer, WishlistItemCreateSerializer
 )
+from django.utils import timezone
 from core.middleware import get_tenant_from_request
 import logging
 
@@ -391,21 +392,36 @@ def wishlist_clear_generic(request):
     if not tenant:
         return Response({'success': False, 'message': 'Tenant bulunamadı.'}, status=status.HTTP_400_BAD_REQUEST)
     
-    # Tüm silinmemiş wishlist'lerin item'larını mı silmek istiyor?
-    # "tüm istek listesini silmeyi ekleyelim" -> muhtemelen tüm item'lar.
+    logger.info(f"Clearing wishlist for user: {request.user.id}, email: {request.user.email}, tenant: {tenant.slug}")
     
+    # Kullanıcının tüm silinmemiş wishlist'lerinin item'larını getir
     items = WishlistItem.objects.filter(
         wishlist__tenant=tenant,
         wishlist__customer=request.user,
         is_deleted=False
     )
     
-    count = items.count()
-    items.update(is_deleted=True)
+    total_count = items.count()
+    
+    if total_count > 0:
+        # Doğrudan update kullanarak soft delete yap
+        items.update(
+            is_deleted=True,
+            deleted_at=timezone.now()
+        )
+        logger.info(f"Successfully cleared {total_count} items for user {request.user.email}")
+    else:
+        # Debug için: Kullanıcının wishlist'i var mı?
+        wishlists = Wishlist.objects.filter(tenant=tenant, customer=request.user, is_deleted=False)
+        wishlist_ids = list(wishlists.values_list('id', flat=True))
+        logger.warning(f"No items found to clear. Wishlists found: {len(wishlist_ids)} (IDs: {wishlist_ids})")
+        
+        # Eğer item bulunamadıysa ama user favorilerim dolu diyorsa 
+        # model üzerindeki ilişkileri tekrar kontrol edelim
     
     return Response({
         'success': True,
-        'message': f'İstek listesindeki {count} ürün temizlendi.',
+        'message': f'İstek listesindeki {total_count} ürün temizlendi.',
     }, status=status.HTTP_200_OK)
 
 
