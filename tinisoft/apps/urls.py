@@ -47,7 +47,7 @@ from apps.views.bulk import (
 )
 from apps.views.loyalty import loyalty_program, my_loyalty_points, loyalty_transactions
 from apps.views.review import review_list, review_create, review_list_all, review_detail, review_helpful
-from apps.views.wishlist import wishlist_list_create, wishlist_detail, wishlist_item_add_remove, wishlist_clear
+from apps.views.wishlist import wishlist_list_create, wishlist_detail, wishlist_item_add_remove, wishlist_clear, wishlist_item_remove_generic, wishlist_clear_generic
 from apps.views.compare import compare_list, compare_add_product, compare_remove_product, compare_clear, compare_products_detail
 from apps.views.discount import (
     coupon_list_create, coupon_detail, coupon_validate, coupon_list_public,
@@ -234,7 +234,9 @@ urlpatterns = [
     path('wishlists/', wishlist_list_create, name='wishlist_list_create'),  # GET: List, POST: Create
     path('wishlists/<uuid:wishlist_id>/', wishlist_detail, name='wishlist_detail'),  # GET, PATCH, DELETE
     path('wishlists/<uuid:wishlist_id>/items/', wishlist_item_add_remove, name='wishlist_item_add_remove'),  # POST: Add, DELETE: Remove
-    path('wishlists/<uuid:wishlist_id>/clear/', wishlist_clear, name='wishlist_clear'),  # DELETE: Clear all items
+    path('wishlists/items/remove/', wishlist_item_remove_generic, name='wishlist_item_remove_generic'),  # DELETE: Remove by product_id
+    path('wishlists/<uuid:wishlist_id>/clear/', wishlist_clear, name='wishlist_clear'),  # DELETE: Clear specific wishlist
+    path('wishlists/clear-all/', wishlist_clear_generic, name='wishlist_clear_generic'),  # DELETE: Clear all wishlists
     
     # Ürün Karşılaştırma (Compare)
     path('compare/', compare_list, name='compare_list'),  # GET: Karşılaştırma listesini getir

@@ -272,29 +272,141 @@ def wishlist_item_add_remove(request, wishlist_id):
     
     elif request.method == 'DELETE':
         item_id = request.query_params.get('item_id')
-        if not item_id:
-            return Response({
-                'success': False,
-                'message': 'item_id parametresi gerekli.',
-            }, status=status.HTTP_400_BAD_REQUEST)
+        product_id = request.query_params.get('product_id')
+        variant_id = request.query_params.get('variant_id')
         
-        try:
-            item = WishlistItem.objects.get(
-                id=item_id,
-                wishlist=wishlist,
-                is_deleted=False
-            )
-        except WishlistItem.DoesNotExist:
+        if item_id:
+            try:
+                item = WishlistItem.objects.get(
+                    id=item_id,
+                    wishlist=wishlist,
+                    is_deleted=False
+                )
+            except WishlistItem.DoesNotExist:
+                return Response({
+                    'success': False,
+                    'message': 'Wishlist kalemi bulunamadı.',
+                }, status=status.HTTP_404_NOT_FOUND)
+        elif product_id:
+            # product_id ve opsiyonel variant_id ile bul
+            q = Q(wishlist=wishlist, product_id=product_id, is_deleted=False)
+            if variant_id:
+                q &= Q(variant_id=variant_id)
+            else:
+                q &= Q(variant=None)
+            
+            item = WishlistItem.objects.filter(q).first()
+            if not item:
+                return Response({
+                    'success': False,
+                    'message': 'Ürün wishlist\'te bulunamadı.',
+                }, status=status.HTTP_404_NOT_FOUND)
+        else:
             return Response({
                 'success': False,
-                'message': 'Wishlist kalemi bulunamadı.',
-            }, status=status.HTTP_404_NOT_FOUND)
+                'message': 'item_id veya product_id parametresi gerekli.',
+            }, status=status.HTTP_400_BAD_REQUEST)
         
         item.soft_delete()
         return Response({
             'success': True,
             'message': 'Ürün wishlist\'ten çıkarıldı.',
         }, status=status.HTTP_200_OK)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def wishlist_item_remove_generic(request):
+    """
+    Kullanıcının varsayılan wishlist'inden ürün çıkar.
+    Eğer varsayılan yoksa ilkini kullanır.
+    
+    DELETE: /api/wishlists/items/remove/
+    Query Params: ?product_id=...&variant_id=...
+    """
+    tenant = get_tenant_from_request(request)
+    if not tenant:
+        return Response({'success': False, 'message': 'Tenant bulunamadı.'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Varsayılan wishlist'i bul
+    wishlist = Wishlist.objects.filter(
+        tenant=tenant,
+        customer=request.user,
+        is_default=True,
+        is_deleted=False
+    ).first()
+    
+    # Yoksa ilkini al
+    if not wishlist:
+        wishlist = Wishlist.objects.filter(
+            tenant=tenant,
+            customer=request.user,
+            is_deleted=False
+        ).order_by('-created_at').first()
+        
+    if not wishlist:
+        return Response({
+            'success': False,
+            'message': 'Wishlist bulunamadı.',
+        }, status=status.HTTP_404_NOT_FOUND)
+        
+    product_id = request.query_params.get('product_id')
+    variant_id = request.query_params.get('variant_id')
+    
+    if not product_id:
+        return Response({
+            'success': False,
+            'message': 'product_id parametresi gerekli.',
+        }, status=status.HTTP_400_BAD_REQUEST)
+        
+    q = Q(wishlist=wishlist, product_id=product_id, is_deleted=False)
+    if variant_id:
+        q &= Q(variant_id=variant_id)
+    else:
+        q &= Q(variant=None)
+        
+    item = WishlistItem.objects.filter(q).first()
+    if not item:
+        return Response({
+            'success': False,
+            'message': 'Ürün wishlist\'te bulunamadı.',
+        }, status=status.HTTP_404_NOT_FOUND)
+        
+    item.soft_delete()
+    return Response({
+        'success': True,
+        'message': 'Ürün wishlist\'ten çıkarıldı.',
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def wishlist_clear_generic(request):
+    """
+    Kullanıcının varsayılan wishlist'ini temizle.
+    
+    DELETE: /api/wishlists/clear-all/
+    """
+    tenant = get_tenant_from_request(request)
+    if not tenant:
+        return Response({'success': False, 'message': 'Tenant bulunamadı.'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Tüm silinmemiş wishlist'lerin item'larını mı silmek istiyor?
+    # "tüm istek listesini silmeyi ekleyelim" -> muhtemelen tüm item'lar.
+    
+    items = WishlistItem.objects.filter(
+        wishlist__tenant=tenant,
+        wishlist__customer=request.user,
+        is_deleted=False
+    )
+    
+    count = items.count()
+    items.update(is_deleted=True)
+    
+    return Response({
+        'success': True,
+        'message': f'İstek listesindeki {count} ürün temizlendi.',
+    }, status=status.HTTP_200_OK)
 
 
 @api_view(['DELETE'])
