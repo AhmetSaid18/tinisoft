@@ -172,7 +172,14 @@ def shipping_address_list_create(request):
             tenant=tenant,
             user=request.user,
             is_deleted=False
-        ).order_by('-is_default', '-created_at')
+        )
+        
+        # Adres tipine göre filtreleme (opsiyonel)
+        address_type = request.query_params.get('type')  # billing veya shipping
+        if address_type:
+            queryset = queryset.filter(address_type=address_type)
+        
+        queryset = queryset.order_by('-is_default', '-created_at')
         
         serializer = ShippingAddressSerializer(queryset, many=True)
         return Response({
@@ -184,11 +191,14 @@ def shipping_address_list_create(request):
         serializer = ShippingAddressSerializer(data=request.data)
         
         if serializer.is_valid():
-            # Eğer is_default=True ise, diğer adresleri is_default=False yap
+            # Eğer is_default=True ise, AYNI TİPTEKİ diğer adresleri is_default=False yap
             if serializer.validated_data.get('is_default', False):
+                # Hangi tipte kaydediliyorsa o tiptekileri güncelle
+                addr_type = serializer.validated_data.get('address_type', 'shipping')
                 ShippingAddress.objects.filter(
                     tenant=tenant,
                     user=request.user,
+                    address_type=addr_type,
                     is_default=True
                 ).update(is_default=False)
             
@@ -249,11 +259,15 @@ def shipping_address_detail(request, address_id):
         serializer = ShippingAddressSerializer(shipping_address, data=request.data, partial=True)
         
         if serializer.is_valid():
-            # Eğer is_default=True yapılıyorsa, diğer adresleri is_default=False yap
+            # Eğer is_default=True yapılıyorsa, AYNI TİPTEKİ diğer adresleri is_default=False yap
             if serializer.validated_data.get('is_default', False):
+                # Eğer tip değişiyorsa yeni tipi al, yoksa mevcut tipi kullan
+                addr_type = serializer.validated_data.get('address_type', shipping_address.address_type)
+                
                 ShippingAddress.objects.filter(
                     tenant=tenant,
                     user=request.user,
+                    address_type=addr_type,
                     is_default=True
                 ).exclude(id=shipping_address.id).update(is_default=False)
             

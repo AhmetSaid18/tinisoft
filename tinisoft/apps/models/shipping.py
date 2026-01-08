@@ -50,6 +50,18 @@ class ShippingAddress(BaseModel):
         on_delete=models.CASCADE,
         related_name='shipping_addresses'
     )
+    
+    # Adres tipi (fatura veya kargo)
+    address_type = models.CharField(
+        max_length=20,
+        choices=[
+            ('billing', 'Fatura Adresi'),
+            ('shipping', 'Kargo Adresi'),
+        ],
+        default='shipping',
+        db_index=True
+    )
+    
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
     phone = models.CharField(max_length=20)
@@ -66,6 +78,7 @@ class ShippingAddress(BaseModel):
         ordering = ['-is_default', '-created_at']
         indexes = [
             models.Index(fields=['tenant', 'user']),
+            models.Index(fields=['tenant', 'user', 'address_type']),
         ]
     
     def __str__(self):

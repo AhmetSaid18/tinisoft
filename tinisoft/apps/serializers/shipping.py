@@ -23,7 +23,7 @@ class ShippingAddressSerializer(serializers.ModelSerializer):
     class Meta:
         model = ShippingAddress
         fields = [
-            'id', 'user', 'first_name', 'last_name', 'phone',
+            'id', 'user', 'address_type', 'first_name', 'last_name', 'phone',
             'address_line_1', 'address_line_2', 'city', 'state',
             'postal_code', 'country', 'is_default',
             'created_at', 'updated_at',
