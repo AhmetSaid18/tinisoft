@@ -78,13 +78,46 @@ def wishlist_list_create(request):
                     is_default=True
                 ).update(is_default=False)
             
-            wishlist = Wishlist.objects.create(
+            # Eğer aynı isimde wishlist varsa yenisini oluşturma, onu döndür
+            name = serializer.validated_data.get('name', 'Favorilerim')
+            wishlist, created = Wishlist.objects.get_or_create(
                 tenant=tenant,
                 customer=request.user,
-                name=serializer.validated_data.get('name', 'Favorilerim'),
-                is_default=serializer.validated_data.get('is_default', False),
-                is_public=serializer.validated_data.get('is_public', False),
+                name=name,
+                is_deleted=False,
+                defaults={
+                    'is_default': serializer.validated_data.get('is_default', False),
+                    'is_public': serializer.validated_data.get('is_public', False),
+                }
             )
+            
+            if not created:
+                # Varsa ve default yapmamız isteniyorsa güncelle
+                should_be_default = serializer.validated_data.get('is_default', False)
+                if should_be_default and not wishlist.is_default:
+                    # Diğerlerini false yap
+                    Wishlist.objects.filter(
+                        tenant=tenant,
+                        customer=request.user,
+                        is_default=True
+                    ).update(is_default=False)
+                    # Bunu true yap
+                    wishlist.is_default = True
+                    wishlist.save()
+
+                return Response({
+                    'success': True,
+                    'message': 'Mevcut wishlist döndürüldü.',
+                    'wishlist': WishlistSerializer(wishlist).data,
+                }, status=status.HTTP_200_OK)
+            
+            # Yeni oluşturulduysa ve default ise diğerlerini kapat (get_or_create içinde handle edemeyiz çünkü save edilince oluşur)
+            if wishlist.is_default:
+                 Wishlist.objects.filter(
+                    tenant=tenant,
+                    customer=request.user,
+                    is_default=True
+                ).exclude(id=wishlist.id).update(is_default=False)
             
             return Response({
                 'success': True,
@@ -423,10 +456,34 @@ def wishlist_clear_generic(request):
         )
         logger.info(f"Successfully cleared {total_count} items.")
     
+    # EKSTRA TEMİZLİK:
+    # Eğer birden fazla wishlist varsa ve hepsi boşsa (veya az önce boşaltıldıysa),
+    # sadece bir tanesini (en güncelini) tut, diğerlerini sil.
+    # Böylece "Favorilerim", "Favorilerim" karmaşası biter.
+    if len(wishlist_ids) > 1:
+        # Tekrar sorgula çünkü items sayısını bilmemiz lazım (gerçi az önce sildik)
+        active_wishlists = Wishlist.objects.filter(
+            id__in=wishlist_ids,
+            is_deleted=False
+        ).order_by('-updated_at')
+        
+        kept_wishlist = active_wishlists.first()
+        if kept_wishlist:
+            # Diğerlerini sil
+            deleted_lists_count = 0
+            for w in active_wishlists[1:]:
+                # Emin olmak için içinde aktif item kalmış mı bakalım (az önce sildik ama race condition vs)
+                if w.items.filter(is_deleted=False).count() == 0:
+                    w.soft_delete()
+                    deleted_lists_count += 1
+            
+            if deleted_lists_count > 0:
+                logger.info(f"Cleaned up {deleted_lists_count} duplicate empty wishlists for user {request.user.email}")
+    
     return Response({
         'success': True,
         'message': 'İstek listesi temizlendi.',
-        'wishlist_count': len(wishlist_ids),
+        'wishlist_count': 1 if len(wishlist_ids) > 0 else 0, # Artık temizledik
         'cleared_item_count': total_count
     }, status=status.HTTP_200_OK)
 
