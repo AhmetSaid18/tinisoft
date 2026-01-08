@@ -109,6 +109,9 @@ class Product(BaseModel):
     # SKU / Barkod (basit ürünler için)
     sku = models.CharField(max_length=200, blank=True, db_index=True)
     barcode = models.CharField(max_length=200, blank=True)
+    
+    # Varyant Grubu SKU (aynı SKU'ya sahip ürünler birbirinin varyantı)
+    variant_group_sku = models.CharField(max_length=200, blank=True, db_index=True)
 
     # Stok bilgileri (basit ürünler için)
     track_inventory = models.BooleanField(default=True)

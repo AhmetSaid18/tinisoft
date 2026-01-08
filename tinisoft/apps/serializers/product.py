@@ -287,6 +287,8 @@ class ProductListSerializer(serializers.ModelSerializer):
     # Stok durumu (frontend için)
     available_quantity = serializers.SerializerMethodField()
     is_in_stock = serializers.SerializerMethodField()
+    # Varyant grubu ürünleri (SKU bazlı)
+    variant_group_products = serializers.SerializerMethodField()
     
     def to_representation(self, instance):
         """Varyant kontrolü ekle."""
@@ -304,14 +306,14 @@ class ProductListSerializer(serializers.ModelSerializer):
             'currency', 'price_with_vat',
             'display_price', 'display_compare_at_price',
             'display_min_price', 'display_max_price',
-            'sku', 'barcode', 'inventory_quantity', 'inventoryQuantity', 'track_inventory',
+            'sku', 'barcode', 'variant_group_sku', 'inventory_quantity', 'inventoryQuantity', 'track_inventory',
             'allow_backorder', 'virtual_stock_quantity',
             'primary_image', 'images', 'category_names', 'min_price', 'max_price',
             'has_variants', 'is_featured', 'is_new', 'is_bestseller', 'is_reviewed',
             'status', 'is_visible', 'isActive', 'view_count', 'sale_count',
             'brand', 'brand_name', 'brand_item', 'specifications', 
             'origin', 'desi', 'weight', 'length', 'width', 'height', 'depth',
-            'available_quantity', 'is_in_stock', 'created_at',
+            'available_quantity', 'is_in_stock', 'variant_group_products', 'created_at',
         ]
         read_only_fields = ['id', 'created_at', 'price_with_vat', 'display_price', 'display_compare_at_price', 'display_min_price', 'display_max_price']
     
@@ -510,6 +512,21 @@ class ProductListSerializer(serializers.ModelSerializer):
         
         # Hiç stok yok
         return False
+    
+    def get_variant_group_products(self, obj):
+        """Aynı variant_group_sku'ya sahip diğer ürünleri döndür (basit liste)."""
+        if not obj.variant_group_sku:
+            return []
+        
+        # Aynı SKU grubundaki diğer ürünleri getir (kendisi hariç)
+        variant_products = Product.objects.filter(
+            tenant=obj.tenant,
+            variant_group_sku=obj.variant_group_sku,
+            is_deleted=False,
+            status='active'
+        ).exclude(id=obj.id).values('id', 'name', 'slug', 'price', 'sku')
+        
+        return list(variant_products)
 
 
 class ProductDetailSerializer(serializers.ModelSerializer):
@@ -542,6 +559,8 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     isActive = serializers.BooleanField(write_only=True, required=False)
     inventoryQuantity = serializers.IntegerField(source='inventory_quantity', write_only=True, required=False)
     compareAtPrice = serializers.DecimalField(source='compare_at_price', max_digits=10, decimal_places=2, write_only=True, required=False, allow_null=True)
+    # Varyant grubu ürünleri (SKU bazlı)
+    variant_group_products = serializers.SerializerMethodField()
     
     class Meta:
         model = Product
@@ -551,7 +570,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             'buying_price', 'ecommerce_price', 'shipping_price',
             'currency', 'price_with_vat',
             'display_price', 'display_compare_at_price',
-            'sku', 'barcode', 'gtin', 'mpn', 'gtip',
+            'sku', 'barcode', 'variant_group_sku', 'gtin', 'mpn', 'gtip',
             'track_inventory', 'inventory_quantity', 'inventoryQuantity',
             'allow_backorder', 'virtual_stock_quantity',
             'is_variant_product',
@@ -567,7 +586,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             'images', 'options', 'variants', 'categories',
             'category_ids',
             'brand', 'brand_name', 'brand_item', 'metadata', 'specifications',
-            'available_quantity', 'is_in_stock',
+            'available_quantity', 'is_in_stock', 'variant_group_products',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'view_count', 'sale_count', 'price_with_vat', 'display_price', 'display_compare_at_price']
@@ -895,4 +914,28 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         if obj.brand_item:
             return obj.brand_item.name
         return obj.brand or None
+    
+    def get_variant_group_products(self, obj):
+        """Aynı variant_group_sku'ya sahip diğer ürünleri döndür."""
+        if not obj.variant_group_sku:
+            return []
+        
+        # Aynı SKU grubundaki diğer ürünleri getir (kendisi hariç)
+        variant_products = Product.objects.filter(
+            tenant=obj.tenant,
+            variant_group_sku=obj.variant_group_sku,
+            is_deleted=False,
+            status='active'
+        ).exclude(id=obj.id)
+        
+        # Basit bir representation döndür (recursive serialize yok)
+        return [{
+            'id': p.id,
+            'name': p.name,
+            'slug': p.slug,
+            'price': str(p.price),
+            'sku': p.sku,
+            'inventory_quantity': p.inventory_quantity,
+            'is_in_stock': p.inventory_quantity > 0 or p.allow_backorder or (p.virtual_stock_quantity and p.virtual_stock_quantity > 0)
+        } for p in variant_products]
 
