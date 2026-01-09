@@ -157,6 +157,13 @@ def bulk_update_products(request):
         }, status=status.HTTP_400_BAD_REQUEST)
     
     if not updates:
+        # Debugging: Log the request data to see what was missing or malformed
+        logger.warning(
+            f"Bulk update failed - Missing 'updates' field. "
+            f"User: {request.user.email} | "
+            f"Data keys: {list(request.data.keys())} | "
+            f"Data: {request.data}"
+        )
         return Response({
             'success': False,
             'message': 'Güncelleme verileri gereklidir.',
