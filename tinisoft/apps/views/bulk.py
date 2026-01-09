@@ -146,11 +146,15 @@ def bulk_update_products(request):
             'message': 'Bu işlem için yetkiniz yok.',
         }, status=status.HTTP_403_FORBIDDEN)
     
+    # Debug: Log incoming data immediately
+    logger.warning(f"Bulk update request received from {request.user.email} | Data: {request.data}")
+
     product_ids = request.data.get('product_ids', [])
     updates = request.data.get('updates', {})
     update_all = request.data.get('all', False)
     
     if not update_all and not product_ids:
+        logger.warning(f"Bulk update failed - Missing 'product_ids' and 'all'=False. Data: {request.data}")
         return Response({
             'success': False,
             'message': 'Ürün ID\'leri gereklidir veya "all": true parametresi gönderilmelidir.',
