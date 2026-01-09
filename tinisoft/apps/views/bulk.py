@@ -178,6 +178,7 @@ def bulk_update_products(request):
         'status', 'is_visible', 'is_featured', 'is_new', 'is_bestseller', 'is_reviewed',
         'sort_order', 'price', 'compare_at_price',
         'track_inventory', 'inventory_quantity',
+        'variant_group_sku',  # <--- Added this
     ]
     
     filtered_updates = {k: v for k, v in updates.items() if k in allowed_fields}
