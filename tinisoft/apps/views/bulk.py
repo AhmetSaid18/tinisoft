@@ -17,6 +17,106 @@ logger = logging.getLogger(__name__)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+def bulk_create_products(request):
+    """
+    Toplu ürün oluşturma.
+    
+    POST: /api/bulk/products/create/
+    Body: [
+        {
+            "name": "Product 1",
+            ...
+        },
+        {
+            "name": "Product 2",
+            ...
+        }
+    ]
+    """
+    tenant = get_tenant_from_request(request)
+    if not tenant:
+        return Response({
+            'success': False,
+            'message': 'Tenant bulunamadı.',
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Permission kontrolü
+    if not (request.user.is_owner or (request.user.is_tenant_owner and request.user.tenant == tenant)):
+        return Response({
+            'success': False,
+            'message': 'Bu işlem için yetkiniz yok.',
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    products_data = request.data
+    if not isinstance(products_data, list):
+         # If not a list, maybe wrapped in a key?
+        products_data = request.data.get('products', [])
+    
+    if not products_data or not isinstance(products_data, list):
+        return Response({
+            'success': False,
+            'message': 'Ürün listesi gereklidir. Body: [{"name": "...", ...}, ...]',
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    created_products = []
+    errors = []
+    
+    from apps.serializers.product import ProductDetailSerializer
+    
+    try:
+        with transaction.atomic():
+            for index, product_data in enumerate(products_data):
+                serializer = ProductDetailSerializer(data=product_data, context={'request': request})
+                if serializer.is_valid():
+                    product = serializer.save(tenant=tenant)
+                    created_products.append(serializer.data)
+                else:
+                    errors.append({
+                        'index': index,
+                        'name': product_data.get('name', 'Unknown'),
+                        'errors': serializer.errors
+                    })
+            
+            if errors:
+                # If any error causes transaction rollback?
+                # For bulk operations, usually we want all or nothing OR partial success.
+                # Here let's go with "all or nothing" if critical, but user might prefer partial?
+                # Given strict atomic block, if I raise exception, all rollback.
+                # If I don't raise, valid ones are saved.
+                # Let's check user intent later. For now, let's rollback if ANY error to be safe/clean?
+                # Or just let valid ones pass?
+                # The user usually wants "transactional" for variant groups.
+                # If 1 of 3 variants fail, the group is incomplete.
+                # So maybe rollback is better if errors exist?
+                # But typically bulk APIs might return 207 Multi-Status.
+                # Let's stick to "All or Nothing" for SAFETY if there are errors, raise exception to rollback?
+                # OR return success for valid ones and errors for invalid ones.
+                # transaction.atomic() rolls back on exception.
+                pass 
+
+            if errors:
+                # Rollback manually if we want all-or-nothing
+                raise Exception(f"{len(errors)} ürün oluşturulamadı. Detaylar: {errors}")
+
+            logger.info(f"Bulk create: {len(created_products)} products created by {request.user.email}")
+            
+            return Response({
+                'success': True,
+                'message': f'{len(created_products)} ürün oluşturuldu.',
+                'products': created_products
+            }, status=status.HTTP_201_CREATED)
+
+    except Exception as e:
+        logger.error(f"Bulk create error: {e}")
+        return Response({
+            'success': False,
+            'message': f'Oluşturma hatası: {str(e)}',
+            'errors': errors if errors else str(e)
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def bulk_update_products(request):
     """
     Toplu ürün güncelleme.

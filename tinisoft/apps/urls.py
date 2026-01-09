@@ -43,7 +43,8 @@ from apps.views.inventory import inventory_movement_list_create, inventory_movem
 from apps.views.search import search_products, search_suggestions, filter_options
 from apps.views.bulk import (
     bulk_update_products, bulk_delete_products,
-    bulk_update_order_status, bulk_export_products
+    bulk_update_order_status, bulk_export_products,
+    bulk_create_products
 )
 from apps.views.loyalty import loyalty_program, my_loyalty_points, loyalty_transactions
 from apps.views.review import review_list, review_create, review_list_all, review_detail, review_helpful
@@ -213,6 +214,7 @@ urlpatterns = [
     path('search/filter-options/', filter_options, name='filter_options'),  # GET: Filter options
     
     # Toplu işlemler
+    path('bulk/products/create/', bulk_create_products, name='bulk_create_products'),  # POST: Bulk create products
     path('bulk/products/update/', bulk_update_products, name='bulk_update_products'),  # POST: Bulk update products
     path('bulk/products/delete/', bulk_delete_products, name='bulk_delete_products'),  # POST: Bulk delete products
     path('bulk/products/export/', bulk_export_products, name='bulk_export_products'),  # POST: Bulk export products
