@@ -561,6 +561,12 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     compareAtPrice = serializers.DecimalField(source='compare_at_price', max_digits=10, decimal_places=2, write_only=True, required=False, allow_null=True)
     # Varyant grubu ürünleri (SKU bazlı)
     variant_group_products = serializers.SerializerMethodField()
+    variant_group_product_ids = serializers.ListField(
+        child=serializers.UUIDField(), 
+        write_only=True, 
+        required=False,
+        help_text="Bu listeye eklenen ürünler, otomatik olarak bu ürünün varyant grubuna dahil edilir."
+    )
     
     class Meta:
         model = Product
@@ -586,7 +592,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             'images', 'options', 'variants', 'categories',
             'category_ids',
             'brand', 'brand_name', 'brand_item', 'metadata', 'specifications',
-            'available_quantity', 'is_in_stock', 'variant_group_products',
+            'available_quantity', 'is_in_stock', 'variant_group_products', 'variant_group_product_ids',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'view_count', 'sale_count', 'price_with_vat', 'display_price', 'display_compare_at_price']
@@ -826,6 +832,19 @@ class ProductDetailSerializer(serializers.ModelSerializer):
                     if (opt_name, val_text) in value_map:
                         variant.option_values.add(value_map[(opt_name, val_text)])
         
+        # Varyant Grubu Eşitleme Mantığı
+        variant_group_product_ids = validated_data.pop('variant_group_product_ids', None)
+        group_sku = instance.variant_group_sku
+
+        if variant_group_product_ids is not None and group_sku:
+            # Seçilen diğer ürünlerin de grup SKU'sunu buna eşitle
+            Product.objects.filter(
+                id__in=variant_group_product_ids,
+                tenant=instance.tenant
+            ).update(variant_group_sku=group_sku)
+            
+            logger.info(f"Varyant grubu senkronize edildi: {group_sku} | {len(variant_group_product_ids)} ürün eklendi.")
+
         return instance
     
     def get_display_price(self, obj):
