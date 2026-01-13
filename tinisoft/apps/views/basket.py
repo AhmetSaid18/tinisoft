@@ -88,6 +88,7 @@ def basket(request):
                     variant_id=data.get('variant_id'),
                     quantity=data.get('quantity', 1),
                     target_currency=currency,
+                    bypass_stock=True,
                 )
             except ValueError as e:
                 logger.warning(f"[BASKET] Service Error: {str(e)}")
@@ -192,7 +193,7 @@ def basket_item(request, item_id):
                     'message': 'Miktar en az 1 olmalıdır.',
                 }, status=status.HTTP_400_BAD_REQUEST)
             
-            CartService.update_cart_item_quantity(cart, cart_item.id, quantity)
+            CartService.update_cart_item_quantity(cart, cart_item.id, quantity, bypass_stock=True)
             logger.info(f"[BASKET_ITEM] CartItem updated: {cart_item.product.name} (qty: {quantity})")
             message = 'Sepet kalemi güncellendi.'
         else:

@@ -223,7 +223,7 @@ class CartService:
         return user_cart
     
     @staticmethod
-    def add_to_cart(cart, product_id, variant_id=None, quantity=1, target_currency=None):
+    def add_to_cart(cart, product_id, variant_id=None, quantity=1, target_currency=None, bypass_stock=False):
         """
         Sepete ürün ekle.
         
@@ -233,6 +233,7 @@ class CartService:
             variant_id: ProductVariant UUID (opsiyonel)
             quantity: Miktar
             target_currency: Hedef para birimi (opsiyonel, cart'tan alınır)
+            bypass_stock: Stok kontrolünü atla (default: False)
         
         Returns:
             CartItem: Eklenen veya güncellenen sepet kalemi (DB) veya dict (Redis)
@@ -271,13 +272,14 @@ class CartService:
                 raise ValueError("Varyant bulunamadı.")
         
         # Stok kontrolü (gerçek + sanal stok)
-        is_available, available_qty, message = CartService._check_stock_availability(
-            product,
-            variant,
-            quantity
-        )
-        if not is_available:
-            raise ValueError(message)
+        if not bypass_stock:
+            is_available, available_qty, message = CartService._check_stock_availability(
+                product,
+                variant,
+                quantity
+            )
+            if not is_available:
+                raise ValueError(message)
         
         # Fiyat belirleme
         if variant:
@@ -403,7 +405,7 @@ class CartService:
         cart_data['updated_at'] = timezone.now().isoformat()
     
     @staticmethod
-    def update_cart_item_quantity(cart, item_id, quantity):
+    def update_cart_item_quantity(cart, item_id, quantity, bypass_stock=False):
         """
         Sepet kalemi miktarını güncelle.
         
@@ -411,6 +413,7 @@ class CartService:
             cart: Cart instance (DB) veya dict (Redis)
             item_id: CartItem ID (DB) veya item dict (Redis)
             quantity: Yeni miktar
+            bypass_stock: Stok kontrolünü atla (default: False)
         """
         is_redis_cart = isinstance(cart, dict)
         
@@ -457,13 +460,14 @@ class CartService:
             cart_item = CartItem.objects.get(id=item_id, cart=cart, is_deleted=False)
             
             # Stok kontrolü (gerçek + sanal stok)
-            is_available, available_qty, message = CartService._check_stock_availability(
-                cart_item.product,
-                cart_item.variant,
-                quantity
-            )
-            if not is_available:
-                raise ValueError(message)
+            if not bypass_stock:
+                is_available, available_qty, message = CartService._check_stock_availability(
+                    cart_item.product,
+                    cart_item.variant,
+                    quantity
+                )
+                if not is_available:
+                    raise ValueError(message)
             
             cart_item.quantity = quantity
             cart_item.save()
