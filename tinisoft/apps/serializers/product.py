@@ -940,20 +940,33 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             return []
         
         # Aynı SKU grubundaki diğer ürünleri getir (kendisi hariç)
-        variant_products = Product.objects.filter(
+        queryset = Product.objects.filter(
             tenant=obj.tenant,
             variant_group_sku=obj.variant_group_sku,
-            is_deleted=False,
-            status='active'
+            is_deleted=False
         ).exclude(id=obj.id)
+
+        # Güvenlik/Yetki Kontrolü:
+        # Eğer istek atan kullanıcı mağaza sahibi/admin ise her şeyi görsün.
+        # Değilse (ziyaretçi ise) sadece aktif ürünleri görsün.
+        request = self.context.get('request')
+        is_admin = False
+        if request and request.user and request.user.is_authenticated:
+            is_admin = request.user.is_owner or (request.user.is_tenant_owner and request.user.tenant == obj.tenant)
         
-        # Basit bir representation döndür (recursive serialize yok)
+        if not is_admin:
+            # Ziyaretçiler sadece aktif ve görünür olanları görür
+            queryset = queryset.filter(status='active', is_visible=True)
+        
+        variant_products = queryset.order_by('created_at')
+        
         return [{
             'id': p.id,
             'name': p.name,
             'slug': p.slug,
             'price': str(p.price),
             'sku': p.sku,
+            'status': p.status, # Front-end'in görmesi için durumu ekledik
             'inventory_quantity': p.inventory_quantity,
             'is_in_stock': p.inventory_quantity > 0 or p.allow_backorder or (p.virtual_stock_quantity and p.virtual_stock_quantity > 0)
         } for p in variant_products]

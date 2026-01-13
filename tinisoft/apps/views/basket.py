@@ -70,8 +70,10 @@ def basket(request):
             })
         else:
             # Sepete ürün ekle
+            logger.info(f"[BASKET] POST Data: {request.data}")
             serializer = AddToCartSerializer(data=request.data)
             if not serializer.is_valid():
+                logger.warning(f"[BASKET] Validation Error: {serializer.errors}")
                 return Response({
                     'success': False,
                     'message': 'Geçersiz veri.',
@@ -79,13 +81,20 @@ def basket(request):
                 }, status=status.HTTP_400_BAD_REQUEST)
             
             data = serializer.validated_data
-            CartService.add_to_cart(
-                cart=cart,
-                product_id=data['product_id'],
-                variant_id=data.get('variant_id'),
-                quantity=data.get('quantity', 1),
-                target_currency=currency,
-            )
+            try:
+                CartService.add_to_cart(
+                    cart=cart,
+                    product_id=data['product_id'],
+                    variant_id=data.get('variant_id'),
+                    quantity=data.get('quantity', 1),
+                    target_currency=currency,
+                )
+            except ValueError as e:
+                logger.warning(f"[BASKET] Service Error: {str(e)}")
+                return Response({
+                    'success': False,
+                    'message': str(e),
+                }, status=status.HTTP_400_BAD_REQUEST)
             
             # Sepeti yeniden yükle
             cart = CartService.get_or_create_cart(tenant, customer, None, currency)
@@ -95,7 +104,8 @@ def basket(request):
                 'message': 'Ürün sepete eklendi.',
                 'basket': serializer.data,
             })
-    except ValueError as e:
+    except Exception as e:
+        logger.error(f"[BASKET] Unexpected Error: {str(e)}", exc_info=True)
         return Response({
             'success': False,
             'message': str(e),

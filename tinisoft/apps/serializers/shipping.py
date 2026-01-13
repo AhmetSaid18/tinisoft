@@ -20,15 +20,33 @@ class ShippingMethodSerializer(serializers.ModelSerializer):
 class ShippingAddressSerializer(serializers.ModelSerializer):
     """Shipping address serializer."""
     
+    # Fatura adresi için opsiyonel alanlar
+    tax_id = serializers.CharField(max_length=20, required=False, allow_blank=True, allow_null=True)
+    tax_office = serializers.CharField(max_length=100, required=False, allow_blank=True, allow_null=True)
+    company_name = serializers.CharField(max_length=255, required=False, allow_blank=True, allow_null=True)
+    
     class Meta:
         model = ShippingAddress
         fields = [
             'id', 'user', 'address_type', 'first_name', 'last_name', 'phone',
             'address_line_1', 'address_line_2', 'city', 'state',
             'postal_code', 'country', 'is_default',
+            'tax_id', 'tax_office', 'company_name',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'user', 'created_at', 'updated_at']
+    
+    def validate(self, data):
+        """Fatura adresi için vergi bilgilerini kontrol et."""
+        address_type = data.get('address_type', 'shipping')
+        
+        # Eğer kargo adresi ise, vergi alanlarını temizle
+        if address_type == 'shipping':
+            data['tax_id'] = None
+            data['tax_office'] = None
+            data['company_name'] = None
+        
+        return data
 
 
 class ShippingZoneRateSerializer(serializers.ModelSerializer):

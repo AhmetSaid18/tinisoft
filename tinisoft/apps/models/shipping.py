@@ -73,6 +73,11 @@ class ShippingAddress(BaseModel):
     country = models.CharField(max_length=100, default='Turkey')
     is_default = models.BooleanField(default=False)
     
+    # Fatura adresi için vergi bilgileri (sadece address_type='billing' için)
+    tax_id = models.CharField(max_length=20, blank=True, null=True, help_text='Vergi Numarası / TC Kimlik No')
+    tax_office = models.CharField(max_length=100, blank=True, null=True, help_text='Vergi Dairesi')
+    company_name = models.CharField(max_length=255, blank=True, null=True, help_text='Şirket/Firma Adı')
+    
     class Meta:
         db_table = 'shipping_addresses'
         ordering = ['-is_default', '-created_at']
