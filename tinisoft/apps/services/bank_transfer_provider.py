@@ -21,7 +21,31 @@ class BankTransferPaymentProvider(PaymentProviderBase):
         """
         Havale ödemesi oluştur.
         Direkt başarılı döner, mesaj içinde IBAN bilgisini iletir.
+        İndirim varsa uygular.
         """
+        from decimal import Decimal, ROUND_HALF_UP
+
+        # Config'den indirim oranını al
+        discount_rate = self.config.get('discount_rate', 0)
+        try:
+            discount_rate = Decimal(str(discount_rate))
+        except:
+            discount_rate = Decimal('0')
+
+        # İndirim uygula ve tutarı güncelle
+        final_amount = amount
+        discount_amount = Decimal('0')
+        
+        if discount_rate > 0:
+            original_amount = Decimal(str(amount))
+            discount_amount = (original_amount * discount_rate / Decimal('100')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            final_amount = original_amount - discount_amount
+            
+            # Order'ın totalini güncelle (Opsiyonel ama önerilir, veritabanına yansıması için)
+            # Ancak order.save() burada yaparsak side-effect olabilir, şimdilik görsel olarak yönetiyoruz
+            # Gerçek indirim logic'i kupon/kampanya sistemine entegre olmalı ama
+            # burada ödeme anında "Havale İndirimi" diye yansıtıyoruz.
+        
         # Config'den IBAN vb. bilgileri toparla
         # Genelde kullanıcılar "Açıklama" kısmına yazar ama biz config alanlarını da kontrol edelim
         iban = self.config.get('iban') or self.config.get('IBAN')
@@ -43,6 +67,14 @@ class BankTransferPaymentProvider(PaymentProviderBase):
         if iban:
             message_parts.append(f"IBAN: {iban}")
             
+        # İndirim bilgisini ekle
+        currency_symbol = getattr(order, 'currency', 'TRY')
+        if discount_rate > 0:
+            message_parts.append(f"Havale İndirimi (%{discount_rate}): -{discount_amount} {currency_symbol}")
+            message_parts.append(f"Ödenecek Tutar: {final_amount} {currency_symbol}")
+        else:
+            message_parts.append(f"Tutar: {final_amount} {currency_symbol}")
+            
         # Sipariş numarasını açıklama olarak eklemesi gerektiğini hatırlat
         message_parts.append("")
         message_parts.append(f"Lütfen açıklama kısmına sipariş numaranızı ({order.order_number}) yazınız.")
@@ -58,6 +90,17 @@ class BankTransferPaymentProvider(PaymentProviderBase):
         # Havale için HTML yerine bu mesajı dönebilecek bir yapı kullanıyoruz.
         # Frontend, payment_html içinde bu metni parse edip gösterebilir veya direkt basar.
         # Basit bir HTML template içinde döndürelim ki popup içinde düzgün görünsün.
+        
+        # HTML içinde indirim satırı
+        discount_html = ""
+        if discount_rate > 0:
+            discount_html = f"""
+            <p style="color: #4CAF50;"><strong>Havale İndirimi (%{discount_rate}):</strong> -{discount_amount} {currency_symbol}</p>
+            <p style="font-size: 18px; font-weight: bold;"><strong>Ödenecek Tutar:</strong> {final_amount} {currency_symbol}</p>
+            """
+        else:
+            discount_html = f"<p><strong>Tutar:</strong> {final_amount} {currency_symbol}</p>"
+
         payment_html = f"""
         <div class="bank-transfer-info" style="padding: 20px; text-align: center; font-family: sans-serif;">
             <div style="font-size: 48px; color: #4CAF50; margin-bottom: 20px;">✓</div>
@@ -69,7 +112,7 @@ class BankTransferPaymentProvider(PaymentProviderBase):
                 <p><strong>Banka:</strong> {bank_name or '-'}</p>
                 <p><strong>Alıcı:</strong> {account_name or '-'}</p>
                 <p><strong>IBAN:</strong> {iban or '-'}</p>
-                <p><strong>Tutar:</strong> {amount} {getattr(order, 'currency', 'TRY')}</p>
+                {discount_html}
                 <p><strong>Açıklama:</strong> {order.order_number}</p>
             </div>
             <p style="margin-top: 20px; font-size: 14px; color: #999;">
