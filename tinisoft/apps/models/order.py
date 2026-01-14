@@ -29,6 +29,14 @@ class Order(BaseModel):
         REFUNDED = 'refunded', 'İade Edildi'
         FAILED = 'failed', 'Ödeme Başarısız'
     
+    class PaymentMethod(models.TextChoices):
+        CREDIT_CARD = 'credit_card', 'Kredi Kartı'
+        DEBIT_CARD = 'debit_card', 'Banka Kartı'
+        BANK_TRANSFER = 'bank_transfer', 'Banka Havalesi'
+        CASH_ON_DELIVERY = 'cash_on_delivery', 'Kapıda Ödeme'
+        WALLET = 'wallet', 'Cüzdan'
+        OTHER = 'other', 'Diğer'
+    
     tenant = models.ForeignKey(
         'Tenant',
         on_delete=models.CASCADE,
@@ -89,6 +97,7 @@ class Order(BaseModel):
         max_length=20,
         blank=True,
         null=True,
+        choices=PaymentMethod.choices,
         help_text="Ödeme yöntemi (credit_card, bank_transfer vb.)"
     )
     

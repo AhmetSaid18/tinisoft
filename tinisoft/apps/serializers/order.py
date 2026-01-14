@@ -25,6 +25,7 @@ class OrderListSerializer(serializers.ModelSerializer):
     customer_name = serializers.SerializerMethodField()
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     payment_status_display = serializers.CharField(source='get_payment_status_display', read_only=True)
+    payment_method_display = serializers.CharField(source='get_payment_method_display', read_only=True)
     item_count = serializers.SerializerMethodField()
     
     class Meta:
@@ -55,6 +56,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
     shipping_method = serializers.SerializerMethodField()
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     payment_status_display = serializers.CharField(source='get_payment_status_display', read_only=True)
+    payment_method_display = serializers.CharField(source='get_payment_method_display', read_only=True)
     
     class Meta:
         model = Order
