@@ -51,6 +51,11 @@ class IntegrationProviderSerializer(serializers.ModelSerializer):
     def validate(self, data):
         """Validation."""
         # Test modunda test_endpoint zorunlu ve doğru format olmalı
+        # Banka havalesi için endpoint kontrolü yapma
+        if self.instance and self.instance.provider_type == 'bank_transfer':
+            return data
+
+        # Test modunda test_endpoint zorunlu ve doğru format olmalı
         if data.get('status') == IntegrationProvider.Status.TEST_MODE:
             test_endpoint = data.get('test_endpoint') or (self.instance.test_endpoint if self.instance else None)
             if not test_endpoint:
@@ -108,6 +113,12 @@ class IntegrationProviderCreateSerializer(serializers.ModelSerializer):
             if api_secret:
                 config['password'] = api_secret
         
+        # Banka Havalesi için: endpoint'leri ignore et
+        elif provider_type == 'bank_transfer':
+            validated_data.pop('api_endpoint', None)
+            validated_data.pop('test_endpoint', None)
+            # api_key/secret gerekmez, config kullanılır
+        
         integration = IntegrationProvider.objects.create(
             tenant=tenant,
             config=config,
@@ -116,7 +127,10 @@ class IntegrationProviderCreateSerializer(serializers.ModelSerializer):
         
         # Kuveyt için api_key/api_secret kullanma, config'de username/password var
         # Diğer provider'lar için api_key/api_secret kullan
-        if provider_type != 'kuveyt':
+        # Kuveyt için api_key/api_secret kullanma, config'de username/password var
+        # Banka havalesi için de kullanma
+        # Diğer provider'lar için api_key/api_secret kullan
+        if provider_type != 'kuveyt' and provider_type != 'bank_transfer':
             if api_key:
                 integration.set_api_key(api_key)
             if api_secret:
@@ -151,6 +165,10 @@ class IntegrationProviderCreateSerializer(serializers.ModelSerializer):
     
     def validate(self, data):
         """Validation."""
+        # Banka havalesi için endpoint kontrolü yapma
+        if data.get('provider_type') == 'bank_transfer':
+            return data
+
         # Test modunda test_endpoint zorunlu ve doğru format olmalı
         if data.get('status') == IntegrationProvider.Status.TEST_MODE:
             test_endpoint = data.get('test_endpoint')
@@ -228,6 +246,11 @@ class IntegrationProviderUpdateSerializer(serializers.ModelSerializer):
                     config_data = instance.config.copy() if instance.config else {}
                 config_data['password'] = api_secret
         
+        # Banka Havalesi için: endpoint'leri ignore et
+        elif provider_type == 'bank_transfer':
+            validated_data.pop('api_endpoint', None)
+            validated_data.pop('test_endpoint', None)
+        
         # Normal field'ları güncelle
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
@@ -252,7 +275,10 @@ class IntegrationProviderUpdateSerializer(serializers.ModelSerializer):
         
         # Kuveyt için api_key/api_secret kullanma, config'de username/password var
         # Diğer provider'lar için api_key/api_secret kullan
-        if provider_type != 'kuveyt':
+        # Kuveyt için api_key/api_secret kullanma, config'de username/password var
+        # Banka havalesi için de kullanma
+        # Diğer provider'lar için api_key/api_secret kullan
+        if provider_type != 'kuveyt' and provider_type != 'bank_transfer':
             if api_key is not None:
                 instance.set_api_key(api_key)
             if api_secret is not None:
@@ -287,6 +313,10 @@ class IntegrationProviderUpdateSerializer(serializers.ModelSerializer):
     
     def validate(self, data):
         """Validation."""
+        # Banka havalesi için endpoint kontrolü yapma
+        if self.instance and self.instance.provider_type == 'bank_transfer':
+            return data
+
         # Test endpoint girilmişse ve status belirtilmemişse otomatik test_mode yap
         if data.get('test_endpoint') and not data.get('status'):
             data['status'] = IntegrationProvider.Status.TEST_MODE

@@ -958,12 +958,16 @@ class KuwaitPaymentProvider(PaymentProviderBase):
             }
 
 
+from apps.services.bank_transfer_provider import BankTransferPaymentProvider
+
 class PaymentProviderFactory:
     """Payment provider factory."""
     
     PROVIDERS = {
         'kuwait': KuwaitPaymentProvider,
         'kuveyt': KuwaitPaymentProvider,  # Türkçe isim desteği
+        'bank_transfer': BankTransferPaymentProvider,
+        'havale': BankTransferPaymentProvider,
         # Diğer provider'lar buraya eklenebilir
         # 'iyzico': IyzicoPaymentProvider,
         # 'paytr': PayTRPaymentProvider,

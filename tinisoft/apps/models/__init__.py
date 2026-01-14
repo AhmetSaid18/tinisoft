@@ -25,6 +25,7 @@ from .loyalty import LoyaltyProgram, LoyaltyPoints, LoyaltyTransaction
 from .webhook import Webhook, WebhookEvent
 from .analytics import AnalyticsEvent, SalesReport, ProductAnalytics
 from .integration import IntegrationProvider
+from .website import WebsiteTemplate, WebsitePage
 
 __all__ = [
     'User',
@@ -76,4 +77,6 @@ __all__ = [
     'SalesReport',
     'ProductAnalytics',
     'IntegrationProvider',
+    'WebsiteTemplate',
+    'WebsitePage',
 ]

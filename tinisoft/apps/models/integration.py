@@ -41,6 +41,10 @@ class IntegrationProvider(BaseModel):
         GARANTI = 'garanti', 'Garanti Bankası'
         AKBANK = 'akbank', 'Akbank'
         
+        # Banka Havalesi
+        BANK_TRANSFER = 'bank_transfer', 'Havale/EFT'
+
+        
         # Kargo Sağlayıcıları
         ARAS = 'aras', 'Aras Kargo'
         YURTICI = 'yurtici', 'Yurtiçi Kargo'

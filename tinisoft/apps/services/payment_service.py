@@ -53,7 +53,27 @@ class PaymentService:
     
     @staticmethod
     def process_payment(payment, transaction_id=None, payment_intent_id=None):
-        """Ödemeyi işle (başarılı)."""
+        """
+        Ödemeyi işle (başarılı).
+        Havale/EFT gibi offline ödemeler için PENDING statüsünde kalabilir.
+        """
+        # Bank Transfer ise Pending kalmalı (manuel onay için)
+        if payment.provider == 'bank_transfer' or payment.method == Payment.PaymentMethod.BANK_TRANSFER:
+            payment.status = Payment.PaymentStatus.PENDING
+            # Transaction ID varsa kaydet
+            if transaction_id:
+                payment.transaction_id = transaction_id
+            payment.save()
+            
+            # Sipariş durumunu da PENDING (Ödeme Bekliyor) olarak güncelle
+            from apps.services.order_service import OrderService
+            # Sipariş statusunu da güncellemek gerekebilir (OrderService içinde halledilmeli)
+            # Ancak Order.PaymentStatus.PENDING zaten varsayılan, biz yine de emin olalım
+            OrderService.update_payment_status(payment.order, Order.PaymentStatus.PENDING)
+            
+            logger.info(f"Payment pending (Bank Transfer): {payment.payment_number}")
+            return payment
+            
         payment.status = Payment.PaymentStatus.COMPLETED
         payment.transaction_id = transaction_id or ''
         payment.payment_intent_id = payment_intent_id or ''
@@ -65,6 +85,33 @@ class PaymentService:
         OrderService.update_payment_status(payment.order, Order.PaymentStatus.PAID)
         
         logger.info(f"Payment completed: {payment.payment_number}")
+        return payment
+
+    @staticmethod
+    def confirm_payment(payment, user=None):
+        """
+        Manuel ödeme onayı (Havale/EFT için).
+        """
+        if payment.status == Payment.PaymentStatus.COMPLETED:
+            raise ValueError("Bu ödeme zaten onaylanmış.")
+            
+        payment.status = Payment.PaymentStatus.COMPLETED
+        payment.paid_at = timezone.now()
+        
+        # Onaylayan kullanıcıyı logla (metadata)
+        if user:
+            if not payment.metadata:
+                payment.metadata = {}
+            payment.metadata['confirmed_by'] = str(user.id)
+            payment.metadata['confirmed_at'] = str(timezone.now())
+            
+        payment.save()
+        
+        # Sipariş ödeme durumunu güncelle
+        from apps.services.order_service import OrderService
+        OrderService.update_payment_status(payment.order, Order.PaymentStatus.PAID)
+        
+        logger.info(f"Payment confirmed manually: {payment.payment_number}")
         return payment
     
     @staticmethod

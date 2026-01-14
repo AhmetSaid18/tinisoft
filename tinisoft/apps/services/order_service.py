@@ -107,6 +107,20 @@ class OrderService:
             selected_discount_amount
         )
         
+        # Stok kontrolü yap (Sipariş oluşturmadan önce)
+        from apps.services.cart_service import CartService
+        for cart_item in cart_items:
+            is_available, available_qty, message = CartService._check_stock_availability(
+                cart_item.product,
+                cart_item.variant,
+                cart_item.quantity
+            )
+            if not is_available:
+                product_name = cart_item.product.name
+                if cart_item.variant:
+                    product_name += f" ({cart_item.variant.name})"
+                raise ValueError(f"'{product_name}' ürünü için {message}")
+
         # Sipariş numarası oluştur
         order_number = OrderService.generate_order_number(cart.tenant)
         

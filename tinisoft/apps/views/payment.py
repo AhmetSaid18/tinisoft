@@ -347,6 +347,21 @@ def payment_detail(request, payment_id):
                     'message': str(e),
                 }, status=status.HTTP_400_BAD_REQUEST)
         
+        elif action == 'confirm':
+            # Ödemeyi manuel onayla (Havale/EFT için)
+            try:
+                payment = PaymentService.confirm_payment(payment, user=request.user)
+                return Response({
+                    'success': True,
+                    'message': 'Ödeme manuel olarak onaylandı.',
+                    'payment': PaymentSerializer(payment).data,
+                })
+            except ValueError as e:
+                return Response({
+                    'success': False,
+                    'message': str(e),
+                }, status=status.HTTP_400_BAD_REQUEST)
+        
         return Response({
             'success': False,
             'message': 'Geçersiz action.',
@@ -464,10 +479,15 @@ def payment_create_with_provider(request):
         )
         
         if result['success']:
+            # Method belirle
+            payment_method = Payment.PaymentMethod.CREDIT_CARD
+            if provider_name == 'bank_transfer' or provider_name == 'havale':
+                payment_method = Payment.PaymentMethod.BANK_TRANSFER
+            
             # Payment kaydı oluştur
             payment = PaymentService.create_payment(
                 order=order,
-                method=Payment.PaymentMethod.CREDIT_CARD,  # Default, provider'a göre değişebilir
+                method=payment_method,
                 amount=order.total,
                 provider=provider_name,
                 metadata={
