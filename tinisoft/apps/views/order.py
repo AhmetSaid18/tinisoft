@@ -421,6 +421,7 @@ def order_list_create(request):
                             customer_user=customer_user,
                             request=request,
                             selected_cart_item_ids=selected_cart_item_ids,
+                            only_available_items=data.get('only_available_items', False),
                         )
                         
                         logger.info(

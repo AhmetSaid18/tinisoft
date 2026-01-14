@@ -131,4 +131,9 @@ class CreateOrderSerializer(serializers.Serializer):
     customer_note = serializers.CharField(required=False, allow_blank=True)
     billing_address = serializers.JSONField(required=False, default=dict)
     items = serializers.ListField(required=False, allow_null=True)  # Items array (if provided, will be ignored - cart_id is used instead)
+    only_available_items = serializers.BooleanField(
+        required=False, 
+        default=False,
+        help_text="Stokta olmayan ürünleri siparişten otomatik olarak çıkar."
+    )
 

@@ -37,6 +37,7 @@ class OrderService:
         customer_user=None,
         request=None,
         selected_cart_item_ids=None,
+        only_available_items=False,
     ):
         """
         Sepetten sipariş oluştur.
@@ -63,7 +64,39 @@ class OrderService:
             # Seçim yapılmamışsa tüm sepet
             cart_items = all_cart_items
         
-        # Seçili item'lara göre toplamları hesapla
+        # Stok kontrolü ve filtreleme (Hesaplamadan ÖNCE yapılmalı)
+        # only_available_items=True ise stokta olmayanları listeden çıkarır
+        from apps.services.cart_service import CartService
+        
+        valid_cart_items = []
+        for cart_item in cart_items:
+            is_available, available_qty, message = CartService._check_stock_availability(
+                cart_item.product,
+                cart_item.variant,
+                cart_item.quantity
+            )
+            
+            if is_available:
+                valid_cart_items.append(cart_item)
+            else:
+                if not only_available_items:
+                    # Eğer otomatik filtreleme istenmiyorsa hata fırlat (Eski davranış)
+                    product_name = cart_item.product.name
+                    if cart_item.variant:
+                        product_name += f" ({cart_item.variant.name})"
+                    raise ValueError(f"'{product_name}' ürünü için {message}")
+                else:
+                    # Otomatik filtreleme, bu ürünü siparişe dahil etme
+                    pass
+
+        # Filtreleme sonrası item kalmadıysa hata ver
+        if not valid_cart_items:
+            raise ValueError("Sipariş verilebilecek stokta ürün bulunamadı.")
+            
+        # cart_items listesini güncelle (artık sadece stokta olanlar var)
+        cart_items = valid_cart_items
+        
+        # Seçili item'lara göre toplamları hesapla (Filtrelenmiş liste üzerinden)
         selected_subtotal = sum(item.total_price for item in cart_items)
         
         # Kargo ücreti hesaplama
@@ -106,20 +139,6 @@ class OrderService:
             selected_tax_amount -
             selected_discount_amount
         )
-        
-        # Stok kontrolü yap (Sipariş oluşturmadan önce)
-        from apps.services.cart_service import CartService
-        for cart_item in cart_items:
-            is_available, available_qty, message = CartService._check_stock_availability(
-                cart_item.product,
-                cart_item.variant,
-                cart_item.quantity
-            )
-            if not is_available:
-                product_name = cart_item.product.name
-                if cart_item.variant:
-                    product_name += f" ({cart_item.variant.name})"
-                raise ValueError(f"'{product_name}' ürünü için {message}")
 
         # Sipariş numarası oluştur
         order_number = OrderService.generate_order_number(cart.tenant)
