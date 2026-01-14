@@ -1,5 +1,5 @@
 from django.db import models
-from .tenant import Tenant
+# from .tenant import Tenant  <-- Circular import'a neden oluyor
 
 
 class WebsiteTemplate(models.Model):
@@ -8,7 +8,7 @@ class WebsiteTemplate(models.Model):
     GrapesJS veya manuel olarak düzenlenen sayfa yapısını JSON olarak saklar.
     """
     tenant = models.OneToOneField(
-        Tenant,
+        'Tenant',  # String referans kullan
         on_delete=models.CASCADE,
         related_name='website_template',
         help_text="Bu template'in ait olduğu tenant"
