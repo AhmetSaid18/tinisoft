@@ -364,10 +364,21 @@ class OrderService:
         return order
     
     @staticmethod
-    def update_payment_status(order, new_status):
-        """Ödeme durumunu güncelle."""
+    def update_payment_status(order, new_status, payment_method=None):
+        """
+        Ödeme durumunu güncelle.
+        Args:
+            order: Order object
+            new_status: Yeni ödeme durumu (pending, paid, etc.)
+            payment_method: (Opsiyonel) Ödeme yöntemi (credit_card, bank_transfer, etc.)
+        """
         old_status = order.payment_status
         order.payment_status = new_status
+        
+        # Eğer ödeme yöntemi verildiyse onu da güncelle
+        if payment_method:
+            order.payment_method = payment_method
+            
         order.save()
         
         # Ödeme tamamlandığında sadakat puanı kazandır

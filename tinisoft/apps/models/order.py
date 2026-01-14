@@ -82,6 +82,16 @@ class Order(BaseModel):
         db_index=True,
     )
     
+    # Yeni alan: Ödeme Yöntemi
+    # Hangi yöntemle ödendiğini (veya ödeneceğini) gösterir.
+    # Payment modelindeki method seçeneklerini kullanır.
+    payment_method = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        help_text="Ödeme yöntemi (credit_card, bank_transfer vb.)"
+    )
+    
     # Fiyat bilgileri
     subtotal = models.DecimalField(
         max_digits=10,

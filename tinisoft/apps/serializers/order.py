@@ -32,6 +32,7 @@ class OrderListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'order_number', 'customer_name', 'customer_email',
             'status', 'status_display', 'payment_status', 'payment_status_display',
+            'payment_method', 'payment_method_display',
             'total', 'currency', 'item_count',
             'created_at', 'shipped_at', 'delivered_at',
         ]
@@ -62,6 +63,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             'customer', 'customer_email', 'customer_first_name', 'customer_last_name', 'customer_phone',
             'shipping_address', 'billing_address',
             'status', 'status_display', 'payment_status', 'payment_status_display',
+            'payment_method', 'payment_method_display',
             'subtotal', 'shipping_cost', 'tax_amount', 'discount_amount', 'total', 'currency',
             'shipping_method', 'tracking_number',
             'customer_note', 'admin_note',

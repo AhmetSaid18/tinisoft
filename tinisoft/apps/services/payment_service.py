@@ -69,7 +69,11 @@ class PaymentService:
             from apps.services.order_service import OrderService
             # Sipariş statusunu da güncellemek gerekebilir (OrderService içinde halledilmeli)
             # Ancak Order.PaymentStatus.PENDING zaten varsayılan, biz yine de emin olalım
-            OrderService.update_payment_status(payment.order, Order.PaymentStatus.PENDING)
+            OrderService.update_payment_status(
+                payment.order, 
+                Order.PaymentStatus.PENDING,
+                payment_method=payment.method
+            )
             
             logger.info(f"Payment pending (Bank Transfer): {payment.payment_number}")
             return payment
@@ -82,7 +86,11 @@ class PaymentService:
         
         # Sipariş ödeme durumunu güncelle
         from apps.services.order_service import OrderService
-        OrderService.update_payment_status(payment.order, Order.PaymentStatus.PAID)
+        OrderService.update_payment_status(
+            payment.order, 
+            Order.PaymentStatus.PAID,
+            payment_method=payment.method
+        )
         
         logger.info(f"Payment completed: {payment.payment_number}")
         return payment
@@ -109,7 +117,11 @@ class PaymentService:
         
         # Sipariş ödeme durumunu güncelle
         from apps.services.order_service import OrderService
-        OrderService.update_payment_status(payment.order, Order.PaymentStatus.PAID)
+        OrderService.update_payment_status(
+            payment.order, 
+            Order.PaymentStatus.PAID,
+            payment_method=payment.method
+        )
         
         logger.info(f"Payment confirmed manually: {payment.payment_number}")
         return payment

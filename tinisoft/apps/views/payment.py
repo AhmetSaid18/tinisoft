@@ -421,16 +421,38 @@ def payment_create_with_provider(request):
         }, status=status.HTTP_400_BAD_REQUEST)
     
     try:
-        order = Order.objects.get(
-            id=order_id,
-            tenant=tenant,
-            is_deleted=False,
-        )
+        # UUID kontrolü (Basitçe uzunluğa ve tireye bakarak veya try-except ile)
+        # Eğer order_id "ORD-" ile başlıyorsa order_number olarak ara
+        if str(order_id).startswith('ORD-'):
+            order = Order.objects.get(
+                order_number=order_id,
+                tenant=tenant,
+                is_deleted=False,
+            )
+        else:
+            order = Order.objects.get(
+                id=order_id,
+                tenant=tenant,
+                is_deleted=False,
+            )
     except Order.DoesNotExist:
         return Response({
             'success': False,
             'message': 'Sipariş bulunamadı.',
         }, status=status.HTTP_404_NOT_FOUND)
+    except Exception:
+        # UUID hatası vb. durumunda order_number olarak tekrar dene
+        try:
+            order = Order.objects.get(
+                order_number=order_id,
+                tenant=tenant,
+                is_deleted=False,
+            )
+        except Order.DoesNotExist:
+             return Response({
+                'success': False,
+                'message': 'Sipariş bulunamadı.',
+            }, status=status.HTTP_404_NOT_FOUND)
     
     # Müşteri bilgilerini doldur
     if not customer_info.get('email'):
@@ -481,7 +503,9 @@ def payment_create_with_provider(request):
         if result['success']:
             # Method belirle
             payment_method = Payment.PaymentMethod.CREDIT_CARD
-            if provider_name == 'bank_transfer' or provider_name == 'havale':
+            is_offline = result.get('is_offline', False)
+            
+            if provider_name == 'bank_transfer' or provider_name == 'havale' or is_offline:
                 payment_method = Payment.PaymentMethod.BANK_TRANSFER
             
             # Payment kaydı oluştur
@@ -493,13 +517,18 @@ def payment_create_with_provider(request):
                 metadata={
                     'transaction_id': result['transaction_id'],
                     'payment_url': result.get('payment_url'),
-                    'payment_html': result.get('payment_html'),  # Kuveyt için HTML dönebilir
+                    'payment_html': result.get('payment_html'),  # Kuveyt veya Havale HTML
                 }
             )
             
             # Transaction ID'yi kaydet
             payment.transaction_id = result['transaction_id']
             payment.save()
+            
+            # Havale gibi offline yöntemlerde, ödemeyi hemen "process" edelim ki PENDING durumuna geçsin
+            # Böylece sipariş durumu da güncellenir ve panelde görünür.
+            if payment_method == Payment.PaymentMethod.BANK_TRANSFER:
+                PaymentService.process_payment(payment, transaction_id=result['transaction_id'])
             
             response_data = {
                 'success': True,
@@ -513,6 +542,9 @@ def payment_create_with_provider(request):
                 response_data['payment_html'] = result['payment_html']
             elif result.get('payment_url'):
                 response_data['payment_url'] = result['payment_url']
+            
+            if result.get('offline_message'):
+                response_data['offline_message'] = result['offline_message']
             
             return Response(response_data, status=status.HTTP_201_CREATED)
         else:
