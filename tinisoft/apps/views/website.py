@@ -18,7 +18,7 @@ from apps.serializers.website import (
     AdminWebsitePageSerializer,
     AdminWebsitePageCreateUpdateSerializer,
 )
-from apps.permissions import IsTenantUser
+from apps.permissions import IsTenantOwner
 
 
 # ================================
@@ -104,7 +104,7 @@ class AdminWebsiteTemplateView(APIView):
     Tenant kullanıcıları kendi website template'lerini yönetir.
     """
     
-    permission_classes = [IsAuthenticated, IsTenantUser]
+    permission_classes = [IsAuthenticated, IsTenantOwner]
     
     def get(self, request):
         """Get tenant's website template"""
@@ -156,7 +156,7 @@ class AdminWebsitePageListCreateView(APIView):
     POST /api/v1/tenant/website/pages/ - Yeni sayfa ekle
     """
     
-    permission_classes = [IsAuthenticated, IsTenantUser]
+    permission_classes = [IsAuthenticated, IsTenantOwner]
     
     def get(self, request):
         """List all pages for this tenant"""
@@ -211,7 +211,7 @@ class AdminWebsitePageDetailView(APIView):
     DELETE /api/v1/tenant/website/pages/{id}/ - Sayfayı sil
     """
     
-    permission_classes = [IsAuthenticated, IsTenantUser]
+    permission_classes = [IsAuthenticated, IsTenantOwner]
     
     def get_page(self, request, page_id):
         """Get page and verify ownership"""
@@ -272,7 +272,7 @@ class AvailableTemplatesView(APIView):
     Mevcut template'leri listele (WordPress tema seçimi gibi)
     """
     
-    permission_classes = [IsAuthenticated, IsTenantUser]
+    permission_classes = [IsAuthenticated, IsTenantOwner]
     
     def get(self, request):
         """List available templates"""
@@ -306,7 +306,7 @@ class ApplyTemplateView(APIView):
         }
     """
     
-    permission_classes = [IsAuthenticated, IsTenantUser]
+    permission_classes = [IsAuthenticated, IsTenantOwner]
     
     def post(self, request):
         """Apply selected template"""

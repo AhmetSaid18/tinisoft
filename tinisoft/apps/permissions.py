@@ -53,7 +53,8 @@ class IsTenantUser(permissions.BasePermission):
         if not request.user or not request.user.is_authenticated:
             return False
         
-        return request.user.is_tenant_user
+        # Tenant User veya Tenant Owner erişebilir
+        return request.user.is_tenant_user or request.user.is_tenant_owner
     
     def has_object_permission(self, request, view, obj):
         """Object-level permission kontrolü."""
@@ -201,8 +202,8 @@ class IsTenantUserOfObject(permissions.BasePermission):
         if request.user.is_tenant_owner:
             return True
         
-        # TenantUser olmalı
-        return request.user.is_tenant_user
+        # TenantUser veya TenantOwner olmalı
+        return request.user.is_tenant_user or request.user.is_tenant_owner
     
     def has_object_permission(self, request, view, obj):
         """Object-level permission kontrolü."""

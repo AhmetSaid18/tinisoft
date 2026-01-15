@@ -19,7 +19,7 @@ from apps.serializers.website_extras import (
     PopupSerializer, PublicPopupSerializer,
     URLRedirectSerializer, TemplateRevisionSerializer
 )
-from apps.permissions import IsTenantUser
+from apps.permissions import IsTenantOwner
 
 
 # ================================
@@ -28,7 +28,7 @@ from apps.permissions import IsTenantUser
 
 class FormListCreateView(APIView):
     """GET, POST /api/v1/tenant/website/forms/"""
-    permission_classes = [IsAuthenticated, IsTenantUser]
+    permission_classes = [IsAuthenticated, IsTenantOwner]
     
     def get(self, request):
         """List all forms"""
@@ -52,7 +52,7 @@ class FormListCreateView(APIView):
 
 class FormDetailView(APIView):
     """GET, PUT, DELETE /api/v1/tenant/website/forms/{id}/"""
-    permission_classes = [IsAuthenticated, IsTenantUser]
+    permission_classes = [IsAuthenticated, IsTenantOwner]
     
     def get_form(self, request, form_id):
         tenant = request.user.tenant
@@ -111,7 +111,7 @@ class FormSubmitView(APIView):
 
 class FormSubmissionsView(APIView):
     """GET /api/v1/tenant/website/forms/{id}/submissions/"""
-    permission_classes = [IsAuthenticated, IsTenantUser]
+    permission_classes = [IsAuthenticated, IsTenantOwner]
     
     def get(self, request, form_id):
         """Get form submissions"""
@@ -130,7 +130,7 @@ class FormSubmissionsView(APIView):
 
 class PopupListCreateView(APIView):
     """GET, POST /api/v1/tenant/website/popups/"""
-    permission_classes = [IsAuthenticated, IsTenantUser]
+    permission_classes = [IsAuthenticated, IsTenantOwner]
     
     def get(self, request):
         tenant = request.user.tenant
@@ -152,7 +152,7 @@ class PopupListCreateView(APIView):
 
 class PopupDetailView(APIView):
     """GET, PUT, DELETE /api/v1/tenant/website/popups/{id}/"""
-    permission_classes = [IsAuthenticated, IsTenantUser]
+    permission_classes = [IsAuthenticated, IsTenantOwner]
     
     def get_popup(self, request, popup_id):
         tenant = request.user.tenant
@@ -202,7 +202,7 @@ class PublicPopupsView(APIView):
 
 class URLRedirectListCreateView(APIView):
     """GET, POST /api/v1/tenant/website/redirects/"""
-    permission_classes = [IsAuthenticated, IsTenantUser]
+    permission_classes = [IsAuthenticated, IsTenantOwner]
     
     def get(self, request):
         tenant = request.user.tenant
@@ -224,7 +224,7 @@ class URLRedirectListCreateView(APIView):
 
 class URLRedirectDetailView(APIView):
     """GET, PUT, DELETE /api/v1/tenant/website/redirects/{id}/"""
-    permission_classes = [IsAuthenticated, IsTenantUser]
+    permission_classes = [IsAuthenticated, IsTenantOwner]
     
     def get_redirect(self, request, redirect_id):
         tenant = request.user.tenant
@@ -256,7 +256,7 @@ class URLRedirectDetailView(APIView):
 
 class TemplateRevisionListView(APIView):
     """GET /api/v1/tenant/website/template/revisions/"""
-    permission_classes = [IsAuthenticated, IsTenantUser]
+    permission_classes = [IsAuthenticated, IsTenantOwner]
     
     def get(self, request):
         """List template revisions"""
@@ -269,7 +269,7 @@ class TemplateRevisionListView(APIView):
 
 class TemplateRevisionRestoreView(APIView):
     """POST /api/v1/tenant/website/template/revisions/{id}/restore/"""
-    permission_classes = [IsAuthenticated, IsTenantUser]
+    permission_classes = [IsAuthenticated, IsTenantOwner]
     
     def post(self, request, revision_id):
         """Restore template to a previous revision"""
@@ -302,7 +302,7 @@ class TemplateRevisionRestoreView(APIView):
 
 class EnablePreviewModeView(APIView):
     """POST /api/v1/tenant/website/template/preview/enable/"""
-    permission_classes = [IsAuthenticated, IsTenantUser]
+    permission_classes = [IsAuthenticated, IsTenantOwner]
     
     def post(self, request):
         """Enable preview mode and generate token"""
@@ -323,7 +323,7 @@ class EnablePreviewModeView(APIView):
 
 class DisablePreviewModeView(APIView):
     """POST /api/v1/tenant/website/template/preview/disable/"""
-    permission_classes = [IsAuthenticated, IsTenantUser]
+    permission_classes = [IsAuthenticated, IsTenantOwner]
     
     def post(self, request):
         """Disable preview mode"""
@@ -359,7 +359,7 @@ class PreviewTemplateView(APIView):
 
 class PublishTemplateView(APIView):
     """POST /api/v1/tenant/website/template/publish/"""
-    permission_classes = [IsAuthenticated, IsTenantUser]
+    permission_classes = [IsAuthenticated, IsTenantOwner]
     
     def post(self, request):
         """Draft değişikliklerini canlıya al (Publish)"""
