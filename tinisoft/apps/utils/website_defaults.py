@@ -428,6 +428,69 @@ TEMPLATE_CLASSIC_ECOMMERCE = {
                 "layout": "centered"
             }
         ]
+    },
+    "navigation_menus": {
+        "header": {
+            "items": [
+                {"label": "Ana Sayfa", "url": "/", "icon": "home"},
+                {"label": "Ürünler", "url": "/urunler"},
+                {"label": "İndirimler", "url": "/kampanyalar"},
+                {"label": "Hakkımızda", "url": "/hakkimizda"},
+                {"label": "İletişim", "url": "/iletisim"}
+            ]
+        }
+    },
+    "footer_config": {
+        "columns": [
+            {
+                "title": "Hızlı Erişim",
+                "links": [
+                    {"text": "Ana Sayfa", "url": "/"},
+                    {"text": "Ürünler", "url": "/urunler"},
+                    {"text": "Kampanyalar", "url": "/kampanyalar"},
+                    {"text": "Rehber", "url": "/blog"}
+                ]
+            },
+            {
+                "title": "Kurumsal",
+                "links": [
+                    {"text": "Hakkımızda", "url": "/hakkimizda"},
+                    {"text": "İletişim", "url": "/iletisim"},
+                    {"text": "Kariyere", "url": "/kariyer"}
+                ]
+            },
+            {
+                "title": "Yasal",
+                "links": [
+                    {"text": "Gizlilik Politikası", "url": "/gizlilik-politikasi"},
+                    {"text": "Kullanım Koşulları", "url": "/kullanim-kosullari"},
+                    {"text": "KVKK", "url": "/kvkk"}
+                ]
+            }
+        ],
+        "bottom_text": "© {year} Tüm hakları saklıdır. Güvenli Alışveriş.",
+        "payment_icons": ["visa", "mastercard", "amex", "troy"]
+    },
+    "social_links": {},
+    "announcement_bar": {
+        "enabled": True,
+        "text": "🔥 Sezon Sonu İndirimleri Başladı! Acele Edin.",
+        "link": "/kampanyalar",
+        "backgroundColor": "#1F2937",
+        "textColor": "#FFFFFF",
+        "position": "top"
+    },
+    "analytics_config": {
+        "google_analytics": {"enabled": False, "tracking_id": ""},
+        "facebook_pixel": {"enabled": False, "pixel_id": ""},
+        "google_tag_manager": {"enabled": False, "container_id": ""}
+    },
+    "pwa_config": {
+        "enabled": False,
+        "app_name": "",
+        "short_name": "",
+        "theme_color": "#2563EB",
+        "background_color": "#FFFFFF"
     }
 }
 
