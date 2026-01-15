@@ -77,27 +77,8 @@ class WebsiteTemplate(models.Model):
     )
     
     # SEO & Meta
-    meta_title = models.CharField(
-        max_length=255,
-        blank=True,
-        null=True,
-        help_text="SEO meta title"
-    )
-    
-    meta_description = models.TextField(
-        blank=True,
-        null=True,
-        help_text="SEO meta description"
-    )
-    
-    # Custom CSS/JS (WordPress benzeri)
-    custom_css = models.TextField(
-        blank=True,
-        null=True,
-        help_text="Özel CSS kodu (header'a inject edilir)"
-    )
-    
-    custom_js = models.TextField(
+
+
     # ================================
     # CONFIGURATION (LIVE & DRAFT)
     # ================================
