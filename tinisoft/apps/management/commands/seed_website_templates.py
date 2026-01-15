@@ -9,7 +9,7 @@ python manage.py seed_website_templates
 
 from django.core.management.base import BaseCommand
 from apps.models.website import WebsiteTemplate, WebsitePage
-from apps.models.tenant import Tenant
+from apps.models import Tenant
 from apps.utils.website_defaults import AVAILABLE_TEMPLATES, DEFAULT_PAGES
 
 class Command(BaseCommand):
