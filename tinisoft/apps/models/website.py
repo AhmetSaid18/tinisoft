@@ -2,6 +2,9 @@ from django.db import models
 from django.core.cache import cache
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
+from django.utils.crypto import get_random_string
+from django.conf import settings
+import uuid
 
 
 class WebsiteTemplate(models.Model):

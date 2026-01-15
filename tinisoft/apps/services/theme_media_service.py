@@ -19,15 +19,22 @@ class ThemeMediaService:
     
     def __init__(self):
         """S3 client oluştur (Cloudflare R2 S3-compatible)"""
+        # Standart Django AWS ayarlarını kullan
         self.s3_client = boto3.client(
             's3',
-            endpoint_url=settings.R2_ENDPOINT_URL,
-            aws_access_key_id=settings.R2_ACCESS_KEY_ID,
-            aws_secret_access_key=settings.R2_SECRET_ACCESS_KEY,
-            region_name='auto'  # Cloudflare R2 için
+            endpoint_url=settings.AWS_S3_ENDPOINT_URL,
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+            region_name=getattr(settings, 'AWS_S3_REGION_NAME', 'auto')
         )
-        self.bucket_name = settings.R2_BUCKET_NAME
-        self.public_url = settings.R2_PUBLIC_URL  # https://cdn.example.com
+        self.bucket_name = settings.AWS_STORAGE_BUCKET_NAME
+        
+        # Public URL (Custom domain varsa onu kullan yoksa endpoint)
+        if hasattr(settings, 'AWS_S3_CUSTOM_DOMAIN') and settings.AWS_S3_CUSTOM_DOMAIN:
+             self.public_url = f"https://{settings.AWS_S3_CUSTOM_DOMAIN}"
+        else:
+             # Fallback to endpoint URL/bucket
+             self.public_url = f"{settings.AWS_S3_ENDPOINT_URL}/{self.bucket_name}"
     
     def upload_image(self, file, tenant_domain, custom_filename=None):
         """
