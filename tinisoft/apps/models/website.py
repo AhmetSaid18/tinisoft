@@ -467,7 +467,7 @@ class TemplateRevision(models.Model):
     note = models.CharField(max_length=500, blank=True, help_text="Değişiklik notu")
     
     created_by = models.ForeignKey(
-        'auth.User',
+        settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True
