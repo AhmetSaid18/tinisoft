@@ -212,6 +212,23 @@ class WebsiteTemplate(models.Model):
             self.generate_preview_token()
         return f"/preview/{self.preview_token}/"
 
+    def publish_changes(self):
+        """Draft verilerini Live'a kopyalar"""
+        self.homepage_config = self.draft_homepage_config
+        self.theme_config = self.draft_theme_config
+        self.navigation_menus = self.draft_navigation_menus
+        self.footer_config = self.draft_footer_config
+        self.social_links = self.draft_social_links
+        self.announcement_bar = self.draft_announcement_bar
+        self.custom_css = self.draft_custom_css
+        self.custom_js = self.draft_custom_js
+        self.save()
+        
+        # Sayfaları da publish et
+        for page in self.pages.all():
+            if hasattr(page, 'publish_changes'):
+                page.publish_changes()
+
 
 
 class WebsitePage(models.Model):

@@ -137,6 +137,7 @@ from apps.views.seo import (
     StorefrontSitemapView,
     StorefrontRobotsView,
 )
+from apps.views.tenant_config import TenantSettingsView
 
 
 app_name = 'apps'
@@ -368,6 +369,7 @@ urlpatterns = [
     path('tenant/website/templates/available/', AvailableTemplatesView.as_view(), name='available_templates'),  # GET: Mevcut template'leri listele
     path('tenant/website/templates/apply/', ApplyTemplateView.as_view(), name='apply_template'),  # POST: Template seç ve uygula
     path('tenant/website/template/', AdminWebsiteTemplateView.as_view(), name='admin_website_template'),  # GET, PUT
+    path('tenant/settings/', TenantSettingsView.as_view(), name='tenant_settings'),  # GET, PUT
     path('tenant/website/pages/', AdminWebsitePageListCreateView.as_view(), name='admin_website_pages'),  # GET, POST
     path('tenant/website/pages/<uuid:page_id>/', AdminWebsitePageDetailView.as_view(), name='admin_website_page_detail'),  # GET, PUT, DELETE
     # Media Upload (Images, Videos)
