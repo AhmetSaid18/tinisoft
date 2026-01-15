@@ -97,6 +97,47 @@ from apps.views.integration import (
     integration_test, integration_by_type
 )
 from apps.views.basket import basket, basket_item
+from apps.views.website import (
+    PublicWebsiteTemplateView,
+    AdminWebsiteTemplateView,
+    AdminWebsitePageListCreateView,
+    AdminWebsitePageDetailView,
+    AvailableTemplatesView,
+    ApplyTemplateView,
+)
+from apps.views.theme_media import (
+    ThemeMediaUploadView,
+    ThemeMediaListView,
+    ThemeMediaDeleteView,
+)
+from apps.views.website_extras import (
+    # Forms
+    FormListCreateView,
+    FormDetailView,
+    FormSubmitView,
+    FormSubmissionsView,
+    # Popups
+    PopupListCreateView,
+    PopupDetailView,
+    PublicPopupsView,
+    # Redirects
+    URLRedirectListCreateView,
+    URLRedirectDetailView,
+    # Revisions
+    TemplateRevisionListView,
+    TemplateRevisionRestoreView,
+    # Preview
+    EnablePreviewModeView,
+    DisablePreviewModeView,
+    PreviewTemplateView,
+    PublishTemplateView,
+    SystemFontsView,
+)
+from apps.views.seo import (
+    StorefrontSitemapView,
+    StorefrontRobotsView,
+)
+
 
 app_name = 'apps'
 
@@ -318,9 +359,48 @@ urlpatterns = [
     path('taxes/<uuid:tax_id>/activate/', tax_activate, name='tax_activate'),  # POST: Vergiyi aktif et
     path('taxes/<uuid:tax_id>/deactivate/', tax_deactivate, name='tax_deactivate'),  # POST: Vergiyi pasif et
     
+    # Website Template & Page Builder (WordPress-like)
+    # Public API (Storefront)
+    path('storefront/config/', PublicWebsiteTemplateView.as_view(), name='public_website_config'),  # GET: ?domain=magaza1.com
+    path('storefront/sitemap/', StorefrontSitemapView.as_view(), name='storefront_sitemap'),  # GET: Sitemap verisi
+    path('storefront/robots/', StorefrontRobotsView.as_view(), name='storefront_robots'),  # GET: Robots.txt kuralları
+    # Admin API (Tenant Panel)
+    path('tenant/website/templates/available/', AvailableTemplatesView.as_view(), name='available_templates'),  # GET: Mevcut template'leri listele
+    path('tenant/website/templates/apply/', ApplyTemplateView.as_view(), name='apply_template'),  # POST: Template seç ve uygula
+    path('tenant/website/template/', AdminWebsiteTemplateView.as_view(), name='admin_website_template'),  # GET, PUT
+    path('tenant/website/pages/', AdminWebsitePageListCreateView.as_view(), name='admin_website_pages'),  # GET, POST
+    path('tenant/website/pages/<uuid:page_id>/', AdminWebsitePageDetailView.as_view(), name='admin_website_page_detail'),  # GET, PUT, DELETE
+    # Media Upload (Images, Videos)
+    path('tenant/website/media/upload/', ThemeMediaUploadView.as_view(), name='theme_media_upload'),  # POST: Görsel/video yükle
+    path('tenant/website/media/list/', ThemeMediaListView.as_view(), name='theme_media_list'),  # GET: Medyaları listele
+    path('tenant/website/media/delete/', ThemeMediaDeleteView.as_view(), name='theme_media_delete'),  # DELETE: Media sil
+    # Form Builder
+    path('tenant/website/forms/', FormListCreateView.as_view(), name='form_list_create'),  # GET, POST
+    path('tenant/website/forms/<uuid:form_id>/', FormDetailView.as_view(), name='form_detail'),  # GET, PUT, DELETE
+    path('tenant/website/forms/<uuid:form_id>/submissions/', FormSubmissionsView.as_view(), name='form_submissions'),  # GET
+    path('public/forms/<str:slug>/submit/', FormSubmitView.as_view(), name='form_submit'),  # POST (public)
+    # Popup Builder
+    path('tenant/website/popups/', PopupListCreateView.as_view(), name='popup_list_create'),  # GET, POST
+    path('tenant/website/popups/<uuid:popup_id>/', PopupDetailView.as_view(), name='popup_detail'),  # GET, PUT, DELETE
+    path('public/popups/', PublicPopupsView.as_view(), name='public_popups'),  # GET (public)
+    # URL Redirects
+    path('tenant/website/redirects/', URLRedirectListCreateView.as_view(), name='redirect_list_create'),  # GET, POST
+    path('tenant/website/redirects/<uuid:redirect_id>/', URLRedirectDetailView.as_view(), name='redirect_detail'),  # GET, PUT, DELETE
+    # Template Revisions
+    path('tenant/website/template/revisions/', TemplateRevisionListView.as_view(), name='template_revisions'),  # GET
+    path('tenant/website/template/revisions/<uuid:revision_id>/restore/', TemplateRevisionRestoreView.as_view(), name='template_revision_restore'),  # POST
+    # Preview Mode
+    path('tenant/website/template/preview/enable/', EnablePreviewModeView.as_view(), name='preview_enable'),  # POST
+    path('tenant/website/template/preview/disable/', DisablePreviewModeView.as_view(), name='preview_disable'),  # POST
+    path('preview/<str:token>/', PreviewTemplateView.as_view(), name='preview_template'),  # GET (public)
+    
+    # Publish & System
+    path('tenant/website/template/publish/', PublishTemplateView.as_view(), name='publish_template'),  # POST: Live'a al
+    path('system/fonts/', SystemFontsView.as_view(), name='system_fonts'),  # GET: Font listesi
+
+    
     # Para Birimi Yönetimi
     path('public/currencies/', currency_list, name='currency_list'),  # GET: Aktif para birimlerini listele (public)
     path('public/currency/exchange-rates/', currency_exchange_rates, name='currency_exchange_rates'),  # GET: TCMB kurları (public)
     path('currency/update-rates/', currency_update_rates, name='currency_update_rates'),  # POST: Tenant para birimi kurlarını güncelle
 ]
-

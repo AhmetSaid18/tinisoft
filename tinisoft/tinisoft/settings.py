@@ -21,8 +21,15 @@ SECRET_KEY = env('SECRET_KEY', default='django-insecure-temporary-key-change-in-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env('DEBUG')
 
-# Development için tüm localhost varyasyonlarına izin ver
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1', '0.0.0.0', 'api.tinisoft.com.tr', '*'])
+
+# Development ve SaaS Production için tüm hostlara izin ver
+# Güvenlik Traefik ve TenantMiddleware ile sağlanır
+ALLOWED_HOSTS = ["*"]
+
+# CORS Configuration
+# SaaS yapısında müşterilerin kendi domainleri olacağı için (binlerce farklı domain)
+# CORS kısıtlaması yerine Authentication (Token) ve Tenant yetkilendirmesi kullanılır.
+CORS_ALLOW_ALL_ORIGINS = True
 
 # Custom User Model
 AUTH_USER_MODEL = 'apps.User'
@@ -243,25 +250,8 @@ FRONTEND_URL = env('FRONTEND_URL', default='https://avrupamutfak.com')
 STORE_FRONTEND_URL = env('STORE_FRONTEND_URL', default=None)  # Tenant-specific frontend URL (opsiyonel)
 
 # CORS
-# Production domain'leri de ekle
-CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'http://localhost:3456',
-    'https://tinisoft.com.tr',
-    'https://www.tinisoft.com.tr',
-    'https://app.tinisoft.com.tr',
-    'http://tinisoft.com.tr',
-    'http://www.tinisoft.com.tr',
-    'https://test.avrupamutfak.com',
-    'http://test.avrupamutfak.com',
-])
-
-# Development için tüm origin'lere izin ver (DEBUG=True ise)
-if DEBUG:
-    CORS_ALLOW_ALL_ORIGINS = True
-else:
-    CORS_ALLOW_ALL_ORIGINS = False
+# CORS_ALLOWED_ORIGINS listesi artık gereksiz çünkü CORS_ALLOW_ALL_ORIGINS = True yaptık.
+# Güvenlik Token ve Tenant ID kontrolü ile sağlanır.
 
 CORS_ALLOW_CREDENTIALS = True
 
