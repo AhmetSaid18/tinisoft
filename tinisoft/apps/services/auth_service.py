@@ -7,6 +7,7 @@ from django.db import transaction
 from apps.models import Tenant, Domain, User  # User modelini direkt import et
 from apps.services.tenant_service import TenantService
 from apps.services.domain_service import DomainService
+from apps.services.website_service import WebsiteService
 from apps.tasks.build_task import trigger_frontend_build
 import logging
 
@@ -102,7 +103,12 @@ class AuthService:
             custom_domain_obj.save()
             logger.info(f"Custom domain created: {custom_domain} (verification: {verification_code})")
         
-        # 6. Frontend build tetikle (async)
+        # 6. Website Template ve Page'leri oluştur (Seeding)
+        # Kullanıcının seçtiği template ile dükkanı döşe
+        WebsiteService.init_tenant_website(tenant, template_key=template)
+        logger.info(f"Website template initialized for tenant: {tenant.slug} with template: {template}")
+
+        # 7. Frontend build tetikle (async)
         # Subdomain için: Bizim template ('default') kullanılır
         # Custom domain için: Kullanıcının seçtiği template kullanılır
         subdomain_template = 'default'  # Subdomain her zaman bizim template ile

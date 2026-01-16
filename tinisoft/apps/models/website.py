@@ -275,8 +275,20 @@ class WebsitePage(models.Model):
     page_config = models.JSONField(
         default=dict,
         blank=True,
-        help_text="Bu sayfanın component block'ları"
+        help_text="Bu sayfanın component block'ları (Live)"
     )
+    
+    draft_page_config = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Bu sayfanın component block'ları (Draft)"
+    )
+
+    def publish_changes(self):
+        """Draft verisini Live'a kopyalar"""
+        self.page_config = self.draft_page_config
+        self.save()
+
     
     # SEO & Meta
     meta_title = models.CharField(
