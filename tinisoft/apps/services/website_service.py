@@ -1,4 +1,5 @@
 import logging
+from django.core.cache import cache
 from apps.models.website import WebsiteTemplate, WebsitePage
 from apps.utils.website_defaults import AVAILABLE_TEMPLATES, DEFAULT_PAGES
 
@@ -17,6 +18,17 @@ class WebsiteService:
         Called during tenant registration.
         """
         try:
+            # Clear cache for this tenant's domains
+            # This ensures any "empty" cached results are cleared
+            from django.conf import settings
+            cache_keys = [
+                f"website_template_{tenant.slug}",
+                f"website_template_{tenant.custom_domain}" if tenant.custom_domain else None,
+                f"website_template_{tenant.subdomain}.tinisoft.com.tr"
+            ]
+            for key in cache_keys:
+                if key: cache.delete(key)
+            
             # 1. Existing template check
             template = WebsiteTemplate.objects.filter(tenant=tenant).first()
             if template:
@@ -73,6 +85,10 @@ class WebsiteService:
                 tenant=tenant,
                 defaults=defaults
             )
+            
+            # Debug Log
+            config_size = len(str(template.homepage_config))
+            logger.info(f"[WebsiteService] Template saved. Homepage config size: {config_size} chars. Created: {created}")
 
             # 4. Create Default Pages (Clear old ones if force_update)
             if force_update:
