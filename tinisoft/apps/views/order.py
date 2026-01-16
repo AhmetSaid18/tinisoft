@@ -581,6 +581,7 @@ def order_detail(request, order_id):
                 'message': 'Sipariş durumunu güncelleme yetkiniz yok.',
             }, status=status.HTTP_403_FORBIDDEN)
         
+        # Sipariş durumu güncelleme
         new_status = request.data.get('status')
         if new_status:
             try:
@@ -591,6 +592,40 @@ def order_detail(request, order_id):
                     'message': str(e),
                 }, status=status.HTTP_400_BAD_REQUEST)
         
+        # Ödeme durumu güncelleme (SADECE havale ödemeleri için)
+        new_payment_status = request.data.get('payment_status')
+        if new_payment_status:
+            # SADECE bank_transfer (havale) için payment_status güncellenebilir
+            # Diğer ödeme yöntemleri (kredi kartı vb.) otomatik işlenir
+            if order.payment_method != Order.PaymentMethod.BANK_TRANSFER:
+                return Response({
+                    'success': False,
+                    'message': 'Ödeme durumu sadece havale/EFT ödemelerinde manuel olarak güncellenebilir.',
+                    'error': f'Bu sipariş {order.get_payment_method_display()} ile ödeniyor. '
+                             'Ödeme durumu otomatik olarak güncellenir.',
+                    'current_payment_method': order.payment_method,
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Geçerli ödeme durumu mu kontrol et
+            valid_payment_statuses = [choice[0] for choice in Order.PaymentStatus.choices]
+            if new_payment_status not in valid_payment_statuses:
+                return Response({
+                    'success': False,
+                    'message': f'Geçersiz ödeme durumu: {new_payment_status}',
+                    'valid_statuses': valid_payment_statuses,
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            old_payment_status = order.payment_status
+            order.payment_status = new_payment_status
+            order.save()
+            
+            logger.info(
+                f"Order {order.order_number} payment status changed: "
+                f"{old_payment_status} -> {new_payment_status} by {request.user.email} "
+                f"(Bank Transfer)"
+            )
+        
+        # Kargo takip numarası güncelleme
         tracking_number = request.data.get('tracking_number')
         if tracking_number:
             order.tracking_number = tracking_number
