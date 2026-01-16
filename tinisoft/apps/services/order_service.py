@@ -3,7 +3,7 @@ Order service - Business logic for orders.
 """
 from django.utils import timezone
 from django.db import transaction
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 import uuid
 import logging
 from apps.models import Order, OrderItem, Cart, CartItem, InventoryMovement
@@ -38,6 +38,7 @@ class OrderService:
         request=None,
         selected_cart_item_ids=None,
         only_available_items=False,
+        payment_method=None,
     ):
         """
         Sepetten sipariş oluştur.
@@ -132,12 +133,44 @@ class OrderService:
             except:
                 pass
         
+        # Ödeme yöntemi indirimi (Havale/EFT)
+        payment_discount_amount = Decimal('0.00')
+        if payment_method in ['bank_transfer', 'havale']:
+            try:
+                from apps.models import IntegrationProvider
+                provider = IntegrationProvider.objects.filter(
+                    tenant=cart.tenant,
+                    provider_type='bank_transfer',
+                    status=IntegrationProvider.Status.ACTIVE,
+                    is_deleted=False
+                ).first()
+                if provider:
+                    config = provider.get_provider_config()
+                    discount_rate_str = config.get('discount_rate', '0')
+                    discount_rate = Decimal(str(discount_rate_str))
+                    if discount_rate > 0:
+                        # Toplam üzerinden yüzde indirim (KDV dahil veya hariç? Genelde toplama uygulanır)
+                        # Ama burada basitçe subtotal + tax + shipping üzerinden mi yoksa sadece ürünler üzerinden mi?
+                        # Kullanıcı "yüzde 2 girdi ya kdvli fiyatından yüzde 2 düşerek" dedi.
+                        # Yani (subtotal + tax + shipping) * %2
+                        base_total_for_discount = selected_subtotal + selected_tax_amount + selected_shipping_cost - selected_discount_amount
+                        if base_total_for_discount > 0:
+                            raw_discount = base_total_for_discount * (discount_rate / Decimal('100'))
+                            payment_discount_amount = raw_discount.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            except Exception as e:
+                logger.error(f"Error calculating payment discount: {e}")
+                pass
+
         # Toplam
+        # Not: selected_discount_amount (kupon) zaten düşüldü, şimdi payment_discount_amount da düşülmeli
+        # Veritabanında discount_amount toplam indirimi tutar.
+        total_discount_amount = selected_discount_amount + payment_discount_amount
+        
         selected_total = (
             selected_subtotal +
             selected_shipping_cost +
             selected_tax_amount -
-            selected_discount_amount
+            total_discount_amount
         )
 
         # Sipariş numarası oluştur
@@ -159,7 +192,7 @@ class OrderService:
             subtotal=selected_subtotal,
             shipping_cost=selected_shipping_cost,
             tax_amount=selected_tax_amount,
-            discount_amount=selected_discount_amount,
+            discount_amount=total_discount_amount,
             total=selected_total,
             currency=cart.currency,
             coupon=cart.coupon,

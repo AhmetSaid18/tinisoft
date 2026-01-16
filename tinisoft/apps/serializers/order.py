@@ -143,6 +143,11 @@ class CreateOrderSerializer(serializers.Serializer):
     customer_note = serializers.CharField(required=False, allow_blank=True)
     billing_address = serializers.JSONField(required=False, default=dict)
     items = serializers.ListField(required=False, allow_null=True)  # Items array (if provided, will be ignored - cart_id is used instead)
+    payment_method = serializers.CharField(
+        required=False, 
+        allow_blank=True,
+        help_text="Ödeme yöntemi (credit_card, bank_transfer)"
+    )
     only_available_items = serializers.BooleanField(
         required=False, 
         default=False,

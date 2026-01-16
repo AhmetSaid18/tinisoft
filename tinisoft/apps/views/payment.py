@@ -1250,7 +1250,7 @@ def calculate_payment_fees(request):
         "currency": "TRY"
     }
     """
-    from decimal import Decimal
+    from decimal import Decimal, ROUND_HALF_UP
     
     tenant = get_tenant_from_request(request)
     if not tenant:
@@ -1299,7 +1299,8 @@ def calculate_payment_fees(request):
                 discount_rate = Decimal(str(discount_rate_str))
                 
                 if discount_rate > 0:
-                    discount_amount = amount * (discount_rate / Decimal('100'))
+                    raw_discount = amount * (discount_rate / Decimal('100'))
+                    discount_amount = raw_discount.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
                     final_amount = amount - discount_amount
                     
                     result.update({
