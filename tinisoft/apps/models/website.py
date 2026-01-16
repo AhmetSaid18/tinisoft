@@ -197,31 +197,25 @@ class WebsiteTemplate(models.Model):
             from apps.models import Tenant
             from django.db.models import Q
             
-            # Domain veya Custom Domain kontrolü
-            tenant = Tenant.objects.filter(
-                Q(custom_domain=domain) | 
-                Q(domains__domain_name=domain)
-            ).first()
+            # Tek query ile hem tenant alanlarını tara hem template'i getir
+            q = Q(tenant__custom_domain=domain) | Q(tenant__domains__domain_name=domain)
             
-            if tenant:
-                logger.info(f"[WebsiteTemplate] MATCH: Tenant '{tenant.slug}' found via custom_domain/domains for '{domain}'")
-            
-            if not tenant:
-                 # Subdomain kontrolü (örn: ates.tinisoft.com.tr)
-                if 'tinisoft.com.tr' in domain:
-                    subdomain = domain.split('.')[0]
-                    tenant = Tenant.objects.filter(subdomain=subdomain).first()
-                    if tenant:
-                        logger.info(f"[WebsiteTemplate] MATCH: Tenant '{tenant.slug}' found via SUBDOMAIN for '{domain}'")
-                
-                if not tenant:
-                    logger.warning(f"[WebsiteTemplate] NO MATCH: Could not find tenant for domain '{domain}'")
-                    raise Tenant.DoesNotExist
+            # Subdomain kontrolü (örn: ates.tinisoft.com.tr)
+            if 'tinisoft.com.tr' in domain:
+                subdomain_part = domain.split('.')[0]
+                q |= Q(tenant__subdomain=subdomain_part)
 
-            template = cls.objects.select_related('tenant').get(tenant=tenant, is_active=True)
-            cache.set(cache_key, template, timeout=3600)  # 1 saat cache
-            return template
-        except (cls.DoesNotExist, Tenant.DoesNotExist):
+            template = cls.objects.select_related('tenant').filter(q, is_active=True).distinct().first()
+
+            if template:
+                logger.info(f"[WebsiteTemplate] MATCH: Template found for '{domain}' (Tenant: {template.tenant.slug})")
+                cache.set(cache_key, template, timeout=3600)  # 1 saat cache
+                return template
+            
+            logger.warning(f"[WebsiteTemplate] NO MATCH: No template/tenant found for domain '{domain}'")
+            return None
+        except Exception as e:
+            logger.error(f"[WebsiteTemplate] ERROR: get_by_domain failed for '{domain}': {str(e)}")
             return None
     
     def generate_preview_token(self):
