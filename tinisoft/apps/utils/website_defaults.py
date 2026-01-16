@@ -71,7 +71,7 @@ TEMPLATE_MODERN_MINIMALIST = {
         }
     },
     "homepage_config": {
-        "sections": [
+        "blocks": [
             {
                 "id": "hero-minimal",
                 "type": "hero-minimal",
@@ -283,7 +283,7 @@ TEMPLATE_CLASSIC_ECOMMERCE = {
         }
     },
     "homepage_config": {
-        "sections": [
+        "blocks": [
             {
                 "id": "hero-slider",
                 "type": "hero-slider",
@@ -505,7 +505,7 @@ DEFAULT_PAGES = [
         "sort_order": 1,
         "is_active": True,
         "page_config": {
-            "sections": [
+            "blocks": [
                 {
                     "id": "about-hero",
                     "type": "page-hero",
@@ -529,7 +529,7 @@ DEFAULT_PAGES = [
         "sort_order": 2,
         "is_active": True,
         "page_config": {
-            "sections": [
+            "blocks": [
                 {
                     "id": "contact-hero",
                     "type": "page-hero",
@@ -559,7 +559,7 @@ DEFAULT_PAGES = [
         "sort_order": 10,
         "is_active": True,
         "page_config": {
-            "sections": [
+            "blocks": [
                 {
                     "id": "privacy",
                     "type": "legal-content",
@@ -577,7 +577,7 @@ DEFAULT_PAGES = [
         "sort_order": 11,
         "is_active": True,
         "page_config": {
-            "sections": [
+            "blocks": [
                 {
                     "id": "terms",
                     "type": "legal-content",
