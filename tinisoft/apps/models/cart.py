@@ -200,28 +200,32 @@ class Cart(BaseModel):
         ).order_by('-is_default', '-created_at').first()
         
         tax_rate = active_tax.rate if active_tax else Decimal('0.00')
-        self.tax_amount = eligible_subtotal * (tax_rate / Decimal('100'))
+        tax_amount = eligible_subtotal * (tax_rate / Decimal('100'))
+        self.tax_amount = tax_amount
         
-        # Kupon indirimi hesapla (Sadece eligible tutar üzerinden!)
+        # Vergi dahil tutar (Kupon bu tutar üzerinden hesaplanır)
+        eligible_subtotal_with_tax = eligible_subtotal + tax_amount
+        
+        # Kupon indirimi hesapla (VERGİ DAHİL tutar üzerinden!)
         coupon_discount = Decimal('0.00')
         if self.coupon:
             try:
-                # Kupon geçerliliğini kontrol et (eligible tutar üzerinden)
+                # Kupon geçerliliğini kontrol et (VERGİ DAHİL tutar üzerinden)
                 is_valid, msg = self.coupon.is_valid(
                     customer_email=self.customer.email if self.customer else None,
-                    order_amount=eligible_subtotal,
+                    order_amount=eligible_subtotal_with_tax,
                     target_currency=self.currency or 'TRY'
                 )
                 if is_valid:
                     coupon_discount = self.coupon.calculate_discount(
-                        eligible_subtotal,
+                        eligible_subtotal_with_tax,
                         target_currency=self.currency or 'TRY'
                     )
                     # Ücretsiz kargo kontrolü
                     if self.coupon.discount_type == self.coupon.DiscountType.FREE_SHIPPING:
                         self.shipping_cost = Decimal('0.00')
                 else:
-                    logger.warning(f"[CART_CALC] Coupon {self.coupon.code} invalid for eligible subtotal {eligible_subtotal}: {msg}")
+                    logger.warning(f"[CART_CALC] Coupon {self.coupon.code} invalid for tax-inclusive amount {eligible_subtotal_with_tax}: {msg}")
             except Exception as e:
                 logger.warning(f"[CART_CALC] Error calculating coupon discount: {e}")
                 pass
