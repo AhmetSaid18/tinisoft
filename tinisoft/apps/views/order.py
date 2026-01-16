@@ -249,6 +249,10 @@ def order_list_create(request):
                     data = serializer.validated_data
                     logger.info(f"[ORDERS] POST /api/orders/ | Validated data keys: {list(data.keys()) if data else 'Empty'}")
                     
+                    # Log Payment Method explicit olarak
+                    pm_value = data.get('payment_method')
+                    logger.info(f"*** PAYMENT METHOD RECEIVED: '{pm_value}' ***")
+                    
                     # Sepet kontrolü
                     cart_id = data.get('cart_id')
                     logger.info(f"[ORDERS] POST /api/orders/ | Cart ID from validated data: {cart_id}")
