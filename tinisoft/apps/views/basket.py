@@ -15,11 +15,11 @@ import uuid
 logger = logging.getLogger(__name__)
 
 
-@api_view(['GET', 'POST'])
+@api_view(['GET', 'POST', 'DELETE'])
 @permission_classes([AllowAny])
 def basket(request):
     """
-    Sepeti getir (GET) veya sepete ürün ekle (POST).
+    Sepeti getir (GET), sepete ürün ekle (POST) veya sepeti temizle (DELETE).
     Sadece giriş yapan kullanıcılar için çalışır. Guest sepetleri frontend'de tutulur.
     
     GET: /api/basket/
@@ -34,6 +34,8 @@ def basket(request):
         "quantity": 1,
         "currency": "TRY"      // opsiyonel
     }
+    
+    DELETE: /api/basket/
     """
     tenant = get_tenant_from_request(request)
     if not tenant:
@@ -66,6 +68,18 @@ def basket(request):
             serializer = CartSerializer(cart, context={'request': request})
             return Response({
                 'success': True,
+                'basket': serializer.data,
+            })
+        elif request.method == 'DELETE':
+            # Sepeti temizle
+            CartService.clear_cart(cart)
+            
+            # Boş sepeti döndür
+            cart = CartService.get_or_create_cart(tenant, customer, None, currency)
+            serializer = CartSerializer(cart, context={'request': request})
+            return Response({
+                'success': True,
+                'message': 'Sepet temizlendi.',
                 'basket': serializer.data,
             })
         else:

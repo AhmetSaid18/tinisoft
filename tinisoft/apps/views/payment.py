@@ -1235,3 +1235,88 @@ def payment_callback_handler(request):
             content_type="text/html"
         )
 
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def calculate_payment_fees(request):
+    """
+    Ödeme yöntemi maliyeti/indirimi hesapla.
+    Havale indirimi veya kredi kartı komisyonu hesaplamak için kullanılır.
+    
+    POST: /api/payments/calculate/
+    Body: {
+        "amount": 1000.00,
+        "payment_method": "bank_transfer",  # credit_card, bank_transfer
+        "currency": "TRY"
+    }
+    """
+    from decimal import Decimal
+    
+    tenant = get_tenant_from_request(request)
+    if not tenant:
+        return Response({
+            'success': False,
+            'message': 'Tenant bulunamadı.',
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    amount = Decimal(str(request.data.get('amount', 0)))
+    payment_method = request.data.get('payment_method')
+    currency = request.data.get('currency', 'TRY')
+    
+    if amount <= 0:
+        return Response({
+            'success': False,
+            'message': 'Geçersiz tutar.',
+        }, status=status.HTTP_400_BAD_REQUEST)
+        
+    result = {
+        'original_amount': str(amount),
+        'payment_method': payment_method,
+        'fee_rate': '0.00',
+        'fee_amount': '0.00',
+        'discount_rate': '0.00',
+        'discount_amount': '0.00',
+        'final_amount': str(amount),
+        'currency': currency
+    }
+    
+    # Havale İndirimi
+    if payment_method == 'bank_transfer' or payment_method == 'havale':
+        try:
+            # IntegrationProvider'dan havale ayarlarını bul
+            provider = IntegrationProvider.objects.filter(
+                tenant=tenant,
+                provider_type='bank_transfer',
+                status=IntegrationProvider.Status.ACTIVE,
+                is_deleted=False
+            ).first()
+            
+            if provider:
+                config = provider.get_provider_config()
+                # Config içinde discount_rate var mı? (örn: 5 => %5)
+                # Config formatı: { discount_rate: "5", bank_name: "X Bank", iban: "TR..." }
+                discount_rate_str = config.get('discount_rate', '0')
+                discount_rate = Decimal(str(discount_rate_str))
+                
+                if discount_rate > 0:
+                    discount_amount = amount * (discount_rate / Decimal('100'))
+                    final_amount = amount - discount_amount
+                    
+                    result.update({
+                        'discount_rate': str(discount_rate),
+                        'discount_amount': str(discount_amount),
+                        'final_amount': str(final_amount)
+                    })
+        except Exception as e:
+            logger.error(f"Error calculating bank transfer discount: {e}")
+            pass
+            
+    # Kredi Kartı Komisyonu (İleride eklenebilir)
+    # elif payment_method == 'credit_card':
+    #     ...
+    
+    return Response({
+        'success': True,
+        **result
+    })
+

@@ -36,7 +36,7 @@ from apps.views.cart import (
 )
 from apps.views.payment import (
     payment_list_create, payment_detail, payment_create_with_provider, payment_verify,
-    kuveyt_callback_ok, kuveyt_callback_fail, payment_callback_handler
+    kuveyt_callback_ok, kuveyt_callback_fail, payment_callback_handler, calculate_payment_fees
 )
 from apps.views.customer import customer_list, customer_detail, update_customer_statistics
 from apps.views.inventory import inventory_movement_list_create, inventory_movement_detail
@@ -232,6 +232,7 @@ urlpatterns = [
     path('payments/create/', payment_create_with_provider, name='payment_create_with_provider'),  # POST: Create payment with provider (Kuveyt API)
     path('payments/verify/', payment_verify, name='payment_verify'),  # POST: Verify payment (callback)
     path('payments/verify', payment_verify, name='payment_verify_no_slash'),  # POST: Verify payment (no trailing slash)
+    path('payments/calculate/', calculate_payment_fees, name='calculate_payment_fees'),  # POST: Calculate fees/discount
     # Kuveyt 3D Secure callback endpoints
     path('payments/kuveyt/callback/ok/', kuveyt_callback_ok, name='kuveyt_callback_ok'),  # POST: Kuveyt OkUrl callback
     path('payments/kuveyt/callback/ok', kuveyt_callback_ok, name='kuveyt_callback_ok_no_slash'),  # POST: Kuveyt OkUrl callback (no trailing slash)

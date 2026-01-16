@@ -158,6 +158,15 @@ Header: Authorization: Bearer {token}
 
 ---
 
+### 20. Sepeti Temizle
+```
+DELETE /basket/
+Header: Authorization: Bearer {token}
+```
+**Amaç:** Sepetteki tüm ürünleri sil ve sepeti boşalt
+
+---
+
 ## 📍 ADRES YÖNETİMİ
 
 ### 20. Adres Listesi
