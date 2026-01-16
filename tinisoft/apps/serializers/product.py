@@ -193,7 +193,7 @@ class ProductVariantSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductVariant
         fields = [
-            'id', 'name', 'price', 'compare_at_price',
+            'id', 'name', 'price', 'compare_at_price', 'compare_percentage',
             'display_price', 'display_compare_at_price',
             'track_inventory', 'inventory_quantity',
             'allow_backorder', 'virtual_stock_quantity',
@@ -302,7 +302,7 @@ class ProductListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = [
-            'id', 'name', 'slug', 'price', 'compare_at_price', 'compareAtPrice',
+            'id', 'name', 'slug', 'price', 'compare_at_price', 'compare_percentage', 'compareAtPrice',
             'currency', 'price_with_vat',
             'display_price', 'display_compare_at_price',
             'display_min_price', 'display_max_price',
@@ -572,7 +572,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         model = Product
         fields = [
             'id', 'name', 'slug', 'description', 'description_html',
-            'price', 'compare_at_price', 'compareAtPrice',
+            'price', 'compare_at_price', 'compare_percentage', 'compareAtPrice',
             'buying_price', 'ecommerce_price', 'shipping_price',
             'currency', 'price_with_vat',
             'display_price', 'display_compare_at_price',
