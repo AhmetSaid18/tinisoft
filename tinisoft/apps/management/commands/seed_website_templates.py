@@ -35,17 +35,16 @@ class Command(BaseCommand):
                 self.stdout.write(f"Tenant {tenant.slug} already has a template. Use --force to overwrite. Skipping.")
                 continue
             
-            if force and hasattr(tenant, 'website_template'):
-                tenant.website_template.delete()
-                self.stdout.write(f"Deleted existing template for {tenant.slug} (Force mode)")
-
             # WebsiteService kullanarak dükkanı doğru şekilde döşe
             template_key = getattr(tenant, 'template', 'classic-ecommerce')
-            # Template null veya boşsa classic-ecommerce'e zorla
             if not template_key or template_key == "default":
                 template_key = 'classic-ecommerce'
 
-            template = WebsiteService.init_tenant_website(tenant, template_key=template_key)
+            template = WebsiteService.init_tenant_website(
+                tenant, 
+                template_key=template_key, 
+                force_update=force
+            )
             
             if template:
                 count += 1
