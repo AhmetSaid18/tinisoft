@@ -9,15 +9,23 @@ class OrderItemSerializer(serializers.ModelSerializer):
     """Order item serializer."""
     product_name = serializers.CharField(read_only=True)
     variant_name = serializers.CharField(read_only=True)
+    product_slug = serializers.SerializerMethodField()
     
     class Meta:
         model = OrderItem
         fields = [
             'id', 'product', 'variant', 'product_name', 'variant_name',
-            'product_sku', 'quantity', 'unit_price', 'total_price',
+            'product_sku', 'product_slug', 'quantity', 'unit_price', 'total_price',
             'product_image_url', 'created_at',
         ]
         read_only_fields = ['id', 'created_at', 'product_name', 'variant_name']
+    
+    def get_product_slug(self, obj):
+        """Ürün slug'ını döndür."""
+        if obj.product:
+            return obj.product.slug
+        return None
+
 
 
 class OrderListSerializer(serializers.ModelSerializer):
