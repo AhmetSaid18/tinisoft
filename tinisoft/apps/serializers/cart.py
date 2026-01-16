@@ -20,7 +20,7 @@ class CartItemSerializer(serializers.ModelSerializer):
         model = CartItem
         fields = [
             'id', 'product', 'variant', 'product_id', 'variant_id',
-            'quantity', 'unit_price', 'total_price',
+            'quantity', 'is_selected', 'unit_price', 'total_price',
             'created_at',
         ]
         read_only_fields = ['id', 'product', 'variant', 'unit_price', 'total_price', 'created_at']
@@ -66,6 +66,7 @@ class CartSerializer(serializers.Serializer):
     customer_id = serializers.UUIDField(read_only=True, allow_null=True)
     session_id = serializers.CharField(read_only=True, allow_null=True)
     subtotal = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    eligible_subtotal = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     shipping_cost = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     tax_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     discount_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
@@ -163,6 +164,7 @@ class CartSerializer(serializers.Serializer):
                 'customer_id': instance.get('customer_id'),
                 'session_id': instance.get('session_id'),
                 'subtotal': instance.get('subtotal', '0.00'),
+                'eligible_subtotal': instance.get('eligible_subtotal', instance.get('subtotal', '0.00')),
                 'shipping_cost': instance.get('shipping_cost', '0.00'),
                 'tax_amount': instance.get('tax_amount', '0.00'),
                 'discount_amount': instance.get('discount_amount', '0.00'),
@@ -181,6 +183,7 @@ class CartSerializer(serializers.Serializer):
                 'customer_id': str(instance.customer.id) if instance.customer else None,
                 'session_id': instance.session_id,
                 'subtotal': str(instance.subtotal),
+                'eligible_subtotal': str(instance.eligible_subtotal),
                 'shipping_cost': str(instance.shipping_cost),
                 'tax_amount': str(instance.tax_amount),
                 'discount_amount': str(instance.discount_amount),

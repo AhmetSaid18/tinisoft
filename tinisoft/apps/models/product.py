@@ -431,6 +431,24 @@ class Product(BaseModel):
     def __str__(self):
         return f"{self.name} ({self.tenant.name})"
     
+    def is_available(self, quantity=1):
+        """
+        Ürünün stokta olup olmadığını kontrol et (gerçek + sanal stok).
+        """
+        if not self.track_inventory:
+            return True
+        
+        real_stock = self.inventory_quantity
+        available_qty = real_stock
+        
+        if self.allow_backorder:
+            if self.virtual_stock_quantity is not None and self.virtual_stock_quantity > 0:
+                available_qty = real_stock + self.virtual_stock_quantity
+            else:
+                return True # Sınırsız sanal stok
+        
+        return available_qty >= quantity
+
     def save(self, *args, **kwargs):
         """Save metodunu override et - KDV dahil fiyatı tenant'ın aktif Tax'ından otomatik hesapla."""
         # Sanal stok girildiyse, otomatik olarak stoksuz satışa izin ver
@@ -587,6 +605,24 @@ class ProductVariant(BaseModel):
 
     def __str__(self):
         return f"{self.product.name} - {self.name}"
+
+    def is_available(self, quantity=1):
+        """
+        Varyantın stokta olup olmadığını kontrol et (gerçek + sanal stok).
+        """
+        if not self.track_inventory:
+            return True
+        
+        real_stock = self.inventory_quantity
+        available_qty = real_stock
+        
+        if self.allow_backorder:
+            if self.virtual_stock_quantity is not None and self.virtual_stock_quantity > 0:
+                available_qty = real_stock + self.virtual_stock_quantity
+            else:
+                return True # Sınırsız sanal stok
+        
+        return available_qty >= quantity
 
     def save(self, *args, **kwargs):
         """Save metodunu override et."""

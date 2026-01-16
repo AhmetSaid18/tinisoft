@@ -73,6 +73,14 @@ class Cart(BaseModel):
         validators=[MinValueValidator(Decimal('0.00'))],
     )
     
+    # Seçili ve stokta olan ürünlerin toplamı (Kupon bu matrah üzerinden hesaplanır)
+    eligible_subtotal = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+    )
+    
     # Kargo yöntemi
     shipping_method = models.ForeignKey(
         'ShippingMethod',
@@ -118,17 +126,23 @@ class Cart(BaseModel):
     def calculate_totals(self):
         """Sepet toplamlarını hesapla."""
         items = self.items.filter(is_deleted=False)
+        TWOPLACES = Decimal('0.01')
         
         # Her hesaplamada ürün fiyatlarını güncelle (güncel kur ve fiyat için)
         temp_subtotal = Decimal('0.00')
+        eligible_subtotal = Decimal('0.00') # Kupon ve ödeme için geçerli olan tutar
+        
         for item in items:
             # Ürün veya varyant fiyatını al
             if item.variant:
                 base_price = item.variant.price
+                product_currency = item.product.currency or 'TRY'
+                is_available = item.variant.is_available(item.quantity)
             else:
                 base_price = item.product.price
+                product_currency = item.product.currency or 'TRY'
+                is_available = item.product.is_available(item.quantity)
             
-            product_currency = item.product.currency or 'TRY'
             cart_currency = self.currency or 'TRY'
             
             # Para birimi dönüşümü yap
@@ -148,7 +162,13 @@ class Cart(BaseModel):
             # Item'ı güncelle (DB'ye yazmadan sadece toplama ekle)
             item.unit_price = current_unit_price
             item.total_price = current_unit_price * item.quantity
+            
+            # Tüm sepet toplamı (Görsel referans için)
             temp_subtotal += item.total_price
+            
+            # Sadece seçili VE stokta olanları kupon/ödeme matrahına ekle
+            if item.is_selected and is_available:
+                eligible_subtotal += item.total_price
             
             # DB'deki snapshot'ı da güncelle
             CartItem.objects.filter(id=item.id).update(
@@ -157,11 +177,12 @@ class Cart(BaseModel):
             )
 
         self.subtotal = temp_subtotal
+        self.eligible_subtotal = eligible_subtotal.quantize(TWOPLACES)
         
-        # Kargo ücreti hesaplama
+        # Kargo ücreti hesaplama (eligible tutar üzerinden)
         if self.shipping_method:
             if self.shipping_method.free_shipping_threshold:
-                if self.subtotal >= self.shipping_method.free_shipping_threshold:
+                if eligible_subtotal >= self.shipping_method.free_shipping_threshold:
                     self.shipping_cost = Decimal('0.00')
                 else:
                     self.shipping_cost = self.shipping_method.price
@@ -170,7 +191,7 @@ class Cart(BaseModel):
         else:
             self.shipping_cost = Decimal('0.00')
         
-        # Vergi hesaplama (Dinamik - Tenant bazlı)
+        # Vergi hesaplama (Dinamik - Tenant bazlı, eligible tutar üzerinden)
         from apps.models import Tax
         active_tax = Tax.objects.filter(
             tenant=self.tenant,
@@ -179,48 +200,47 @@ class Cart(BaseModel):
         ).order_by('-is_default', '-created_at').first()
         
         tax_rate = active_tax.rate if active_tax else Decimal('0.00')
-        self.tax_amount = self.subtotal * (tax_rate / Decimal('100'))
+        self.tax_amount = eligible_subtotal * (tax_rate / Decimal('100'))
         
-        # Kupon indirimi hesapla
+        # Kupon indirimi hesapla (Sadece eligible tutar üzerinden!)
         coupon_discount = Decimal('0.00')
         if self.coupon:
             try:
-                # Kupon geçerliliğini kontrol et (hata durumunda indirim 0 kalsın)
+                # Kupon geçerliliğini kontrol et (eligible tutar üzerinden)
                 is_valid, msg = self.coupon.is_valid(
                     customer_email=self.customer.email if self.customer else None,
-                    order_amount=self.subtotal,
+                    order_amount=eligible_subtotal,
                     target_currency=self.currency or 'TRY'
                 )
                 if is_valid:
                     coupon_discount = self.coupon.calculate_discount(
-                        self.subtotal,
+                        eligible_subtotal,
                         target_currency=self.currency or 'TRY'
                     )
                     # Ücretsiz kargo kontrolü
                     if self.coupon.discount_type == self.coupon.DiscountType.FREE_SHIPPING:
                         self.shipping_cost = Decimal('0.00')
                 else:
-                    logger.warning(f"[CART_CALC] Coupon {self.coupon.code} invalid for cart {self.id}: {msg}")
+                    logger.warning(f"[CART_CALC] Coupon {self.coupon.code} invalid for eligible subtotal {eligible_subtotal}: {msg}")
             except Exception as e:
                 logger.warning(f"[CART_CALC] Error calculating coupon discount: {e}")
                 pass
         
         self.discount_amount = coupon_discount
         
-        # Toplam ve Yuvarlama (Financial rounding)
-        TWOPLACES = Decimal('0.01')
+        # Yuvarlama
         self.subtotal = self.subtotal.quantize(TWOPLACES)
         self.shipping_cost = self.shipping_cost.quantize(TWOPLACES)
         self.tax_amount = self.tax_amount.quantize(TWOPLACES)
         self.discount_amount = self.discount_amount.quantize(TWOPLACES)
         
-        # Toplam hesapla (Eksiye düşmesini engelle)
-        gross_total = (self.subtotal + self.shipping_cost + self.tax_amount)
+        # Ödenecek Toplamı hesapla (Sadece eligible ürünler + kargo + vergi - indirim)
+        gross_total = (eligible_subtotal + self.shipping_cost + self.tax_amount)
         self.total = max(Decimal('0.00'), (gross_total - self.discount_amount)).quantize(TWOPLACES)
         
         logger.info(
-            f"[CART_CALC] Cart {self.id} | Subtotal: {self.subtotal} {self.currency} | "
-            f"Tax: {self.tax_amount} | Discount: {self.discount_amount} | Total: {self.total}"
+            f"[CART_CALC] Cart {self.id} | Total Subtotal: {self.subtotal} | "
+            f"Eligible Subtotal: {eligible_subtotal} | Total to Pay: {self.total}"
         )
         self.save()
         return self.total
@@ -255,6 +275,9 @@ class CartItem(BaseModel):
         validators=[MinValueValidator(1)],
         default=1,
     )
+    
+    # Seçili mi? (Checkout'a dahil edilsin mi?)
+    is_selected = models.BooleanField(default=True, db_index=True)
     
     # Fiyat (cache - sepete eklendiği andaki fiyat)
     unit_price = models.DecimalField(
