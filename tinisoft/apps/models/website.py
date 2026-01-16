@@ -191,7 +191,7 @@ class WebsiteTemplate(models.Model):
             return cached
         
         try:
-            from .tenant import Tenant
+            from apps.models import Tenant
             tenant = Tenant.objects.get(domain=domain)
             template = cls.objects.select_related('tenant').get(tenant=tenant, is_active=True)
             cache.set(cache_key, template, timeout=3600)  # 1 saat cache
