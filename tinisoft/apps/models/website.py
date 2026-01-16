@@ -5,6 +5,9 @@ from django.dispatch import receiver
 from django.utils.crypto import get_random_string
 from django.conf import settings
 import uuid
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class WebsiteTemplate(models.Model):
@@ -192,7 +195,29 @@ class WebsiteTemplate(models.Model):
         
         try:
             from apps.models import Tenant
-            tenant = Tenant.objects.get(domain=domain)
+            from django.db.models import Q
+            
+            # Domain veya Custom Domain kontrolü
+            tenant = Tenant.objects.filter(
+                Q(custom_domain=domain) | 
+                Q(domains__domain_name=domain)
+            ).first()
+            
+            if tenant:
+                logger.info(f"[WebsiteTemplate] MATCH: Tenant '{tenant.slug}' found via custom_domain/domains for '{domain}'")
+            
+            if not tenant:
+                 # Subdomain kontrolü (örn: ates.tinisoft.com.tr)
+                if 'tinisoft.com.tr' in domain:
+                    subdomain = domain.split('.')[0]
+                    tenant = Tenant.objects.filter(subdomain=subdomain).first()
+                    if tenant:
+                        logger.info(f"[WebsiteTemplate] MATCH: Tenant '{tenant.slug}' found via SUBDOMAIN for '{domain}'")
+                
+                if not tenant:
+                    logger.warning(f"[WebsiteTemplate] NO MATCH: Could not find tenant for domain '{domain}'")
+                    raise Tenant.DoesNotExist
+
             template = cls.objects.select_related('tenant').get(tenant=tenant, is_active=True)
             cache.set(cache_key, template, timeout=3600)  # 1 saat cache
             return template
