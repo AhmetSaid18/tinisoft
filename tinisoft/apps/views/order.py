@@ -258,6 +258,10 @@ def order_list_create(request):
                         cart_id = request_data.get('cart_id') if request_data else None
                         logger.info(f"[ORDERS] POST /api/orders/ | Cart ID from request_data: {cart_id}")
                     
+                    # Payment method logla (DEBUG için)
+                    p_method = data.get('payment_method')
+                    logger.info(f"[ORDERS] POST /api/orders/ | Payment Method: '{p_method}' (Type: {type(p_method)})")
+                    
                     if not cart_id:
                         logger.warning(
                             f"[ORDERS] POST /api/orders/ | 400 | "
