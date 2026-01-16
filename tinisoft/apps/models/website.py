@@ -529,3 +529,31 @@ class TemplateRevision(models.Model):
     def __str__(self):
         return f"{self.template.tenant.slug} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"
 
+
+# ================================
+# SIGNALS (Cache Management)
+# ================================
+
+@receiver(post_save, sender=WebsiteTemplate)
+@receiver(post_delete, sender=WebsiteTemplate)
+def clear_template_cache(sender, instance, **kwargs):
+    """Template veya Tenant ayarı değiştiğinde tüm olası cache keyleri temizle"""
+    # Domain key'leri (get_by_domain tarafında kullanılanlar)
+    keys = [
+        f"website_template_{instance.tenant.slug}",
+        f"website_template_{instance.tenant.custom_domain}" if instance.tenant.custom_domain else None,
+        f"website_template_{instance.tenant.subdomain}.tinisoft.com.tr"
+    ]
+    for key in keys:
+        if key:
+            cache.delete(key)
+    # Log: Cache temizlendiğini görelim
+    print(f"[Signals] Cache cleared for tenant: {instance.tenant.slug}")
+
+@receiver(post_save, sender=WebsitePage)
+@receiver(post_delete, sender=WebsitePage)
+def clear_page_cache(sender, instance, **kwargs):
+    """Sayfa değiştiğinde bağlı olduğu template'in cache'ini temizle"""
+    if instance.template:
+        clear_template_cache(WebsiteTemplate, instance.template)
+
