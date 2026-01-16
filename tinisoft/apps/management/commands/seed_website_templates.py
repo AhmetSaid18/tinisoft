@@ -4,66 +4,51 @@ Sistemi hazır şablonlarla ve örnek verilerle başlatır.
 Her tenant için (varsa) default template oluşturur.
 
 Kullanım:
-python manage.py seed_website_templates
+python manage.py seed_website_templates [--force]
 """
 
 from django.core.management.base import BaseCommand
-from apps.models.website import WebsiteTemplate, WebsitePage
 from apps.models import Tenant
-from apps.utils.website_defaults import AVAILABLE_TEMPLATES, DEFAULT_PAGES
 
 class Command(BaseCommand):
     help = 'Seeds database with default website templates for existing tenants'
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--force',
+            action='store_true',
+            help='Overwrite existing templates',
+        )
+
     def handle(self, *args, **options):
         self.stdout.write(self.style.WARNING('Seeding website templates...'))
+        force = options.get('force', False)
         
         tenants = Tenant.objects.all()
         count = 0
         
+        from apps.services.website_service import WebsiteService
+        
         for tenant in tenants:
-            # Varsa geç
-            if hasattr(tenant, 'website_template'):
-                self.stdout.write(f"Tenant {tenant.slug} already has a template. Skipping.")
+            # Varsa ve force değilse geç
+            if hasattr(tenant, 'website_template') and not force:
+                self.stdout.write(f"Tenant {tenant.slug} already has a template. Use --force to overwrite. Skipping.")
                 continue
-                
-            # Default template: Classic E-Commerce
-            template_key = "classic-ecommerce"
-            template_data = AVAILABLE_TEMPLATES[template_key]
             
-            # Create template
-            template = WebsiteTemplate.objects.create(
-                tenant=tenant,
-                base_template=template_key,
-                site_name=tenant.name,
-                homepage_config=template_data['homepage_config'],
-                theme_config=template_data['theme_config'],
-                navigation_menus=template_data['navigation_menus'],
-                footer_config=template_data['footer_config'],
-                social_links=template_data['social_links'],
-                announcement_bar=template_data['announcement_bar'],
-                analytics_config=template_data['analytics_config'],
-                pwa_config=template_data['pwa_config'],
-                
-                # SEO Defaults
-                meta_title=f"{tenant.name} - Online Alışveriş",
-                meta_description=f"{tenant.name} ile en kaliteli ürünler kapınızda."
-            )
+            if force and hasattr(tenant, 'website_template'):
+                tenant.website_template.delete()
+                self.stdout.write(f"Deleted existing template for {tenant.slug} (Force mode)")
+
+            # WebsiteService kullanarak dükkanı doğru şekilde döşe
+            template_key = getattr(tenant, 'template', 'classic-ecommerce')
+            # Template null veya boşsa classic-ecommerce'e zorla
+            if not template_key or template_key == "default":
+                template_key = 'classic-ecommerce'
+
+            template = WebsiteService.init_tenant_website(tenant, template_key=template_key)
             
-            # Create default pages
-            for page_data in DEFAULT_PAGES:
-                WebsitePage.objects.create(
-                    template=template,
-                    slug=page_data['slug'],
-                    title=page_data['title'],
-                    page_config=page_data['page_config'],
-                    meta_title=page_data['meta_title'],
-                    meta_description=page_data['meta_description'],
-                    show_in_menu=True,
-                    sort_order=1
-                )
+            if template:
+                count += 1
+                self.stdout.write(self.style.SUCCESS(f"Initialized template for tenant: {tenant.slug} ({template_key})"))
             
-            count += 1
-            self.stdout.write(self.style.SUCCESS(f"Created template for tenant: {tenant.slug}"))
-            
-        self.stdout.write(self.style.SUCCESS(f'Successfully seeded {count} templates!'))
+        self.stdout.write(self.style.SUCCESS(f'Successfully processed {count} templates!'))
