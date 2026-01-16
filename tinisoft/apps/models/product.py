@@ -100,6 +100,13 @@ class Product(BaseModel):
     # Fiyat (varyant yoksa kullanılır, varyant varsa default display fiyat için)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     compare_at_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    compare_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="İndirim yüzdesi (opsiyonel, örn: 25.00 = %25 indirim)"
+    )
     currency = models.CharField(
         max_length=3,
         default='TRY',
@@ -558,6 +565,13 @@ class ProductVariant(BaseModel):
     # Fiyat
     price = models.DecimalField(max_digits=10, decimal_places=2)
     compare_at_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    compare_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="İndirim yüzdesi (opsiyonel, örn: 25.00 = %25 indirim)"
+    )
 
     # Stok
     track_inventory = models.BooleanField(default=True)
