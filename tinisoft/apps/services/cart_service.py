@@ -519,7 +519,15 @@ class CartService:
         if is_redis_cart:
             # Redis sepeti
             cart['items'] = []
-            CartService._calculate_redis_cart_totals(cart)
+            cart['subtotal'] = '0.00'
+            cart['tax_amount'] = '0.00'
+            cart['shipping_cost'] = '0.00'
+            cart['discount_amount'] = '0.00'
+            cart['total'] = '0.00'
+            # Kupon bilgisini de temizle (önemli!)
+            if 'coupon_code' in cart:
+                del cart['coupon_code']
+            
             CartService._save_redis_cart(
                 cart['tenant_id'],
                 cart['session_id'],
@@ -528,7 +536,12 @@ class CartService:
             logger.info(f"Redis cart cleared: {cart['session_id']}")
         else:
             # DB sepeti
-            cart.items.all().delete()
+            cart.items.filter(is_deleted=False).delete() # Sadece aktif item'ları sil (veya all().delete() soft delete ise)
+            # Kupon bilgisini de temizle (önemli!)
+            cart.coupon = None
+            cart.coupon_code = ''
+            cart.save()
+            
             cart.calculate_totals()
-            logger.info(f"DB cart cleared for tenant {cart.tenant.name}")
+            logger.info(f"DB cart cleared, coupon removed for tenant {cart.tenant.name}")
 
