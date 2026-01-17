@@ -126,7 +126,10 @@ class OrderService:
         selected_discount_amount = Decimal('0.00')
         if cart.coupon:
             try:
-                selected_discount_amount = cart.coupon.calculate_discount(selected_subtotal)
+                # Kuponu KDV dahil fiyat üzerinden hesapla (Frontend uyumu için)
+                gross_for_coupon = selected_subtotal + selected_tax_amount
+                selected_discount_amount = cart.coupon.calculate_discount(gross_for_coupon)
+                
                 # Ücretsiz kargo kontrolü
                 if cart.coupon.discount_type == cart.coupon.DiscountType.FREE_SHIPPING:
                     selected_shipping_cost = Decimal('0.00')
@@ -144,14 +147,9 @@ class OrderService:
                     status=IntegrationProvider.Status.ACTIVE,
                     is_deleted=False
                 ).first()
-                
-                logger.info(f"OrderService: Bank transfer discount check. Tenant: {cart.tenant.name}, Provider found: {provider is not None}")
-                
                 if provider:
                     config = provider.get_provider_config()
                     discount_rate_str = config.get('discount_rate', '0')
-                    logger.info(f"OrderService: Discount rate from config: {discount_rate_str}")
-                    
                     discount_rate = Decimal(str(discount_rate_str))
                     if discount_rate > 0:
                         # Toplam üzerinden yüzde indirim (KDV dahil veya hariç? Genelde toplama uygulanır)
@@ -162,11 +160,8 @@ class OrderService:
                         if base_total_for_discount > 0:
                             raw_discount = base_total_for_discount * (discount_rate / Decimal('100'))
                             payment_discount_amount = raw_discount.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-                            
-                            logger.info(f"OrderService: Calculating discount. Base: {base_total_for_discount}, Rate: {discount_rate}, Result: {payment_discount_amount}")
-                            
             except Exception as e:
-                logger.error(f"Error calculating payment discount: {e}", exc_info=True)
+                logger.error(f"Error calculating payment discount: {e}")
                 pass
 
         # Toplam
