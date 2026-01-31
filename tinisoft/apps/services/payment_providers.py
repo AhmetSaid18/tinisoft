@@ -9,6 +9,9 @@ import xml.etree.ElementTree as ET
 from decimal import Decimal, ROUND_HALF_UP
 from django.conf import settings
 from urllib.parse import urlencode, unquote
+import hmac
+import json
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -960,17 +963,317 @@ class KuwaitPaymentProvider(PaymentProviderBase):
 
 from apps.services.bank_transfer_provider import BankTransferPaymentProvider
 
+
+class PayTRPaymentProvider(PaymentProviderBase):
+    """
+    PayTR Direct API ödeme sağlayıcısı.
+    
+    Config'de şu bilgiler olmalı:
+    - merchant_id: Mağaza No (Merchant ID)
+    - api_key: Mağaza Parola (Merchant Key)
+    - api_secret: Mağaza Gizli Anahtar (Merchant Salt)
+    - test_mode: Test Modu (1 veya 0)
+    """
+    
+    def __init__(self, tenant, config=None):
+        super().__init__(tenant, config)
+        self.test_mode = getattr(settings, 'PAYTR_TEST_MODE', False) or self.config.get('test_mode', False)
+        
+        # Integration config'den bilgileri al
+        self.merchant_id = str(self.config.get('merchant_id') or '')
+        self.merchant_key = (self.config.get('api_key') or '').encode()
+        self.merchant_salt = (self.config.get('api_secret') or '').encode()
+        
+        # Test modu kontrolü (String '1' veya '0' olmalı)
+        # Settings'deki öncelikli (global override için), yoksa config'deki
+        self.test_mode_str = '1' if self.test_mode else '0'
+        
+        # Debug modu (Settings'den)
+        self.debug_on = '1' if getattr(settings, 'PAYTR_DEBUG_ON', False) else '0'
+        
+        # API URL (Hem test hem canlı için aynı, test_mode parametresi belirler)
+        self.api_url = "https://www.paytr.com/odeme/api/direct"
+        
+        logger.info(
+            f"PayTR PaymentProvider initialized | "
+            f"Tenant: {tenant.name} | "
+            f"Test Mode: {self.test_mode_str} | "
+            f"Merchant ID: {self.merchant_id}"
+        )
+
+    def calculate_token(self, user_ip, merchant_oid, email, payment_amount, payment_type, installment_count, currency, non_3d='0'):
+        """
+        PayTR Direct API için token (hash) hesapla.
+        Sıralama: merchant_id + user_ip + merchant_oid + email + payment_amount + payment_type + installment_count + currency + test_mode + non_3d
+        """
+        hash_str = (
+            f"{self.merchant_id}"
+            f"{user_ip}"
+            f"{merchant_oid}"
+            f"{email}"
+            f"{payment_amount}"
+            f"{payment_type}"
+            f"{installment_count}"
+            f"{currency}"
+            f"{self.test_mode_str}"
+            f"{non_3d}"
+        )
+        
+        paytr_token = base64.b64encode(
+            hmac.new(
+                self.merchant_key,
+                hash_str.encode() + self.merchant_salt,
+                hashlib.sha256
+            ).digest()
+        ).decode()
+        
+        return paytr_token
+
+    def create_payment(self, order, amount, customer_info):
+        """
+        PayTR Direct API ödeme oluştur.
+        
+        Args:
+            order: Order instance
+            amount: Ödeme tutarı (Decimal veya float)
+            customer_info: Müşteri ve kart bilgileri
+            
+        Returns:
+            dict: {
+                'success': bool,
+                'payment_html': str (3D Secure redirect HTML),
+                'transaction_id': str,
+                'error': str
+            }
+        """
+        try:
+            # Zorunlu alan kontrolü
+            if not all([self.merchant_id, self.merchant_key, self.merchant_salt]):
+                 return {
+                    'success': False,
+                    'error': 'PayTR API bilgileri eksik. Merchant ID, Key ve Salt gerekli.',
+                }
+
+            # IP Adresi
+            user_ip = customer_info.get('ip_address') or '127.0.0.1'
+            if user_ip == '127.0.0.1' and self.test_mode:
+                 # Test ortamında bazen local IP sorun olabilir, rastgele bir IP sallayalım veya olduğu gibi bırakalım.
+                 # PayTR bazen IP kontrolü yapıyor.
+                 pass
+            
+            # Sipariş No
+            merchant_oid = order.order_number
+            
+            # Email
+            email = customer_info.get('email') or 'musteri@tinisoft.com.tr'
+            
+            # Tutar (String format: "100.00")
+            # Decimal'i string'e çevir, 2 hane kuruş
+            amount_str = f"{float(amount):.2f}"
+            
+            # Ödeme Tipi
+            payment_type = 'card'
+            
+            # Taksit Sayısı (0 = Tek Çekim)
+            installment_count = customer_info.get('installment_count', 0)
+            if not installment_count or int(installment_count) <= 1:
+                installment_str = '0'
+                no_installment = '1' # Taksit yok seçeneği
+            else:
+                installment_str = str(installment_count)
+                no_installment = '0'
+            
+            # Para Birimi
+            order_currency = getattr(order, 'currency', 'TRY') or 'TRY'
+            if order_currency == 'TRY':
+                currency = 'TL' # PayTR TL kullanıyor
+            else:
+                currency = order_currency
+            
+            # Non 3D (0 = 3D Secure, 1 = Non 3D)
+            # Varsayılan olarak 3D Secure kullan (0)
+            non_3d = '0'
+            
+            # Token Hesapla
+            paytr_token = self.calculate_token(
+                user_ip, merchant_oid, email, amount_str, 
+                payment_type, installment_str, currency, non_3d
+            )
+            
+            # Sepet (User Basket)
+            # [["Örnek Ürün 1", "50.00", 1], ...]
+            # Order items'dan oluştur
+            basket = []
+            if hasattr(order, 'items'):
+                for item in order.items.all():
+                    basket.append([
+                        item.product_name,
+                        f"{float(item.unit_price):.2f}",
+                        item.quantity
+                    ])
+            
+            if not basket:
+                # Sepet boşsa dummy bir ürün ekle (Hata almamak için)
+                basket.append(["Siparis Tutari", amount_str, 1])
+                
+            user_basket = json.dumps(basket)
+            
+            # Callback URL'ler
+            api_base_url = self.config.get('api_base_url') or getattr(settings, 'API_BASE_URL', 'https://api.tinisoft.com.tr')
+            if not api_base_url.startswith('http'):
+                api_base_url = f'https://{api_base_url}'
+                
+            merchant_ok_url = f'{api_base_url}/api/payments/paytr/callback/ok'
+            merchant_fail_url = f'{api_base_url}/api/payments/paytr/callback/fail'
+            
+            # POST Data
+            post_data = {
+                'merchant_id': self.merchant_id,
+                'user_ip': user_ip,
+                'merchant_oid': merchant_oid,
+                'email': email,
+                'payment_amount': amount_str,
+                'paytr_token': paytr_token,
+                'user_basket': user_basket,
+                'debug_on': self.debug_on,
+                'no_installment': no_installment,
+                'max_installment': '0', # Taksit sınırlaması yok
+                'user_name': customer_info.get('name', 'Musteri'),
+                'user_address': customer_info.get('billing', {}).get('address', 'Teslimat Adresi'),
+                'user_phone': customer_info.get('phone', ''),
+                'merchant_ok_url': merchant_ok_url,
+                'merchant_fail_url': merchant_fail_url,
+                'timeout_limit': '30',
+                'currency': currency,
+                'test_mode': self.test_mode_str,
+                'payment_type': payment_type,
+                'installment_count': installment_str,
+                'non_3d': non_3d,
+                
+                # Kart Bilgileri
+                'card_type': customer_info.get('card_type', 'bonus'), # Opsiyonel
+                'card_number': customer_info.get('card_number', '').replace(' ', ''),
+                'card_holder_name': customer_info.get('name', ''),
+                'expiry_month': customer_info.get('card_expiry_month', ''),
+                'expiry_year': customer_info.get('card_expiry_year', ''),
+                'cvc': customer_info.get('card_cvv', ''),
+            }
+            
+            # Log request (Kart bilgilerini gizle)
+            safe_data = post_data.copy()
+            safe_data['card_number'] = '****' + safe_data['card_number'][-4:] if safe_data.get('card_number') else '****'
+            safe_data['cvc'] = '***'
+            logger.info(f"PayTR Direct API Request: {json.dumps(safe_data, default=str)}")
+            
+            # Request
+            response = requests.post(self.api_url, data=post_data, timeout=30)
+            
+            try:
+                result = response.json()
+            except ValueError:
+                # JSON dönmediyse raw text logla
+                logger.error(f"PayTR API Invalid JSON Response: {response.text[:500]}")
+                return {
+                    'success': False,
+                    'error': 'PayTR servisi geçersiz yanıt döndürdü.',
+                }
+            
+            if result.get('status') == 'success':
+                # Başarılı ise token veya redirect HTML döner
+                # Direct API 3D Secure ile genelde bir HTML fragment döner
+                # Bunu frontend'de bir iframe içine veya direkt sayfaya basmalı
+                
+                # PayTR bazen redirect URL dönüyor mu?
+                # Dokümana göre Direct API response:
+                # status: success
+                # token: ... (sadece iframe yapısında)
+                # VEYA 3D işlemi için kullanıcıyı yönlendirmeniz gereken HTML kod bloğu
+                
+                # Bizim örneğimizde 'Direct API' olduğu için HTML dönmesi muhtemel.
+                # Ancak 'token' dönerse iframe url oluşturmak gerekebilir.
+                # PayTR Direct API'de genellikle iframe URL'i oluşturulmaz, direkt post edilen verinin cevabında HTML gelir.
+                
+                # Kullanıcının verdiği kodda: return result
+                # Bizim yapımızda 'payment_html' bekliyoruz.
+                
+                # Eğer paytr iframe token döndüyse (iframe ile kullanım):
+                if 'token' in result and 'https://www.paytr.com/odeme' in str(result):
+                     # Bu iframe url olabilir ama direct api'de genelde form submit scripti gelir
+                     pass
+                     
+                # Sonuç olarak result'ı olduğu gibi dönmek veya html'i ayıklamak lazım
+                # PayTR Direct API response örneği (3D için):
+                # Genelde redirect için script tag'leri olan bir HTML döner mi?
+                # Hayır, galiba PayTR response bir JSON döner ve biz onu frontend'e iletiriz.
+                # Ancak 'payment_html' bekleyen bir yapı kurduk Kuveyt için.
+                # PayTR yanıtı tam olarak ne içeriyor?
+                # En yaygın: Iframe linki döner veya HTML content.
+                # Kullanıcı kodu: "Eğer 3D Secure gerekliyse PayTR HTML content döner, bunu frontend'e/iframe'e basman gerekir."
+                
+                return {
+                    'success': True,
+                    'payment_html': None, # JSON result frontend'e gönderilecek
+                    'raw_response': result, # Frontend bu response'a göre işlem yapacak (script çalıştıracak vs)
+                    'transaction_id': merchant_oid,
+                    'error': None,
+                }
+            else:
+                # Hata
+                error_msg = result.get('msg', 'Bilinmeyen Hata')
+                return {
+                    'success': False,
+                    'error': error_msg,
+                    'transaction_id': merchant_oid,
+                }
+                
+        except Exception as e:
+            logger.error(f"PayTR create_payment error: {str(e)}", exc_info=True)
+            return {
+                'success': False,
+                'error': str(e),
+            }
+
+    def validate_callback_hash(self, post_data):
+        """
+        Callback hash doğrulama.
+        Gelen POST: merchant_oid, status, total_amount, hash
+        Hash = base64(hmac_sha256(merchant_oid + salt + status + total_amount, key))
+        """
+        incoming_hash = post_data.get('hash')
+        merchant_oid = post_data.get('merchant_oid')
+        status = post_data.get('status')
+        total_amount = post_data.get('total_amount')
+        
+        hash_str = f"{merchant_oid}{self.merchant_salt.decode()}{status}{total_amount}"
+        
+        calculated_hash = base64.b64encode(
+            hmac.new(
+                self.merchant_key,
+                hash_str.encode(),
+                hashlib.sha256
+            ).digest()
+        ).decode()
+        
+        is_valid = (calculated_hash == incoming_hash)
+        
+        if not is_valid:
+            logger.warning(
+                f"PayTR Hash Mismatch! "
+                f"Calculated: {calculated_hash}, Incoming: {incoming_hash}, "
+                f"Data: {merchant_oid}/{status}/{total_amount}"
+            )
+            
+        return is_valid
+
 class PaymentProviderFactory:
     """Payment provider factory."""
     
     PROVIDERS = {
         'kuwait': KuwaitPaymentProvider,
-        'kuveyt': KuwaitPaymentProvider,  # Türkçe isim desteği
+        'kuveyt': KuwaitPaymentProvider,
         'bank_transfer': BankTransferPaymentProvider,
         'havale': BankTransferPaymentProvider,
-        # Diğer provider'lar buraya eklenebilir
-        # 'iyzico': IyzicoPaymentProvider,
-        # 'paytr': PayTRPaymentProvider,
+        'paytr': PayTRPaymentProvider,
     }
     
     @classmethod

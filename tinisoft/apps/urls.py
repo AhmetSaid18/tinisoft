@@ -36,7 +36,8 @@ from apps.views.cart import (
 )
 from apps.views.payment import (
     payment_list_create, payment_detail, payment_create_with_provider, payment_verify,
-    kuveyt_callback_ok, kuveyt_callback_fail, payment_callback_handler, calculate_payment_fees
+    kuveyt_callback_ok, kuveyt_callback_fail, payment_callback_handler, calculate_payment_fees,
+    paytr_callback_ok, paytr_callback_fail
 )
 from apps.views.customer import customer_list, customer_detail, update_customer_statistics
 from apps.views.inventory import inventory_movement_list_create, inventory_movement_detail
@@ -238,6 +239,11 @@ urlpatterns = [
     path('payments/kuveyt/callback/ok', kuveyt_callback_ok, name='kuveyt_callback_ok_no_slash'),  # POST: Kuveyt OkUrl callback (no trailing slash)
     path('payments/kuveyt/callback/fail/', kuveyt_callback_fail, name='kuveyt_callback_fail'),  # POST: Kuveyt FailUrl callback
     path('payments/kuveyt/callback/fail', kuveyt_callback_fail, name='kuveyt_callback_fail_no_slash'),  # POST: Kuveyt FailUrl callback (no trailing slash)
+    # PayTR Callback endpoints
+    path('payments/paytr/callback/ok/', paytr_callback_ok, name='paytr_callback_ok'),
+    path('payments/paytr/callback/ok', paytr_callback_ok, name='paytr_callback_ok_no_slash'),
+    path('payments/paytr/callback/fail/', paytr_callback_fail, name='paytr_callback_fail'),
+    path('payments/paytr/callback/fail', paytr_callback_fail, name='paytr_callback_fail_no_slash'),
     # Payment callback handler (frontend için)
     path('payments/callback-handler/', payment_callback_handler, name='payment_callback_handler'),  # GET: Payment callback handler (frontend redirect için)
     path('payments/callback-handler', payment_callback_handler, name='payment_callback_handler_no_slash'),  # GET: Payment callback handler (no trailing slash)

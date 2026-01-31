@@ -414,6 +414,36 @@ def payment_create_with_provider(request):
     }
     integration_provider_type = provider_name_mapping.get(provider_name.lower(), provider_name.lower())
     
+    # Auto-detect integration if provider is generic (default 'kuwait') and not specified in request
+    # If request has no provider field, we check active integrations.
+    # If request has explicit 'kuwait' (default from frontend), we still might want to check if that's valid.
+    # But usually frontend sends nothing or specific provider.
+    # Logic: If provider_name is 'kuwait' (default default) AND 'kuveyt' integration is NOT active but others ARE, try to switch.
+    
+    # Is 'provider' field explicitly provided?
+    provider_explicitly_sent = 'provider' in request.data
+    
+    if not provider_explicitly_sent or (provider_name == 'kuwait' and not provider_explicitly_sent):
+        # Auto-detect active integration
+        active_integrations = IntegrationProvider.objects.filter(
+            tenant=tenant,
+            status__in=[IntegrationProvider.Status.ACTIVE, IntegrationProvider.Status.TEST_MODE],
+            is_deleted=False
+        ).exclude(provider_type__in=['sms', 'email', 'analytics', 'other', 'bank_transfer'])
+        
+        # If there is only ONE virtual pos integration, use it
+        if active_integrations.count() == 1:
+            detected_provider = active_integrations.first()
+            integration_provider_type = detected_provider.provider_type
+            
+            # Map back to provider name (for factory)
+            # Reverse mapping
+            reverse_mapping = {v: k for k, v in provider_name_mapping.items()}
+            # Default to type itself if no mapping found
+            provider_name = reverse_mapping.get(integration_provider_type, integration_provider_type)
+            
+            logger.info(f"Auto-detected payment provider: {provider_name} ({integration_provider_type}) for tenant {tenant.id}")
+        
     if not order_id:
         return Response({
             'success': False,
@@ -976,6 +1006,102 @@ def kuveyt_callback_fail(request):
             api_base_url = f'https://{api_base_url}'
         callback_url = f"{api_base_url}/api/payments/callback-handler?status=fail&error=Sistem+hatasi"
         return html_redirect(callback_url, "Ödeme işleniyor...")
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def paytr_callback_ok(request):
+    """
+    PayTR Callback Handler (Success & Fail generic handler)
+    PayTR başarılı işlemde de, başarısız işlemde de aynı URL'ye POST atabilir 
+    veya ayrı ayrı URL'ler tanımlanabilir.
+    
+    URL: /api/payments/paytr/callback/ok/
+    """
+    try:
+        # PayTR'dan gelen veriler (POST body içinde)
+        merchant_oid = request.POST.get('merchant_oid')
+        status_param = request.POST.get('status')
+        total_amount = request.POST.get('total_amount')
+        received_hash = request.POST.get('hash')
+        
+        logger.info(f"PayTR Callback OK received: {merchant_oid} Status: {status_param}")
+        
+        if not merchant_oid:
+            return HttpResponse("OK") # PayTR'a her zaman OK dönmek gerekir
+            
+        # Tenant ve Order Bul
+        # MerchantOrderId = Order Number
+        tenant = force_tenant_schema_from_order_number(merchant_oid)
+        if not tenant:
+            logger.error(f"PayTR Callback: Tenant not found for {merchant_oid}")
+            return HttpResponse("OK")
+            
+        payment = Payment.objects.filter(
+            transaction_id=merchant_oid,
+            tenant=tenant,
+            is_deleted=False
+        ).first()
+        
+        if not payment:
+            logger.error(f"PayTR Callback: Payment not found for {merchant_oid}")
+            return HttpResponse("OK")
+
+        # Config'i bul (Hash doğrulaması için)
+        config = None
+        try:
+            integration = IntegrationProvider.objects.get(
+                tenant=tenant,
+                provider_type='paytr',
+                status__in=[IntegrationProvider.Status.ACTIVE, IntegrationProvider.Status.TEST_MODE],
+                is_deleted=False
+            )
+            config = integration.get_provider_config()
+        except IntegrationProvider.DoesNotExist:
+            logger.error("PayTR Callback: Integration not found")
+            return HttpResponse("OK")
+
+        # Provider instance
+        provider = PaymentProviderFactory.get_provider(
+            tenant=tenant,
+            provider_name='paytr',
+            config=config
+        )
+        
+        # Hash Doğrulama
+        if not provider.validate_callback_hash(request.POST):
+            logger.error(f"PayTR Callback: Hash Validasyon Hatası! {merchant_oid}")
+            return HttpResponse("OK") # Güvenlik hatası ama PayTR'a OK dönüyoruz
+            
+        # İşlem Durumu
+        if status_param == 'success':
+            # Başarılı
+            payment = PaymentService.process_payment(
+                payment,
+                transaction_id=merchant_oid
+            )
+            logger.info(f"PayTR Payment SUCCESS: {merchant_oid}")
+        else:
+            # Başarısız
+            fail_reason = request.POST.get('failed_reason_msg', 'Bilinmeyen Hata')
+            PaymentService.fail_payment(payment, fail_reason)
+            logger.info(f"PayTR Payment FAILED: {merchant_oid} Reason: {fail_reason}")
+            
+        return HttpResponse("OK")
+
+    except Exception as e:
+        logger.error(f"PayTR Callback Error: {str(e)}", exc_info=True)
+        return HttpResponse("OK")
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def paytr_callback_fail(request):
+    """
+    PayTR Fail Callback (Eğer ayrı olarak tanımlanırsa bunu kullanıyoruz)
+    URL: /api/payments/paytr/callback/fail/
+    """
+    return paytr_callback_ok(request)
 
 
 @api_view(['GET'])
