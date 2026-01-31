@@ -757,3 +757,72 @@ def order_delete(request, order_id):
             'message': 'Sipariş silinirken bir hata oluştu.',
             'error': str(e),
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def order_delete_all(request):
+    """
+    Tüm siparişleri kalıcı olarak sil (Hard Delete All).
+    DİKKAT: Bu işlem geri alınamaz. Tenant'a ait TÜM siparişleri siler.
+    Sadece Tenant Owner veya Owner yapabilir.
+    
+    DELETE: /api/orders/delete-all/
+    """
+    tenant = get_tenant_from_request(request)
+    if not tenant:
+        return Response({
+            'success': False,
+            'message': 'Tenant bulunamadı.',
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Permission kontrolü
+    # SADECE TenantOwner veya Owner silebilir
+    if not (request.user.is_owner or (request.user.is_tenant_owner and request.user.tenant == tenant)):
+        return Response({
+            'success': False,
+            'message': 'Bu işlem için yetkiniz yok. Sadece mağaza sahibi tüm siparişleri silebilir.',
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        # Tenant'a ait tüm siparişleri bul
+        orders = Order.objects.filter(tenant=tenant)
+        count = orders.count()
+        
+        if count == 0:
+            return Response({
+                'success': True,
+                'message': 'Silinecek sipariş bulunamadı.',
+                'count': 0
+            })
+            
+        # Hepsini sil (Hard Delete)
+        # Not: OrderItem ve Payment modelleri cascade ile silinir.
+        orders.delete()
+        
+        logger.info(
+            f"[ORDERS] DELETE /api/orders/delete-all/ | 200 | "
+            f"All orders deleted permanently | Count: {count} | "
+            f"User: {request.user.email} | "
+            f"Tenant: {tenant.name}"
+        )
+        
+        return Response({
+            'success': True,
+            'message': f'{count} adet sipariş kalıcı olarak silindi.',
+            'count': count
+        })
+        
+    except Exception as e:
+        logger.error(
+            f"[ORDERS] DELETE /api/orders/delete-all/ | 500 | "
+            f"Error deleting all orders: {str(e)} | "
+            f"User: {request.user.email} | "
+            f"Tenant: {tenant.name}",
+            exc_info=True
+        )
+        return Response({
+            'success': False,
+            'message': 'Siparişler silinirken bir hata oluştu.',
+            'error': str(e),
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
