@@ -27,7 +27,7 @@ from apps.views.product_image_delete import (
     bulk_delete_product_images
 )
 from apps.views.product_image_from_excel import upload_images_from_excel_paths
-from apps.views.order import order_list_create, order_detail, order_track
+from apps.views.order import order_list_create, order_detail, order_track, order_delete
 from apps.views.aras_cargo import aras_create_shipment, aras_track_shipment, aras_print_label, aras_cancel_shipment
 from apps.views.aras_cargo import aras_create_shipment, aras_track_shipment, aras_print_label, aras_cancel_shipment
 from apps.views.cart import (
@@ -209,6 +209,7 @@ urlpatterns = [
     path('orders/<uuid:order_id>/', order_detail, name='order_detail'),  # GET, PATCH
     path('orders/<uuid:order_id>/aras/create-shipment/', aras_create_shipment, name='aras_create_shipment'),  # POST: Aras Kargo gönderi oluştur
     path('orders/track/<str:order_number>/', order_track, name='order_track'),  # GET: Track order by order number
+    path('orders/<uuid:order_id>/delete/', order_delete, name='order_delete'),  # DELETE: Hard delete order
     
     # Aras Kargo API
     path('aras/track/<str:tracking_number>/', aras_track_shipment, name='aras_track_shipment'),  # GET: Gönderi takip
