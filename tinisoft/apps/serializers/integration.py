@@ -154,9 +154,17 @@ class IntegrationProviderCreateSerializer(serializers.ModelSerializer):
     
     def validate_api_endpoint(self, value):
         """API endpoint validasyonu."""
+        # PayTR için endpoint validasyonu yapma
+        if self.initial_data.get('provider_type') == 'paytr':
+            return value
+            
         if value:
             # Sadece host girilmişse (path eksik) uyar
             if value.count('/') < 3 or not (value.endswith('.svc') or value.endswith('.asmx')):
+                # PayTR ve yeni entegrasyonlar için bu hatayı fırlatma
+                if self.initial_data.get('provider_type') in ['paytr', 'iyzico']:
+                    return value
+                    
                 raise serializers.ValidationError(
                     'API endpoint tam URL olmalı (örn: https://customerservices.araskargo.com.tr/ArasCargoCustomerIntegrationService/ArasCargoIntegrationService.svc). '
                     'Sadece host girilmemeli.'
@@ -170,7 +178,8 @@ class IntegrationProviderCreateSerializer(serializers.ModelSerializer):
             return data
 
         # Test modunda test_endpoint zorunlu ve doğru format olmalı
-        if data.get('status') == IntegrationProvider.Status.TEST_MODE:
+        # PayTR gibi provider'lar için bu kontrolü yapma (URL kod içinde sabittir)
+        if data.get('status') == IntegrationProvider.Status.TEST_MODE and data.get('provider_type') != 'paytr':
             test_endpoint = data.get('test_endpoint')
             if not test_endpoint:
                 raise serializers.ValidationError({
@@ -328,7 +337,7 @@ class IntegrationProviderUpdateSerializer(serializers.ModelSerializer):
                 data['status'] = IntegrationProvider.Status.ACTIVE
         
         # Test modunda test_endpoint zorunlu ve doğru format olmalı
-        if data.get('status') == IntegrationProvider.Status.TEST_MODE:
+        if data.get('status') == IntegrationProvider.Status.TEST_MODE and self.instance.provider_type != 'paytr':
             test_endpoint = data.get('test_endpoint') or (self.instance.test_endpoint if self.instance else None)
             if not test_endpoint:
                 raise serializers.ValidationError({
