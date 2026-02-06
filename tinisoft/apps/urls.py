@@ -12,6 +12,7 @@ from apps.views.product import (
     product_activate, product_deactivate,
     delete_all_products
 )
+from apps.views.storefront_product import storefront_product_list, storefront_product_detail
 from apps.views.product_brands import (
     brand_list_create, brand_detail, legacy_product_brands,
     brand_list_public, brand_detail_public
@@ -371,6 +372,8 @@ urlpatterns = [
     
     # Website Template & Page Builder (WordPress-like)
     # Public API (Storefront)
+    path('storefront/products/', storefront_product_list, name='storefront_product_list'),  # GET: Storefront Product List
+    path('storefront/products/<str:id>/', storefront_product_detail, name='storefront_product_detail'),  # GET: Storefront Product Detail
     path('storefront/config/', PublicWebsiteTemplateView.as_view(), name='public_website_config'),  # GET: ?domain=magaza1.com
     path('storefront/sitemap/', StorefrontSitemapView.as_view(), name='storefront_sitemap'),  # GET: Sitemap verisi
     path('storefront/robots/', StorefrontRobotsView.as_view(), name='storefront_robots'),  # GET: Robots.txt kuralları

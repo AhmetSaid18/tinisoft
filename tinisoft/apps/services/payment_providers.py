@@ -1123,8 +1123,8 @@ class PayTRPaymentProvider(PaymentProviderBase):
             if not api_base_url.startswith('http'):
                 api_base_url = f'https://{api_base_url}'
                 
-            merchant_ok_url = f'{api_base_url}/api/payments/paytr/callback/ok'
-            merchant_fail_url = f'{api_base_url}/api/payments/paytr/callback/fail'
+            merchant_ok_url = f'{api_base_url}/api/payments/callback-handler?order={merchant_oid}&status=success'
+            merchant_fail_url = f'{api_base_url}/api/payments/callback-handler?order={merchant_oid}&status=fail'
             
             # POST Data
             post_data = {
@@ -1179,41 +1179,17 @@ class PayTRPaymentProvider(PaymentProviderBase):
                 }
             
             if result.get('status') == 'success':
-                # Başarılı ise token veya redirect HTML döner
-                # Direct API 3D Secure ile genelde bir HTML fragment döner
-                # Bunu frontend'de bir iframe içine veya direkt sayfaya basmalı
+                # PayTR Direct API, 3D Secure gerekliyse direkt bir HTML dönebilir (form submit scripti).
+                # Bazen JSON içinde 'content' olarak gelir, bazen status haricinde raw text olabilir.
+                payment_html = result.get('content')
                 
-                # PayTR bazen redirect URL dönüyor mu?
-                # Dokümana göre Direct API response:
-                # status: success
-                # token: ... (sadece iframe yapısında)
-                # VEYA 3D işlemi için kullanıcıyı yönlendirmeniz gereken HTML kod bloğu
-                
-                # Bizim örneğimizde 'Direct API' olduğu için HTML dönmesi muhtemel.
-                # Ancak 'token' dönerse iframe url oluşturmak gerekebilir.
-                # PayTR Direct API'de genellikle iframe URL'i oluşturulmaz, direkt post edilen verinin cevabında HTML gelir.
-                
-                # Kullanıcının verdiği kodda: return result
-                # Bizim yapımızda 'payment_html' bekliyoruz.
-                
-                # Eğer paytr iframe token döndüyse (iframe ile kullanım):
-                if 'token' in result and 'https://www.paytr.com/odeme' in str(result):
-                     # Bu iframe url olabilir ama direct api'de genelde form submit scripti gelir
-                     pass
-                     
-                # Sonuç olarak result'ı olduğu gibi dönmek veya html'i ayıklamak lazım
-                # PayTR Direct API response örneği (3D için):
-                # Genelde redirect için script tag'leri olan bir HTML döner mi?
-                # Hayır, galiba PayTR response bir JSON döner ve biz onu frontend'e iletiriz.
-                # Ancak 'payment_html' bekleyen bir yapı kurduk Kuveyt için.
-                # PayTR yanıtı tam olarak ne içeriyor?
-                # En yaygın: Iframe linki döner veya HTML content.
-                # Kullanıcı kodu: "Eğer 3D Secure gerekliyse PayTR HTML content döner, bunu frontend'e/iframe'e basman gerekir."
+                # Eğer content boşsa ama status success ise, response'un kendisi HTML olabilir mi? 
+                # (requests.json() başarılı olduysa genelde JSON formatındadır)
                 
                 return {
                     'success': True,
-                    'payment_html': None, # JSON result frontend'e gönderilecek
-                    'raw_response': result, # Frontend bu response'a göre işlem yapacak (script çalıştıracak vs)
+                    'payment_html': payment_html, # 3D Secure HTML'i varsa buraya gelecek
+                    'raw_response': result,
                     'transaction_id': merchant_oid,
                     'error': None,
                 }
