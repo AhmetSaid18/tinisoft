@@ -1078,7 +1078,10 @@ class PayTRPaymentProvider(PaymentProviderBase):
                  logger.info(f"PayTR: Local IP 127.0.0.1 replaced with Public IP {user_ip} for testing")
             
             # Sipariş No
+            # PayTR "alfanumerik" zorunluluğu nedeniyle tireleri kaldırıyoruz.
+            # Format: ORD-TENANT-TIMESTAMP-RANDOM -> ORDTENANTTIMESTAMPRANDOM
             merchant_oid = order.order_number
+            paytr_oid = merchant_oid.replace('-', '')
             
             # Email
             email = customer_info.get('email') or 'musteri@tinisoft.com.tr'
@@ -1129,9 +1132,9 @@ class PayTRPaymentProvider(PaymentProviderBase):
                 # Test veya development ortamında geçerli bir IP gönderilmeli
                 user_ip = '85.105.100.100'
 
-            # Token Hesapla
+            # Token Hesapla (PAYTR OID KULLAN)
             paytr_token = self.calculate_token(
-                user_ip, merchant_oid, email, amount_str, 
+                user_ip, paytr_oid, email, amount_str, 
                 payment_type, installment_str, currency, non_3d
             )
             
@@ -1161,15 +1164,16 @@ class PayTRPaymentProvider(PaymentProviderBase):
             api_base_url = self.config.get('api_base_url') or getattr(settings, 'API_BASE_URL', 'https://api.tinisoft.com.tr')
             if not api_base_url.startswith('http'):
                 api_base_url = f'https://{api_base_url}'
-                
-            merchant_ok_url = f'{api_base_url}/api/payments/callback-handler?order={merchant_oid}&status=success'
-            merchant_fail_url = f'{api_base_url}/api/payments/callback-handler?order={merchant_oid}&status=fail'
+            
+            # Callback URL'lerinde de paytr_oid kullanıyoruz ki tutarlılık olsun
+            merchant_ok_url = f'{api_base_url}/api/payments/callback-handler?order={paytr_oid}&status=success'
+            merchant_fail_url = f'{api_base_url}/api/payments/callback-handler?order={paytr_oid}&status=fail'
             
             # POST Data
             post_data = {
                 'merchant_id': self.merchant_id,
                 'user_ip': user_ip,
-                'merchant_oid': merchant_oid,
+                'merchant_oid': paytr_oid, # Stripped ID
                 'email': email,
                 'payment_amount': amount_str,
                 'paytr_token': paytr_token,
@@ -1224,7 +1228,7 @@ class PayTRPaymentProvider(PaymentProviderBase):
                 'payment_url': self.api_url, # https://www.paytr.com/odeme
                 'method': 'POST',
                 'message': 'PayTR ödeme formu için parametreler hazırlandı. Lütfen bu verilerle PayTR adresine POST işlemi yapınız.',
-                'transaction_id': merchant_oid,
+                'transaction_id': paytr_oid, # Transaction ID olarak stripi dönüyoruz
             }
         except Exception as e:
             logger.error(f"PayTR Direct API error: {str(e)}", exc_info=True)

@@ -23,16 +23,31 @@ logger = logging.getLogger(__name__)
 def extract_tenant_slug_from_order_number(order_number: str):
     """
     Order number'dan tenant slug'ını çıkar.
-    Order number formatı: ORD-{TENANT_SLUG}-{timestamp}-{random}
+    Order number formatı: 
+    1. Standart: ORD-{TENANT_SLUG}-{timestamp}-{random}
+    2. Stripped (PayTR): ORDTENANTSLUGtimestamp(10)random(8)
     
     Returns:
         str: Tenant slug veya None
     """
     try:
-        parts = (order_number or "").split("-")
-        if len(parts) < 3 or parts[0].upper() != "ORD":
-            return None
-        return parts[1].lower()
+        order_number = order_number or ""
+        
+        # 1. Standart Format (Tireli)
+        parts = order_number.split("-")
+        if len(parts) >= 3 and parts[0].upper() == "ORD":
+            return parts[1].lower()
+            
+        # 2. Stripped Format (PayTR uyumluluğu için - Tire yoksa)
+        # En az: ORD (3) + slug (1) + timestamp (10) + random (8) = 22 karater
+        if order_number.upper().startswith('ORD') and len(order_number) >= 22 and '-' not in order_number:
+            # Suffix uzunluğu = 18 (10 digits timestamp + 8 chars random hex)
+            # Prefix = 3 (ORD)
+            # Slug = Aradaki kısım (ORD ve Suffix arası)
+            slug = order_number[3:-18]
+            return slug.lower()
+            
+        return None
     except Exception:
         return None
 
@@ -79,11 +94,21 @@ def get_tenant_frontend_url(tenant=None, tenant_slug=None):
             with connection.cursor() as cursor:
                 cursor.execute('SET search_path TO public;')
             
+            # Slug normal (tireli) olabilir
             tenant_obj = Tenant.objects.filter(
                 slug__iexact=tenant_slug,
                 is_deleted=False
             ).first()
             
+            # Slug tiresiz olabilir (PayTR'dan gelmişse)
+            # DB'de tireli slug var ama elimizde tiresiz slug var
+            if not tenant_obj and '-' not in tenant_slug:
+                 all_tenants = Tenant.objects.filter(is_deleted=False)
+                 for t in all_tenants:
+                     if t.slug.replace('-', '').lower() == tenant_slug.lower():
+                         tenant_obj = t
+                         break
+
             if tenant_obj:
                 url = tenant_obj.get_primary_frontend_url()
                 logger.info(f"Using frontend URL: {url} for tenant slug {tenant_slug}")
@@ -127,9 +152,21 @@ def force_tenant_schema_from_order_number(order_number: str):
     
     # Slug ile tenant bul (public schema'da)
     tenant = Tenant.objects.filter(slug__iexact=tenant_slug, is_deleted=False).first()
+    
+    # Eğer bulunamadıysa ve slug içinde tire yoksa, DB'deki tireli slug'ları kontrol et
+    # Çünkü PayTR'dan gelen slug tiresiz olabilir ama DB'de tireli kayıtlıdır
+    if not tenant and '-' not in tenant_slug:
+        # DB'deki tüm tenant sluglarında tireyi silip karşılaştır
+        all_tenants = Tenant.objects.filter(is_deleted=False)
+        for t in all_tenants:
+            if t.slug.replace('-', '').lower() == tenant_slug.lower():
+                tenant = t
+                break
+    
     if not tenant:
         # Subdomain ile de dene
         tenant = Tenant.objects.filter(subdomain__iexact=tenant_slug, is_deleted=False).first()
+        
     if not tenant:
         logger.warning(f"Tenant not found for slug: {tenant_slug}")
         return None
@@ -140,7 +177,7 @@ def force_tenant_schema_from_order_number(order_number: str):
     with connection.cursor() as cursor:
         cursor.execute(f'SET search_path TO "{schema}", public;')
     
-    logger.info(f"Tenant schema set to {schema} from order number {order_number}")
+    logger.info(f"Tenant schema set to {schema} from order number {order_number} (slug: {tenant_slug})")
     return tenant
 
 
