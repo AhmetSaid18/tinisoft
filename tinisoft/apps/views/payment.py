@@ -573,6 +573,11 @@ def payment_create_with_provider(request):
             elif result.get('payment_url'):
                 response_data['payment_url'] = result['payment_url']
             
+            # PayTR gibi Direct API form parametreleri dönenler için
+            if result.get('data'):
+                response_data['data'] = result['data']
+                response_data['method'] = result.get('method', 'POST')
+            
             if result.get('offline_message'):
                 response_data['offline_message'] = result['offline_message']
             
