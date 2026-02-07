@@ -1172,10 +1172,11 @@ class PayTRPaymentProvider(PaymentProviderBase):
                 result = response.json()
             except ValueError:
                 # JSON dönmediyse raw text logla
-                logger.error(f"PayTR API Invalid JSON Response: {response.text[:500]}")
+                logger.error(f"PayTR API Invalid JSON Response (Status: {response.status_code}): {response.text[:2000]}")
                 return {
                     'success': False,
-                    'error': 'PayTR servisi geçersiz yanıt döndürdü.',
+                    'error': f'PayTR servisi geçersiz yanıt döndürdü. Status: {response.status_code}',
+                    'raw_response': response.text
                 }
             
             if result.get('status') == 'success':

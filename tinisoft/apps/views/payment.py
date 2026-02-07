@@ -578,10 +578,14 @@ def payment_create_with_provider(request):
             
             return Response(response_data, status=status.HTTP_201_CREATED)
         else:
-            return Response({
+            response_data = {
                 'success': False,
                 'message': result.get('error', 'Ödeme oluşturulamadı.'),
-            }, status=status.HTTP_400_BAD_REQUEST)
+            }
+            if result.get('raw_response'):
+                response_data['raw_response'] = result.get('raw_response')
+                
+            return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
     
     except ValueError as e:
         return Response({
