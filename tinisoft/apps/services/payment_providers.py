@@ -1109,12 +1109,13 @@ class PayTRPaymentProvider(PaymentProviderBase):
             # Varsayılan olarak 3D Secure kullan (0)
             non_3d = '0'
             
-            # DEBUG LOGS - Key ve Salt Kontrolü (Hassas bilgi olduğu için kısmi göster)
+            # DEBUG LOGS - Key ve Salt Kontrolü (DEBUG İÇİN AÇIK - SONRA MASKELE)
             try:
-                key_preview = self.merchant_key.decode()[:4] + "***" + self.merchant_key.decode()[-4:]
-                salt_preview = self.merchant_salt.decode()[:4] + "***" + self.merchant_salt.decode()[-4:]
-                logger.info(f"PayTR Key Check: {key_preview} | Len: {len(self.merchant_key.decode())}")
-                logger.info(f"PayTR Salt Check: {salt_preview} | Len: {len(self.merchant_salt.decode())}")
+                # Key ve Salt debug için TAMAMEN AÇIK loglanıyor
+                key_debug = self.merchant_key.decode()
+                salt_debug = self.merchant_salt.decode()
+                logger.info(f"PayTR FULL Key Debug: {key_debug}")
+                logger.info(f"PayTR FULL Salt Debug: {salt_debug}")
             except Exception as e:
                 logger.error(f"PayTR Key/Salt Log Error: {e}")
 
@@ -1141,7 +1142,8 @@ class PayTRPaymentProvider(PaymentProviderBase):
                 basket.append(["Siparis Tutari", amount_str, 1])
                 
             # PayTR dokümantasyonu: "Oluşturulan array json_encode edilmeli ve json_encode işleminden sonra oluşan değerde escape edilen karakterler html_entity_decode veya unescape edilerek gönderilmelidir."
-            user_basket = html.unescape(json.dumps(basket))
+            # ensure_ascii=False ekleyerek Türkçe karakterlerin \uXXXX şeklinde gitmesini engelliyoruz (PayTR böyle tercih edebilir)
+            user_basket = html.unescape(json.dumps(basket, ensure_ascii=False))
             
             # Callback URL'ler
             api_base_url = self.config.get('api_base_url') or getattr(settings, 'API_BASE_URL', 'https://api.tinisoft.com.tr')
@@ -1190,16 +1192,23 @@ class PayTRPaymentProvider(PaymentProviderBase):
             safe_data = post_data.copy()
             safe_data['card_number'] = '****' + safe_data['card_number'][-4:] if safe_data.get('card_number') else '****'
             safe_data['cvc'] = '***'
-            logger.info(f"PayTR Direct API Request: {json.dumps(safe_data, default=str)}")
+            logger.info(f"PayTR Direct API Request: {json.dumps(safe_data, default=str, ensure_ascii=False)}")
             
             # Request
-            response = requests.post(self.api_url, data=post_data, timeout=30)
+            # Hata durumunda da content almak için stream=False (default)
+            session = requests.Session()
+            response = session.post(self.api_url, data=post_data, timeout=30)
             
+            # Response logla (Header dahil)
+            logger.info(f"PayTR Response Code: {response.status_code}")
+            logger.info(f"PayTR Response Headers: {response.headers}")
+            logger.info(f"PayTR Response Content (First 2000 chars): {response.text[:2000]}")
+
             try:
                 result = response.json()
             except ValueError:
                 # JSON dönmediyse raw text logla
-                logger.error(f"PayTR API Invalid JSON Response (Status: {response.status_code}): {response.text[:2000]}")
+                logger.error(f"PayTR API Invalid JSON Response (Status: {response.status_code}): Content='{response.text[:2000]}'")
                 return {
                     'success': False,
                     'error': f'PayTR servisi geçersiz yanıt döndürdü. Status: {response.status_code}',
