@@ -993,7 +993,8 @@ class PayTRPaymentProvider(PaymentProviderBase):
         self.debug_on = '1' if getattr(settings, 'PAYTR_DEBUG_ON', False) else '0'
         
         # API URL (Hem test hem canlı için aynı, test_mode parametresi belirler)
-        self.api_url = "https://www.paytr.com/odeme/api/direct"
+        # API URL (Hem test hem canlı için aynı, test_mode parametresi belirler)
+        self.api_url = "https://www.paytr.com/odeme"
         
         logger.info(
             f"PayTR PaymentProvider initialized | "
@@ -1220,7 +1221,7 @@ class PayTRPaymentProvider(PaymentProviderBase):
             return {
                 'success': True,
                 'data': post_data,      # Tüm parametreler (merchant_id, token, oid, ...)
-                'payment_url': self.api_url, # https://www.paytr.com/odeme/api/direct (veya /odeme)
+                'payment_url': self.api_url, # https://www.paytr.com/odeme
                 'method': 'POST',
                 'message': 'PayTR ödeme formu için parametreler hazırlandı. Lütfen bu verilerle PayTR adresine POST işlemi yapınız.',
                 'transaction_id': merchant_oid,
