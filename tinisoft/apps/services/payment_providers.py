@@ -1116,14 +1116,15 @@ class PayTRPaymentProvider(PaymentProviderBase):
             non_3d = '0'
             
             # DEBUG LOGS - Key ve Salt Kontrolü (DEBUG İÇİN AÇIK - SONRA MASKELE)
-            try:
-                # Key ve Salt debug için TAMAMEN AÇIK loglanıyor
-                key_debug = self.merchant_key.decode()
-                salt_debug = self.merchant_salt.decode()
-                logger.info(f"PayTR FULL Key Debug: {key_debug}")
-                logger.info(f"PayTR FULL Salt Debug: {salt_debug}")
-            except Exception as e:
-                logger.error(f"PayTR Key/Salt Log Error: {e}")
+            # GÜVENLİK İÇİN KALDIRILDI
+            # try:
+            #     # Key ve Salt debug için TAMAMEN AÇIK loglanıyor
+            #     key_debug = self.merchant_key.decode()
+            #     salt_debug = self.merchant_salt.decode()
+            #     logger.info(f"PayTR FULL Key Debug: {key_debug}")
+            #     logger.info(f"PayTR FULL Salt Debug: {salt_debug}")
+            # except Exception as e:
+            #     logger.error(f"PayTR Key/Salt Log Error: {e}")
 
             # IP Kontrolü - PayTR Zorunlu Alan
             # customer_info içinden al, yoksa test IP kullan
