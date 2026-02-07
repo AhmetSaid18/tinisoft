@@ -158,4 +158,23 @@ class AuthService:
             'tenant': user.tenant,
             'token': token,
         }
+    
+    @staticmethod
+    def create_tenant_staff(tenant, email, password, first_name='', last_name='', phone=None, staff_permissions=None):
+        """
+        Mağaza personeli (TenantStaff) oluşturur.
+        """
+        user = User.objects.create_user(
+            username=email,
+            email=email,
+            password=password,
+            first_name=first_name,
+            last_name=last_name,
+            phone=phone,
+            role=User.UserRole.TENANT_STAFF,
+            tenant=tenant,
+            staff_permissions=staff_permissions or []
+        )
+        logger.info(f"Tenant Staff created for {tenant.slug}: {user.email}")
+        return user
 

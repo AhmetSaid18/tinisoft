@@ -16,6 +16,7 @@ class User(AbstractUser):
     class UserRole(models.TextChoices):
         OWNER = 'owner', 'Owner'  # Tinisoft (program sahibi, biz)
         TENANT_OWNER = 'tenant_owner', 'Tenant Owner'  # Mağaza sahibi (tenant sahibi)
+        TENANT_STAFF = 'tenant_staff', 'Tenant Staff'  # Mağaza personeli
         TENANT_USER = 'tenant_user', 'Tenant User'  # Tenant'ın sitesinde kayıt olan müşteriler
         TENANT_BAYII = 'tenant_bayii', 'Tenant Bayii'  # Tenant'ın bayileri
         SYSTEM_ADMIN = 'system_admin', 'System Admin'  # Sistem yöneticisi
@@ -41,6 +42,14 @@ class User(AbstractUser):
         default=UserRole.TENANT_USER,
         db_index=True,
         help_text="User rolü: Owner, TenantUser, TenantBayii, SystemAdmin"
+    )
+    
+    # Personel Yetkileri (JSON formatında saklanır)
+    # Örn: ["products", "orders", "coupons", "customers", "inventory"]
+    staff_permissions = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Personel (TenantStaff) yetki listesi."
     )
     
     # AbstractUser'dan gelen groups ve user_permissions için related_name override
@@ -87,6 +96,11 @@ class User(AbstractUser):
         return self.role == self.UserRole.TENANT_OWNER
     
     @property
+    def is_tenant_staff(self):
+        """TenantStaff mi?"""
+        return self.role == self.UserRole.TENANT_STAFF
+    
+    @property
     def is_tenant_user(self):
         """TenantUser mı?"""
         return self.role == self.UserRole.TENANT_USER
@@ -100,6 +114,17 @@ class User(AbstractUser):
     def is_system_admin(self):
         """SystemAdmin mi?"""
         return self.role == self.UserRole.SYSTEM_ADMIN
+
+    def has_staff_permission(self, permission):
+        """
+        Personelin belirli bir yetkiye sahip olup olmadığını kontrol et.
+        TenantOwner tüm yetkilere sahiptir.
+        """
+        if self.is_tenant_owner or self.is_owner:
+            return True
+        if self.is_tenant_staff:
+            return permission in self.staff_permissions
+        return False
 
 
 class Tenant(BaseModel):

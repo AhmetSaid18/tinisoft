@@ -138,6 +138,7 @@ class UserSerializer(serializers.ModelSerializer):
             'role',
             'role_display',
             'tenant',
+            'staff_permissions',
             'date_joined',
         ]
         read_only_fields = ['id', 'date_joined', 'role_display']
@@ -188,4 +189,40 @@ class TenantSerializer(serializers.ModelSerializer):
     
     def get_custom_domain_url(self, obj):
         return obj.get_custom_domain_url()
+
+
+class TenantStaffSerializer(serializers.ModelSerializer):
+    """
+    Mağaza personeli (TenantStaff) serializer'ı.
+    """
+    password = serializers.CharField(write_only=True, min_length=8)
+    
+    class Meta:
+        model = User
+        fields = [
+            'id', 'email', 'password', 'first_name', 'last_name', 
+            'phone', 'role', 'staff_permissions', 'date_joined'
+        ]
+        read_only_fields = ['id', 'role', 'date_joined']
+    
+    def validate_email(self, value):
+        """Email'in sistemde veya bu tenant'da unique olduğunu kontrol et."""
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("Bu email adresi zaten kullanılıyor.")
+        return value
+    
+    def create(self, validated_data):
+        """Personel oluştur."""
+        from apps.services.auth_service import AuthService
+        tenant = self.context.get('tenant')
+        
+        return AuthService.create_tenant_staff(
+            tenant=tenant,
+            email=validated_data['email'],
+            password=validated_data['password'],
+            first_name=validated_data.get('first_name', ''),
+            last_name=validated_data.get('last_name', ''),
+            phone=validated_data.get('phone'),
+            staff_permissions=validated_data.get('staff_permissions', [])
+        )
 

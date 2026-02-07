@@ -12,7 +12,7 @@ from apps.serializers.product import (
     ProductListSerializer, ProductDetailSerializer,
     CategorySerializer
 )
-from apps.permissions import IsTenantOwnerOfObject
+from apps.permissions import IsTenantOwnerOfObject, HasStaffPermission
 from django.core.exceptions import ValidationError
 from core.middleware import get_tenant_from_request
 import logging
@@ -27,14 +27,15 @@ class ProductPagination(PageNumberPagination):
 
 
 @api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, HasStaffPermission])
 def product_list_create(request):
     """
     Ürün listesi (GET) veya yeni ürün oluştur (POST).
-    
-    GET: /api/products/
-    POST: /api/products/
     """
+    # Yetki adı
+    product_list_create.staff_permission = 'products'
+    # GET: /api/products/
+    # POST: /api/products/
     tenant = get_tenant_from_request(request)
     if not tenant:
         logger.warning(f"[PRODUCTS] {request.method} /api/products/ | 400 | Tenant not found")
@@ -42,14 +43,6 @@ def product_list_create(request):
             'success': False,
             'message': 'Tenant bulunamadı.',
         }, status=status.HTTP_400_BAD_REQUEST)
-    
-    # Permission kontrolü
-    if not (request.user.is_owner or (request.user.is_tenant_owner and request.user.tenant == tenant)):
-        logger.warning(f"[PRODUCTS] {request.method} /api/products/ | 403 | Permission denied")
-        return Response({
-            'success': False,
-            'message': 'Bu işlem için yetkiniz yok.',
-        }, status=status.HTTP_403_FORBIDDEN)
     
     if request.method == 'GET':
         # Filtreleme
@@ -140,6 +133,19 @@ def product_list_create(request):
         serializer = ProductDetailSerializer(data=request.data)
         if serializer.is_valid():
             product = serializer.save(tenant=tenant)
+            
+            # Activity Log
+            from apps.services.activity_log_service import ActivityLogService
+            ActivityLogService.log(
+                tenant=tenant,
+                user=request.user,
+                action="product_create",
+                description=f"Yeni ürün oluşturuldu: {product.name} (SKU: {product.sku})",
+                content_type="Product",
+                object_id=product.id,
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
+            
             logger.info(f"[PRODUCTS] POST /api/products/ | 201 | Created | SKU: {product.sku}")
             return Response({
                 'success': True,
@@ -155,15 +161,16 @@ def product_list_create(request):
 
 
 @api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, HasStaffPermission])
 def product_detail(request, product_id):
     """
-    Ürün detayı, güncelleme veya silme.
-    
-    GET: /api/products/{product_id}/
-    PUT/PATCH: /api/products/{product_id}/
-    DELETE: /api/products/{product_id}/
+    Ürün detayı (GET), güncelle (PUT/PATCH) veya sil (DELETE).
     """
+    # Yetki adı
+    product_detail.staff_permission = 'products'
+    # GET: /api/products/{product_id}/
+    # PUT/PATCH: /api/products/{product_id}/
+    # DELETE: /api/products/{product_id}/
     tenant = get_tenant_from_request(request)
     if not tenant:
         return Response({
@@ -182,14 +189,6 @@ def product_detail(request, product_id):
             'success': False,
             'message': 'Ürün bulunamadı.',
         }, status=status.HTTP_404_NOT_FOUND)
-    
-    # Permission kontrolü
-    if not (request.user.is_owner or (request.user.is_tenant_owner and request.user.tenant == tenant)):
-        logger.warning(f"[PRODUCTS] {request.method} /api/products/{product_id}/ | 403 | Permission denied")
-        return Response({
-            'success': False,
-            'message': 'Bu işlem için yetkiniz yok.',
-        }, status=status.HTTP_403_FORBIDDEN)
     
     if request.method == 'GET':
         serializer = ProductDetailSerializer(product, context={'request': request})
@@ -215,6 +214,28 @@ def product_detail(request, product_id):
         )
         if serializer.is_valid():
             serializer.save()
+            
+            # Sanal stok değişikliği kontrolü
+            action = "product_update"
+            description = f"Ürün güncellendi: {product.name}"
+            
+            if 'virtual_stock_quantity' in request.data:
+                action = "virtual_stock_update"
+                new_qty = request.data.get('virtual_stock_quantity')
+                description = f"Ürün sanal stok güncellendi: {product.name} (Yeni: {new_qty})"
+            
+            # Activity Log
+            from apps.services.activity_log_service import ActivityLogService
+            ActivityLogService.log(
+                tenant=tenant,
+                user=request.user,
+                action=action,
+                description=description,
+                content_type="Product",
+                object_id=product.id,
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
+            
             logger.info(
                 f"[PRODUCTS] {request.method} /api/products/{product_id}/ - SUCCESS | "
                 f"Tenant: {tenant.name} ({tenant.id}) | "
@@ -244,6 +265,19 @@ def product_detail(request, product_id):
     
     elif request.method == 'DELETE':
         product.soft_delete()
+        
+        # Activity Log
+        from apps.services.activity_log_service import ActivityLogService
+        ActivityLogService.log(
+            tenant=tenant,
+            user=request.user,
+            action="product_delete",
+            description=f"Ürün silindi: {product.name}",
+            content_type="Product",
+            object_id=product.id,
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
+        
         logger.info(
             f"[PRODUCTS] DELETE /api/products/{product_id}/ - SUCCESS | "
             f"Tenant: {tenant.name} ({tenant.id}) | "
@@ -519,13 +553,14 @@ def product_list_public(request, tenant_slug=None):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, HasStaffPermission])
 def product_activate(request, product_id):
     """
     Ürünü aktif yap (status='active', is_visible=True).
-    
-    POST: /api/products/{product_id}/activate/
     """
+    # Yetki adı
+    product_activate.staff_permission = 'products'
+    # POST: /api/products/{product_id}/activate/
     tenant = get_tenant_from_request(request)
     if not tenant:
         return Response({
@@ -541,16 +576,21 @@ def product_activate(request, product_id):
             'message': 'Ürün bulunamadı.',
         }, status=status.HTTP_404_NOT_FOUND)
     
-    # Permission kontrolü
-    if not (request.user.is_owner or (request.user.is_tenant_owner and request.user.tenant == tenant)):
-        return Response({
-            'success': False,
-            'message': 'Bu işlem için yetkiniz yok.',
-        }, status=status.HTTP_403_FORBIDDEN)
-    
     product.status = 'active'
     product.is_visible = True
     product.save()
+    
+    # Activity Log
+    from apps.services.activity_log_service import ActivityLogService
+    ActivityLogService.log(
+        tenant=tenant,
+        user=request.user,
+        action="product_activate",
+        description=f"Ürün aktif edildi: {product.name}",
+        content_type="Product",
+        object_id=product.id,
+        ip_address=request.META.get('REMOTE_ADDR')
+    )
     
     logger.info(f"[PRODUCTS] POST /api/products/{product_id}/activate/ | 200 | Activated | SKU: {product.sku}")
     
@@ -562,13 +602,14 @@ def product_activate(request, product_id):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, HasStaffPermission])
 def product_deactivate(request, product_id):
     """
     Ürünü pasif yap (status='archived', is_visible=False).
-    
-    POST: /api/products/{product_id}/deactivate/
     """
+    # Yetki adı
+    product_deactivate.staff_permission = 'products'
+    # POST: /api/products/{product_id}/deactivate/
     tenant = get_tenant_from_request(request)
     if not tenant:
         return Response({
@@ -584,16 +625,21 @@ def product_deactivate(request, product_id):
             'message': 'Ürün bulunamadı.',
         }, status=status.HTTP_404_NOT_FOUND)
     
-    # Permission kontrolü
-    if not (request.user.is_owner or (request.user.is_tenant_owner and request.user.tenant == tenant)):
-        return Response({
-            'success': False,
-            'message': 'Bu işlem için yetkiniz yok.',
-        }, status=status.HTTP_403_FORBIDDEN)
-    
     product.status = 'archived'
     product.is_visible = False
     product.save()
+    
+    # Activity Log
+    from apps.services.activity_log_service import ActivityLogService
+    ActivityLogService.log(
+        tenant=tenant,
+        user=request.user,
+        action="product_deactivate",
+        description=f"Ürün pasif edildi: {product.name}",
+        content_type="Product",
+        object_id=product.id,
+        ip_address=request.META.get('REMOTE_ADDR')
+    )
     
     logger.info(
         f"[PRODUCTS] POST /api/products/{product_id}/deactivate/ - SUCCESS | "
@@ -826,27 +872,21 @@ def delete_all_products(request):
 
 
 @api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, HasStaffPermission])
 def category_list_create(request):
     """
     Kategori listesi (GET) veya yeni kategori oluştur (POST).
-    
-    GET: /api/categories/
-    POST: /api/categories/
     """
+    # Yetki adı
+    category_list_create.staff_permission = 'products'
+    # GET: /api/categories/
+    # POST: /api/categories/
     tenant = get_tenant_from_request(request)
     if not tenant:
         return Response({
             'success': False,
             'message': 'Tenant bulunamadı.',
         }, status=status.HTTP_400_BAD_REQUEST)
-    
-    # Permission kontrolü
-    if not (request.user.is_owner or (request.user.is_tenant_owner and request.user.tenant == tenant)):
-        return Response({
-            'success': False,
-            'message': 'Bu işlem için yetkiniz yok.',
-        }, status=status.HTTP_403_FORBIDDEN)
     
     if request.method == 'GET':
         queryset = Category.objects.filter(tenant=tenant, is_deleted=False, parent=None)
@@ -860,6 +900,19 @@ def category_list_create(request):
         serializer = CategorySerializer(data=request.data)
         if serializer.is_valid():
             category = serializer.save(tenant=tenant)
+            
+            # Activity Log
+            from apps.services.activity_log_service import ActivityLogService
+            ActivityLogService.log(
+                tenant=tenant,
+                user=request.user,
+                action="category_create",
+                description=f"Yeni kategori oluşturuldu: {category.name}",
+                content_type="Category",
+                object_id=category.id,
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
+            
             return Response({
                 'success': True,
                 'message': 'Kategori oluşturuldu.',
@@ -983,15 +1036,16 @@ def category_list_public(request, tenant_slug=None):
 
 
 @api_view(['GET', 'PATCH', 'DELETE'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, HasStaffPermission])
 def category_detail(request, category_id):
     """
     Kategori detayı (GET), güncelleme (PATCH) veya silme (DELETE).
-    
-    GET: /api/categories/{category_id}/
-    PATCH: /api/categories/{category_id}/  (parent değiştirmek için)
-    DELETE: /api/categories/{category_id}/
     """
+    # Yetki adı
+    category_detail.staff_permission = 'products'
+    # GET: /api/categories/{category_id}/
+    # PATCH: /api/categories/{category_id}/  (parent değiştirmek için)
+    # DELETE: /api/categories/{category_id}/
     tenant = get_tenant_from_request(request)
     if not tenant:
         return Response({
@@ -1009,7 +1063,7 @@ def category_detail(request, category_id):
         }, status=status.HTTP_404_NOT_FOUND)
     
     # Permission kontrolü
-    if not (request.user.is_owner or (request.user.is_tenant_owner and request.user.tenant == tenant)):
+    if not (request.user.is_owner or ((request.user.is_tenant_owner or request.user.is_tenant_staff) and request.user.tenant == tenant)):
         logger.warning(f"[CATEGORIES] {request.method} /api/categories/{category_id}/ | 403 | Permission denied")
         return Response({
             'success': False,
@@ -1038,6 +1092,19 @@ def category_detail(request, category_id):
         )
         if serializer.is_valid():
             serializer.save()
+            
+            # Activity Log
+            from apps.services.activity_log_service import ActivityLogService
+            ActivityLogService.log(
+                tenant=tenant,
+                user=request.user,
+                action="category_update",
+                description=f"Kategori güncellendi: {category.name}",
+                content_type="Category",
+                object_id=category.id,
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
+            
             logger.info(
                 f"[CATEGORIES] PATCH /api/categories/{category_id}/ - SUCCESS | "
                 f"Tenant: {tenant.name} ({tenant.id}) | "
@@ -1064,6 +1131,19 @@ def category_detail(request, category_id):
     elif request.method == 'DELETE':
         category.is_deleted = True
         category.save()
+        
+        # Activity Log
+        from apps.services.activity_log_service import ActivityLogService
+        ActivityLogService.log(
+            tenant=tenant,
+            user=request.user,
+            action="category_delete",
+            description=f"Kategori silindi: {category.name}",
+            content_type="Category",
+            object_id=category.id,
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
+        
         logger.info(
             f"[CATEGORIES] DELETE /api/categories/{category_id}/ - SUCCESS | "
             f"Tenant: {tenant.name} ({tenant.id}) | "

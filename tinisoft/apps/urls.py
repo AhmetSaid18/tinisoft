@@ -140,6 +140,8 @@ from apps.views.seo import (
     StorefrontRobotsView,
 )
 from apps.views.tenant_config import TenantSettingsView
+from apps.views.staff import staff_list_create, staff_detail
+from apps.views.activity import activity_log_list
 
 
 app_name = 'apps'
@@ -417,4 +419,11 @@ urlpatterns = [
     path('public/currencies/', currency_list, name='currency_list'),  # GET: Aktif para birimlerini listele (public)
     path('public/currency/exchange-rates/', currency_exchange_rates, name='currency_exchange_rates'),  # GET: TCMB kurları (public)
     path('currency/update-rates/', currency_update_rates, name='currency_update_rates'),  # POST: Tenant para birimi kurlarını güncelle
+    
+    # Personel Yönetimi
+    path('tenant/staff/', staff_list_create, name='staff_list_create'),
+    path('tenant/staff/<uuid:staff_id>/', staff_detail, name='staff_detail'),
+    
+    # İşlem Logları
+    path('tenant/activity-logs/', activity_log_list, name='activity_log_list'),
 ]

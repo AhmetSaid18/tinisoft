@@ -26,6 +26,7 @@ from .webhook import Webhook, WebhookEvent
 from .analytics import AnalyticsEvent, SalesReport, ProductAnalytics
 from .integration import IntegrationProvider
 from .website import WebsiteTemplate, WebsitePage
+from .activity import ActivityLog
 
 __all__ = [
     'User',
@@ -79,4 +80,5 @@ __all__ = [
     'IntegrationProvider',
     'WebsiteTemplate',
     'WebsitePage',
+    'ActivityLog',
 ]

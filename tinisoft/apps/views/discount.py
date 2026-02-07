@@ -4,6 +4,7 @@ Discount views.
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from apps.permissions import HasStaffPermission
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q, F
@@ -27,10 +28,13 @@ class CouponPagination(PageNumberPagination):
 
 
 @api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, HasStaffPermission])
 def coupon_list_create(request):
     """
     Kupon listesi (GET) veya yeni kupon oluştur (POST).
+    """
+    # Yetki adı
+    coupon_list_create.staff_permission = 'coupons'
     
     GET: /api/coupons/
     POST: /api/coupons/
@@ -45,8 +49,8 @@ def coupon_list_create(request):
             'hint': 'Tenant bilgisi şu yollarla gönderilebilir: 1) Subdomain (örn: tenant-slug.tinisoft.com.tr), 2) Custom domain, 3) X-Tenant-ID header, 4) Authenticated user\'ın tenant\'ı'
         }, status=status.HTTP_400_BAD_REQUEST)
     
-    # Sadece admin veya tenant owner
-    if not (request.user.is_owner or (request.user.is_tenant_owner and request.user.tenant == tenant)):
+    # Sadece admin, tenant owner veya tenant staff
+    if not (request.user.is_owner or ((request.user.is_tenant_owner or request.user.is_tenant_staff) and request.user.tenant == tenant)):
         logger.warning(f"[COUPONS] {request.method} /api/coupons/ | 403 | Permission denied | User: {request.user.email}")
         return Response({
             'success': False,
@@ -146,6 +150,19 @@ def coupon_list_create(request):
             }, status=status.HTTP_400_BAD_REQUEST)
         
         coupon = serializer.save(tenant=tenant)
+        
+        # Activity Log
+        from apps.services.activity_log_service import ActivityLogService
+        ActivityLogService.log(
+            tenant=tenant,
+            user=request.user,
+            action="coupon_create",
+            description=f"Yeni kupon oluşturuldu: {coupon.code}",
+            content_type="Coupon",
+            object_id=coupon.id,
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
+        
         logger.info(f"[COUPONS] POST /api/coupons/ | 201 | Created | Code: {coupon.code}")
         return Response({
             'success': True,
@@ -155,10 +172,13 @@ def coupon_list_create(request):
 
 
 @api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, HasStaffPermission])
 def coupon_detail(request, coupon_id):
     """
     Kupon detayı (GET), güncelle (PUT/PATCH) veya sil (DELETE).
+    """
+    # Yetki adı
+    coupon_detail.staff_permission = 'coupons'
     
     GET: /api/coupons/{coupon_id}/
     PUT: /api/coupons/{coupon_id}/ (tüm alanları güncelle)
@@ -191,8 +211,8 @@ def coupon_detail(request, coupon_id):
         })
     
     elif request.method in ['PUT', 'PATCH']:
-        # Sadece admin veya tenant owner
-        if not (request.user.is_owner or (request.user.is_tenant_owner and request.user.tenant == tenant)):
+        # Sadece admin, tenant owner veya tenant staff
+        if not (request.user.is_owner or ((request.user.is_tenant_owner or request.user.is_tenant_staff) and request.user.tenant == tenant)):
             logger.warning(f"[COUPONS] {request.method} /api/coupons/{coupon_id}/ | 403 | Permission denied")
             return Response({
                 'success': False,
@@ -251,6 +271,19 @@ def coupon_detail(request, coupon_id):
                         }, status=status.HTTP_400_BAD_REQUEST)
             
             serializer.save()
+            
+            # Activity Log
+            from apps.services.activity_log_service import ActivityLogService
+            ActivityLogService.log(
+                tenant=tenant,
+                user=request.user,
+                action="coupon_update",
+                description=f"Kupon güncellendi: {coupon.code}",
+                content_type="Coupon",
+                object_id=coupon.id,
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
+            
             logger.info(f"[COUPONS] {request.method} /api/coupons/{coupon_id}/ | 200 | Updated | Code: {coupon.code}")
             return Response({
                 'success': True,
@@ -265,8 +298,8 @@ def coupon_detail(request, coupon_id):
         }, status=status.HTTP_400_BAD_REQUEST)
     
     elif request.method == 'DELETE':
-        # Sadece admin veya tenant owner
-        if not (request.user.is_owner or (request.user.is_tenant_owner and request.user.tenant == tenant)):
+        # Sadece admin, tenant owner veya tenant staff
+        if not (request.user.is_owner or ((request.user.is_tenant_owner or request.user.is_tenant_staff) and request.user.tenant == tenant)):
             logger.warning(f"[COUPONS] DELETE /api/coupons/{coupon_id}/ | 403 | Permission denied")
             return Response({
                 'success': False,
@@ -274,6 +307,19 @@ def coupon_detail(request, coupon_id):
             }, status=status.HTTP_403_FORBIDDEN)
         
         coupon.soft_delete()
+        
+        # Activity Log
+        from apps.services.activity_log_service import ActivityLogService
+        ActivityLogService.log(
+            tenant=tenant,
+            user=request.user,
+            action="coupon_delete",
+            description=f"Kupon silindi: {coupon.code}",
+            content_type="Coupon",
+            object_id=coupon.id,
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
+        
         logger.info(f"[COUPONS] DELETE /api/coupons/{coupon_id}/ | 200 | Deleted | Code: {coupon.code}")
         return Response({
             'success': True,
@@ -415,10 +461,13 @@ def coupon_list_public(request):
 
 
 @api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, HasStaffPermission])
 def promotion_list_create(request):
     """
     Promosyon listesi (GET) veya yeni promosyon oluştur (POST).
+    """
+    # Yetki adı
+    promotion_list_create.staff_permission = 'coupons'
     
     GET: /api/promotions/
     POST: /api/promotions/
@@ -478,10 +527,13 @@ def promotion_list_create(request):
 
 
 @api_view(['GET', 'PATCH', 'DELETE'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, HasStaffPermission])
 def promotion_detail(request, promotion_id):
     """
     Promosyon detayı (GET), güncelle (PATCH) veya sil (DELETE).
+    """
+    # Yetki adı
+    promotion_detail.staff_permission = 'coupons'
     
     GET: /api/promotions/{promotion_id}/
     PATCH: /api/promotions/{promotion_id}/

@@ -13,6 +13,8 @@ from apps.serializers.integration import (
     IntegrationProviderUpdateSerializer,
     IntegrationProviderTestSerializer
 )
+from apps.permissions import HasStaffPermission
+from apps.services.activity_log_service import ActivityLogService
 from apps.services.email_service import EmailService
 from core.middleware import get_tenant_from_request
 import logging
@@ -27,10 +29,13 @@ class IntegrationPagination(PageNumberPagination):
 
 
 @api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, HasStaffPermission])
 def integration_list_create(request):
     """
     Entegrasyon listesi (GET) veya yeni entegrasyon oluştur (POST).
+    """
+    # Yetki adı
+    integration_list_create.staff_permission = 'integrations'
     
     GET: /api/integrations/
     POST: /api/integrations/
@@ -52,12 +57,7 @@ def integration_list_create(request):
             'message': 'Tenant bulunamadı.',
         }, status=status.HTTP_400_BAD_REQUEST)
     
-    # Sadece tenant owner veya admin
-    if not (request.user.is_owner or (request.user.is_tenant_owner and request.user.tenant == tenant)):
-        return Response({
-            'success': False,
-            'message': 'Bu işlem için yetkiniz yok.',
-        }, status=status.HTTP_403_FORBIDDEN)
+    # HasStaffPermission yetki kontrolü yapıyor.
     
     if request.method == 'GET':
         queryset = IntegrationProvider.objects.filter(tenant=tenant, is_deleted=False)
@@ -148,6 +148,17 @@ def integration_list_create(request):
                 integration = serializer.save()
                 logger.info(f"[INTEGRATION POST] Integration {action}: {integration.id}")
                 
+                # Activity Log
+                ActivityLogService.log(
+                    tenant=tenant,
+                    user=request.user,
+                    action="integration_update" if existing_integration else "integration_create",
+                    description=f"Entegrasyon {action}: {integration.get_provider_type_display()}",
+                    content_type="IntegrationProvider",
+                    object_id=integration.id,
+                    ip_address=request.META.get('REMOTE_ADDR')
+                )
+                
                 return Response({
                     'success': True,
                     'message': f'Entegrasyon {action}.',
@@ -168,10 +179,13 @@ def integration_list_create(request):
 
 
 @api_view(['GET', 'PATCH', 'DELETE'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, HasStaffPermission])
 def integration_detail(request, integration_id):
     """
     Entegrasyon detayı (GET), güncelle (PATCH) veya sil (DELETE).
+    """
+    # Yetki adı
+    integration_detail.staff_permission = 'integrations'
     
     GET: /api/integrations/{integration_id}/
     PATCH: /api/integrations/{integration_id}/
@@ -196,12 +210,7 @@ def integration_detail(request, integration_id):
             'message': 'Entegrasyon bulunamadı.',
         }, status=status.HTTP_404_NOT_FOUND)
     
-    # Sadece tenant owner veya admin
-    if not (request.user.is_owner or (request.user.is_tenant_owner and request.user.tenant == tenant)):
-        return Response({
-            'success': False,
-            'message': 'Bu işlem için yetkiniz yok.',
-        }, status=status.HTTP_403_FORBIDDEN)
+    # HasStaffPermission yetki kontrolü yapıyor.
     
     if request.method == 'GET':
         serializer = IntegrationProviderSerializer(integration)
@@ -220,6 +229,17 @@ def integration_detail(request, integration_id):
         if serializer.is_valid():
             integration = serializer.save()
             
+            # Activity Log
+            ActivityLogService.log(
+                tenant=tenant,
+                user=request.user,
+                action="integration_update",
+                description=f"Entegrasyon güncellendi: {integration.get_provider_type_display()}",
+                content_type="IntegrationProvider",
+                object_id=integration.id,
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
+            
             return Response({
                 'success': True,
                 'message': 'Entegrasyon güncellendi.',
@@ -233,6 +253,18 @@ def integration_detail(request, integration_id):
     
     elif request.method == 'DELETE':
         integration.soft_delete()
+        
+        # Activity Log
+        ActivityLogService.log(
+            tenant=tenant,
+            user=request.user,
+            action="integration_delete",
+            description=f"Entegrasyon silindi: {integration.get_provider_type_display()}",
+            content_type="IntegrationProvider",
+            object_id=integration.id,
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
+        
         return Response({
             'success': True,
             'message': 'Entegrasyon silindi.',
@@ -240,10 +272,13 @@ def integration_detail(request, integration_id):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, HasStaffPermission])
 def integration_test(request, integration_id):
     """
     Entegrasyon test et.
+    """
+    # Yetki adı
+    integration_test.staff_permission = 'integrations'
     
     POST: /api/integrations/{integration_id}/test/
     """
@@ -266,12 +301,7 @@ def integration_test(request, integration_id):
             'message': 'Entegrasyon bulunamadı.',
         }, status=status.HTTP_404_NOT_FOUND)
     
-    # Sadece tenant owner veya admin
-    if not (request.user.is_owner or (request.user.is_tenant_owner and request.user.tenant == tenant)):
-        return Response({
-            'success': False,
-            'message': 'Bu işlem için yetkiniz yok.',
-        }, status=status.HTTP_403_FORBIDDEN)
+    # HasStaffPermission yetki kontrolü yapıyor.
     
     # Entegrasyon tipine göre test yap
     try:
@@ -413,10 +443,13 @@ Teşekkür ederiz!
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, HasStaffPermission])
 def integration_by_type(request, provider_type):
     """
     Belirli bir provider tipine göre aktif entegrasyonu getir.
+    """
+    # Yetki adı
+    integration_by_type.staff_permission = 'integrations'
     
     GET: /api/integrations/type/{provider_type}/
     """
@@ -443,12 +476,7 @@ def integration_by_type(request, provider_type):
             'message': f'{provider_type} entegrasyonu bulunamadı veya aktif değil.',
         }, status=status.HTTP_404_NOT_FOUND)
     
-    # Sadece tenant owner veya admin
-    if not (request.user.is_owner or (request.user.is_tenant_owner and request.user.tenant == tenant)):
-        return Response({
-            'success': False,
-            'message': 'Bu işlem için yetkiniz yok.',
-        }, status=status.HTTP_403_FORBIDDEN)
+    # HasStaffPermission yetki kontrolü yapıyor.
     
     serializer = IntegrationProviderSerializer(integration)
     return Response({

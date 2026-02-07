@@ -11,7 +11,7 @@ from apps.models import Order, Cart, ShippingAddress, ShippingMethod
 from apps.serializers.order import OrderListSerializer, OrderDetailSerializer, CreateOrderSerializer
 from apps.services.order_service import OrderService
 from apps.services.customer_service import CustomerService
-from apps.permissions import IsTenantOwnerOfObject
+from apps.permissions import IsTenantOwnerOfObject, HasStaffPermission
 from core.middleware import get_tenant_from_request
 import logging
 
@@ -25,10 +25,13 @@ class OrderPagination(PageNumberPagination):
 
 
 @api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, HasStaffPermission])
 def order_list_create(request):
     """
     Sipariş listesi (GET) veya yeni sipariş oluştur (POST).
+    """
+    # Yetki adı
+    order_list_create.staff_permission = 'orders'
     
     GET: /api/orders/
     POST: /api/orders/
@@ -77,10 +80,10 @@ def order_list_create(request):
                         is_deleted=False
                     )
                     logger.info(f"[ORDERS] GET - TenantUser filtering own orders")
-                elif request.user.is_owner or (request.user.is_tenant_owner and request.user.tenant == tenant):
-                    # Owner/TenantOwner - tüm siparişler
+                elif request.user.is_owner or ((request.user.is_tenant_owner or request.user.is_tenant_staff) and request.user.tenant == tenant):
+                    # Owner/TenantOwner/TenantStaff - tüm siparişler
                     queryset = Order.objects.filter(tenant=tenant, is_deleted=False)
-                    logger.info(f"[ORDERS] GET - Owner/TenantOwner viewing all orders")
+                    logger.info(f"[ORDERS] GET - Owner/TenantOwner/TenantStaff viewing all orders")
                 else:
                     logger.warning(
                         f"[ORDERS] GET /api/orders/ | 403 | "
@@ -533,10 +536,13 @@ def order_list_create(request):
 
 
 @api_view(['GET', 'PATCH'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, HasStaffPermission])
 def order_detail(request, order_id):
     """
-    Sipariş detayı (GET) veya güncelleme (PATCH).
+    Sipariş detayı veya durum güncelleme.
+    """
+    # Yetki adı
+    order_detail.staff_permission = 'orders'
     
     GET: /api/orders/{order_id}/
     PATCH: /api/orders/{order_id}/
@@ -579,8 +585,8 @@ def order_detail(request, order_id):
         })
     
     elif request.method == 'PATCH':
-        # Sadece TenantOwner veya Owner durum güncelleyebilir
-        if not (request.user.is_owner or (request.user.is_tenant_owner and request.user.tenant == tenant)):
+        # Sadece TenantOwner, TenantStaff veya Owner durum güncelleyebilir
+        if not (request.user.is_owner or ((request.user.is_tenant_owner or request.user.is_tenant_staff) and request.user.tenant == tenant)):
             return Response({
                 'success': False,
                 'message': 'Sipariş durumunu güncelleme yetkiniz yok.',
@@ -590,7 +596,21 @@ def order_detail(request, order_id):
         new_status = request.data.get('status')
         if new_status:
             try:
+                old_status = order.status
                 order = OrderService.update_order_status(order, new_status, request.user)
+                
+                # Activity Log
+                from apps.services.activity_log_service import ActivityLogService
+                ActivityLogService.log(
+                    tenant=tenant,
+                    user=request.user,
+                    action="order_status_update",
+                    description=f"{order.order_number} numaralı sipariş durumu {old_status} -> {new_status} olarak güncellendi.",
+                    content_type="Order",
+                    object_id=order.id,
+                    changes={"old_status": old_status, "new_status": new_status},
+                    ip_address=request.META.get('REMOTE_ADDR')
+                )
             except ValueError as e:
                 return Response({
                     'success': False,

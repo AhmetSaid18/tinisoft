@@ -43,6 +43,62 @@ class IsTenantOwner(permissions.BasePermission):
         return self.has_permission(request, view)
 
 
+class IsTenantStaff(permissions.BasePermission):
+    """
+    Sadece TenantStaff (mağaza personeli) erişebilir.
+    """
+    
+    def has_permission(self, request, view):
+        """Permission kontrolü."""
+        if not request.user or not request.user.is_authenticated:
+            return False
+        
+        return request.user.is_tenant_staff
+    
+    def has_object_permission(self, request, view, obj):
+        """Object-level permission kontrolü."""
+        return self.has_permission(request, view)
+
+
+class HasStaffPermission(permissions.BasePermission):
+    """
+    Personelin belirli bir modül yetkisi (products, orders, vb.) olup olmadığını kontrol eder.
+    Mağaza sahibi (TenantOwner) tüm yetkilere sahiptir.
+    """
+    
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        
+        # Super Admin (Tinisoft Admin) her şeye erişebilir
+        if request.user.is_owner:
+            return True
+            
+        # Mağaza Sahibi (Tenant Owner) veya Personel (Tenant Staff) için tenant kontrolü
+        if request.user.is_tenant_owner or request.user.is_tenant_staff:
+            from core.middleware import get_tenant_from_request
+            tenant = get_tenant_from_request(request)
+            
+            # Request'teki tenant ile user'ın bağlı olduğu tenant eşleşmeli
+            if not tenant or request.user.tenant != tenant:
+                return False
+            
+            # Sahipse tam yetki
+            if request.user.is_tenant_owner:
+                return True
+                
+            # Personel ise modül bazlı yetki kontrolü
+            required = getattr(view, 'staff_permission', None)
+            if not required:
+                return True
+            return request.user.has_staff_permission(required)
+            
+        return False
+
+    def has_object_permission(self, request, view, obj):
+        return self.has_permission(request, view)
+
+
 class IsTenantUser(permissions.BasePermission):
     """
     Sadece TenantUser (müşteri) erişebilir.
@@ -150,8 +206,8 @@ class IsTenantOwnerOfObject(permissions.BasePermission):
         if request.user.is_system_admin:
             return True
         
-        # TenantOwner olmalı
-        return request.user.is_tenant_owner
+        # TenantOwner veya TenantStaff olmalı
+        return request.user.is_tenant_owner or request.user.is_tenant_staff
     
     def has_object_permission(self, request, view, obj):
         """Object-level permission kontrolü."""
@@ -163,8 +219,8 @@ class IsTenantOwnerOfObject(permissions.BasePermission):
         if request.user.is_system_admin:
             return True
         
-        # TenantOwner ise, sadece kendi tenant'ına ait objelere erişebilir
-        if request.user.is_tenant_owner:
+        # TenantOwner veya TenantStaff ise, sadece kendi tenant'ına ait objelere erişebilir
+        if request.user.is_tenant_owner or request.user.is_tenant_staff:
             # Object'in tenant field'ı var mı kontrol et
             if hasattr(obj, 'tenant'):
                 return obj.tenant == request.user.tenant

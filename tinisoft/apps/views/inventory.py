@@ -9,7 +9,7 @@ from rest_framework.pagination import PageNumberPagination
 from apps.models import InventoryMovement
 from apps.serializers.inventory import InventoryMovementSerializer, CreateInventoryMovementSerializer
 from apps.services.inventory_service import InventoryService
-from apps.permissions import IsTenantOwnerOfObject
+from apps.permissions import IsTenantOwnerOfObject, HasStaffPermission
 from core.middleware import get_tenant_from_request
 import logging
 
@@ -23,10 +23,13 @@ class InventoryMovementPagination(PageNumberPagination):
 
 
 @api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, HasStaffPermission])
 def inventory_movement_list_create(request):
     """
     Stok hareketi listesi (GET) veya yeni stok hareketi oluştur (POST).
+    """
+    # Yetki adı
+    inventory_movement_list_create.staff_permission = 'inventory'
     
     GET: /api/inventory/movements/
     POST: /api/inventory/movements/
@@ -39,7 +42,7 @@ def inventory_movement_list_create(request):
         }, status=status.HTTP_400_BAD_REQUEST)
     
     # Permission kontrolü
-    if not (request.user.is_owner or (request.user.is_tenant_owner and request.user.tenant == tenant)):
+    if not (request.user.is_owner or ((request.user.is_tenant_owner or request.user.is_tenant_staff) and request.user.tenant == tenant)):
         return Response({
             'success': False,
             'message': 'Bu işlem için yetkiniz yok.',
@@ -101,6 +104,18 @@ def inventory_movement_list_create(request):
                     created_by=request.user,
                 )
                 
+                # Activity Log
+                from apps.services.activity_log_service import ActivityLogService
+                ActivityLogService.log(
+                    tenant=tenant,
+                    user=request.user,
+                    action="inventory_adjustment",
+                    description=f"Stok güncellemesi yapıldı: {movement.product.name} ({movement.get_movement_type_display()}: {movement.quantity})",
+                    content_type="InventoryMovement",
+                    object_id=movement.id,
+                    ip_address=request.META.get('REMOTE_ADDR')
+                )
+                
                 return Response({
                     'success': True,
                     'message': 'Stok hareketi oluşturuldu.',
@@ -120,10 +135,13 @@ def inventory_movement_list_create(request):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, HasStaffPermission])
 def inventory_movement_detail(request, movement_id):
     """
     Stok hareketi detayı.
+    """
+    # Yetki adı
+    inventory_movement_detail.staff_permission = 'inventory'
     
     GET: /api/inventory/movements/{movement_id}/
     """
@@ -143,7 +161,7 @@ def inventory_movement_detail(request, movement_id):
         }, status=status.HTTP_404_NOT_FOUND)
     
     # Permission kontrolü
-    if not (request.user.is_owner or (request.user.is_tenant_owner and request.user.tenant == tenant)):
+    if not (request.user.is_owner or ((request.user.is_tenant_owner or request.user.is_tenant_staff) and request.user.tenant == tenant)):
         return Response({
             'success': False,
             'message': 'Bu işlem için yetkiniz yok.',
