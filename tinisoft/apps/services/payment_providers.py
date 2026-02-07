@@ -1065,10 +1065,10 @@ class PayTRPaymentProvider(PaymentProviderBase):
 
             # IP Adresi
             user_ip = customer_info.get('ip_address') or '127.0.0.1'
-            if user_ip == '127.0.0.1':
-                 # Test ortamında local IP sorun olabilir, rastgele geçerli bir Public IP kullanalım.
-                 user_ip = '85.105.100.100'
-                 logger.info(f"PayTR: Local IP 127.0.0.1 replaced with Public IP {user_ip} for testing")
+            if user_ip == '127.0.0.1' and self.test_mode:
+                 # Test ortamında bazen local IP sorun olabilir, rastgele bir IP sallayalım veya olduğu gibi bırakalım.
+                 # PayTR bazen IP kontrolü yapıyor.
+                 pass
             
             # Sipariş No
             merchant_oid = order.order_number
@@ -1103,6 +1103,15 @@ class PayTRPaymentProvider(PaymentProviderBase):
             # Varsayılan olarak 3D Secure kullan (0)
             non_3d = '0'
             
+            # DEBUG LOGS - Key ve Salt Kontrolü (Hassas bilgi olduğu için kısmi göster)
+            try:
+                key_preview = self.merchant_key.decode()[:4] + "***" + self.merchant_key.decode()[-4:]
+                salt_preview = self.merchant_salt.decode()[:4] + "***" + self.merchant_salt.decode()[-4:]
+                logger.info(f"PayTR Key Check: {key_preview} | Len: {len(self.merchant_key.decode())}")
+                logger.info(f"PayTR Salt Check: {salt_preview} | Len: {len(self.merchant_salt.decode())}")
+            except Exception as e:
+                logger.error(f"PayTR Key/Salt Log Error: {e}")
+
             # Token Hesapla
             paytr_token = self.calculate_token(
                 user_ip, merchant_oid, email, amount_str, 
