@@ -12,6 +12,7 @@ from urllib.parse import urlencode, unquote
 import hmac
 import json
 import time
+import html
 
 logger = logging.getLogger(__name__)
 
@@ -1021,17 +1022,22 @@ class PayTRPaymentProvider(PaymentProviderBase):
             f"{non_3d}"
         )
         
-        # Salt'ı string olarak birleştirip encode et
-        message = hash_str + self.merchant_salt.decode()
+        # Resmi Dokümantasyon Mantığı: hash_str.encode() + merchant_salt (bytes)
+        # merchant_key zaten bytes olmalı
         
         # Log hash string elements for debugging
         logger.info(f"PayTR Token Elements: ID={self.merchant_id}, IP={user_ip}, OID={merchant_oid}, Email={email}, Amt={payment_amount}, Type={payment_type}, Inst={installment_count}, Curr={currency}, Test={self.test_mode_str}, Non3D={non_3d}")
-        logger.info(f"PayTR Raw Hash String + Salt (first 50): {message[:50]}...")
+        
+        # Salt'ı bytes olarak birleştir
+        # self.merchant_salt zaten bytes (init'te encode edildi)
+        message_bytes = hash_str.encode() + self.merchant_salt
+        
+        logger.info(f"PayTR Raw Hash Bytes (first 50): {message_bytes[:50]}")
 
         paytr_token = base64.b64encode(
             hmac.new(
-                self.merchant_key,
-                message.encode(),
+                self.merchant_key, # Key (bytes)
+                message_bytes,     # Message (bytes)
                 hashlib.sha256
             ).digest()
         ).decode()
@@ -1065,10 +1071,10 @@ class PayTRPaymentProvider(PaymentProviderBase):
 
             # IP Adresi
             user_ip = customer_info.get('ip_address') or '127.0.0.1'
-            if user_ip == '127.0.0.1' and self.test_mode:
-                 # Test ortamında bazen local IP sorun olabilir, rastgele bir IP sallayalım veya olduğu gibi bırakalım.
-                 # PayTR bazen IP kontrolü yapıyor.
-                 pass
+            if user_ip == '127.0.0.1':
+                 # PayTR dokümantasyonu: Lokal testlerde mutlaka dış IP gönderin!
+                 user_ip = '85.105.100.100'
+                 logger.info(f"PayTR: Local IP 127.0.0.1 replaced with Public IP {user_ip} for testing")
             
             # Sipariş No
             merchant_oid = order.order_number
@@ -1134,7 +1140,8 @@ class PayTRPaymentProvider(PaymentProviderBase):
                 # Sepet boşsa dummy bir ürün ekle (Hata almamak için)
                 basket.append(["Siparis Tutari", amount_str, 1])
                 
-            user_basket = json.dumps(basket)
+            # PayTR dokümantasyonu: "Oluşturulan array json_encode edilmeli ve json_encode işleminden sonra oluşan değerde escape edilen karakterler html_entity_decode veya unescape edilerek gönderilmelidir."
+            user_basket = html.unescape(json.dumps(basket))
             
             # Callback URL'ler
             api_base_url = self.config.get('api_base_url') or getattr(settings, 'API_BASE_URL', 'https://api.tinisoft.com.tr')
@@ -1167,6 +1174,8 @@ class PayTRPaymentProvider(PaymentProviderBase):
                 'payment_type': payment_type,
                 'installment_count': installment_str,
                 'non_3d': non_3d,
+                'client_lang': 'tr', # Varsayılan dil
+                'non3d_test_failed': '0', # non3d işlemde, başarısız işlemi test etmek için 1 gönderilir
                 
                 # Kart Bilgileri
                 'card_type': customer_info.get('card_type', 'bonus'), # Opsiyonel
