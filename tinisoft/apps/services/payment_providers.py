@@ -1121,10 +1121,12 @@ class PayTRPaymentProvider(PaymentProviderBase):
             except Exception as e:
                 logger.error(f"PayTR Key/Salt Log Error: {e}")
 
-            # IP boş gönderilmeli (bazı durumlarda)
-            # Normalde PayTR IP ister ama test modunda veya IP whitelist sorunu varsa boş deniyoruz.
-            # user_ip = user_ip  # Eskiden parametre olarak alıyorduk
-            user_ip = '' 
+            # IP Kontrolü - PayTR Zorunlu Alan
+            # customer_info içinden al, yoksa test IP kullan
+            user_ip = customer_info.get('ip_address')
+            if not user_ip or user_ip in ['127.0.0.1', '::1', 'localhost']:
+                # Test veya development ortamında geçerli bir IP gönderilmeli
+                user_ip = '85.105.100.100'
 
             # Token Hesapla
             paytr_token = self.calculate_token(
