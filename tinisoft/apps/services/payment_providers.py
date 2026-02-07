@@ -1225,6 +1225,14 @@ class PayTRPaymentProvider(PaymentProviderBase):
                 'message': 'PayTR ödeme formu için parametreler hazırlandı. Lütfen bu verilerle PayTR adresine POST işlemi yapınız.',
                 'transaction_id': merchant_oid,
             }
+        except Exception as e:
+            logger.error(f"PayTR Direct API error: {str(e)}", exc_info=True)
+            return {
+                'success': False,
+                'payment_html': None,
+                'transaction_id': None,
+                'error': f"PayTR isteği başarısız: {str(e)}",
+            }
 
     def validate_callback_hash(self, post_data):
         """
