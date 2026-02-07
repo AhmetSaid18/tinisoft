@@ -1089,23 +1089,25 @@ class PayTRPaymentProvider(PaymentProviderBase):
             # Ödeme Tipi
             payment_type = 'card'
             
-            # Taksit Sayısı (0 = Tek Çekim)
-            installment_count = customer_info.get('installment_count', 0)
-            if not installment_count or int(installment_count) <= 1:
-                installment_str = '0'
-                no_installment = '1' # Taksit yok seçeneği
-            else:
-                installment_str = str(installment_count)
-                no_installment = '0'
+            # Taksit Sayısı
+            installment_str = '0'
+            no_installment = '1'
+            if customer_info.get('installment_count'):
+                try:
+                    inst = int(customer_info['installment_count'])
+                    if inst > 1:
+                        installment_str = str(inst)
+                        no_installment = '0'
+                except:
+                    pass
+            
+            # Tutar Formatı (PayTR, tutarı KURUŞ cinsinden integer ister)
+            # Örn: 10 TL -> 1000
+            amount_str = str(int(amount * 100))
             
             # Para Birimi
-            order_currency = getattr(order, 'currency', 'TRY') or 'TRY'
-            if order_currency == 'TRY':
-                currency = 'TL' # PayTR TL kullanıyor
-            else:
-                currency = order_currency
-            
-            # Non 3D (0 = 3D Secure, 1 = Non 3D)
+            currency = 'TL' # PayTR için hardcoded TL
+
             # Varsayılan olarak 3D Secure kullan (0)
             non_3d = '0'
             
@@ -1119,6 +1121,11 @@ class PayTRPaymentProvider(PaymentProviderBase):
             except Exception as e:
                 logger.error(f"PayTR Key/Salt Log Error: {e}")
 
+            # IP boş gönderilmeli (bazı durumlarda)
+            # Normalde PayTR IP ister ama test modunda veya IP whitelist sorunu varsa boş deniyoruz.
+            # user_ip = user_ip  # Eskiden parametre olarak alıyorduk
+            user_ip = '' 
+
             # Token Hesapla
             paytr_token = self.calculate_token(
                 user_ip, merchant_oid, email, amount_str, 
@@ -1126,14 +1133,16 @@ class PayTRPaymentProvider(PaymentProviderBase):
             )
             
             # Sepet (User Basket)
-            # [["Örnek Ürün 1", "50.00", 1], ...]
+            # [["Örnek Ürün 1", "5000", 1], ...]  (Fiyatlar KURUŞ olmalı)
             # Order items'dan oluştur
             basket = []
             if hasattr(order, 'items'):
                 for item in order.items.all():
+                    # Ürün fiyatını kuruşa çevir
+                    item_price_krs = str(int(item.unit_price * 100))
                     basket.append([
                         item.product_name,
-                        f"{float(item.unit_price):.2f}",
+                        item_price_krs,
                         item.quantity
                     ])
             
@@ -1180,7 +1189,7 @@ class PayTRPaymentProvider(PaymentProviderBase):
                 'non3d_test_failed': '0', # non3d işlemde, başarısız işlemi test etmek için 1 gönderilir
                 
                 # Kart Bilgileri
-                'card_type': customer_info.get('card_type', 'bonus'), # Opsiyonel
+                # 'card_type': customer_info.get('card_type', 'bonus'), # Opsiyonel (Kaldırıldı)
                 'card_number': customer_info.get('card_number', '').replace(' ', ''),
                 'card_holder_name': customer_info.get('name', ''),
                 'expiry_month': customer_info.get('card_expiry_month', ''),
