@@ -1153,7 +1153,7 @@ class PayTRPaymentProvider(PaymentProviderBase):
                 'payment_amount': amount_str,
                 'paytr_token': paytr_token,
                 'user_basket': user_basket,
-                'debug_on': self.debug_on,
+                'debug_on': '1',  # Hata mesajlarını görmek için 1 yapıldı
                 'no_installment': no_installment,
                 'max_installment': '0', # Taksit sınırlaması yok
                 'user_name': customer_info.get('name', 'Musteri'),
