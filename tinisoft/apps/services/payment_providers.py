@@ -1065,10 +1065,10 @@ class PayTRPaymentProvider(PaymentProviderBase):
 
             # IP Adresi
             user_ip = customer_info.get('ip_address') or '127.0.0.1'
-            if user_ip == '127.0.0.1' and self.test_mode:
-                 # Test ortamında bazen local IP sorun olabilir, rastgele bir IP sallayalım veya olduğu gibi bırakalım.
-                 # PayTR bazen IP kontrolü yapıyor.
-                 pass
+            if user_ip == '127.0.0.1':
+                 # Test ortamında local IP sorun olabilir, rastgele geçerli bir Public IP kullanalım.
+                 user_ip = '85.105.100.100'
+                 logger.info(f"PayTR: Local IP 127.0.0.1 replaced with Public IP {user_ip} for testing")
             
             # Sipariş No
             merchant_oid = order.order_number
