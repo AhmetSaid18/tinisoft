@@ -351,8 +351,6 @@ def retry_verification(request, domain_id):
     }, status=status.HTTP_200_OK)
 
 
-@api_view(['POST'])
-@permission_classes([IsOwnerOrTenantOwner])
 def create_domain(request):
     """
     Yeni domain ekle.
