@@ -1001,6 +1001,8 @@ class PayTRPaymentProvider(PaymentProviderBase):
             f"Merchant ID: {self.merchant_id}"
         )
 
+
+
     def calculate_token(self, user_ip, merchant_oid, email, payment_amount, payment_type, installment_count, currency, non_3d='0'):
         """
         PayTR Direct API için token (hash) hesapla.
@@ -1019,10 +1021,17 @@ class PayTRPaymentProvider(PaymentProviderBase):
             f"{non_3d}"
         )
         
+        # Salt'ı string olarak birleştirip encode et
+        message = hash_str + self.merchant_salt.decode()
+        
+        # Log hash string elements for debugging
+        logger.info(f"PayTR Token Elements: ID={self.merchant_id}, IP={user_ip}, OID={merchant_oid}, Email={email}, Amt={payment_amount}, Type={payment_type}, Inst={installment_count}, Curr={currency}, Test={self.test_mode_str}, Non3D={non_3d}")
+        logger.info(f"PayTR Raw Hash String + Salt (first 50): {message[:50]}...")
+
         paytr_token = base64.b64encode(
             hmac.new(
                 self.merchant_key,
-                hash_str.encode() + self.merchant_salt,
+                message.encode(),
                 hashlib.sha256
             ).digest()
         ).decode()
