@@ -1199,62 +1199,31 @@ class PayTRPaymentProvider(PaymentProviderBase):
                 'cvc': customer_info.get('card_cvv', ''),
             }
             
-            # Log request (Kart bilgilerini gizle)
-            safe_data = post_data.copy()
-            safe_data['card_number'] = '****' + safe_data['card_number'][-4:] if safe_data.get('card_number') else '****'
-            safe_data['cvc'] = '***'
-            logger.info(f"PayTR Direct API Request: {json.dumps(safe_data, default=str, ensure_ascii=False)}")
-            
-            # Request
-            # Hata durumunda da content almak için stream=False (default)
-            session = requests.Session()
-            response = session.post(self.api_url, data=post_data, timeout=30)
-            
-            # Response logla (Header dahil)
-            logger.info(f"PayTR Response Code: {response.status_code}")
-            logger.info(f"PayTR Response Headers: {response.headers}")
-            logger.info(f"PayTR Response Content (First 2000 chars): {response.text[:2000]}")
+            # -------------------------------------------------------------------------
+            # ÖNEMLİ DEĞİŞİKLİK: PayTR Direct API, Backend'den POST edilmez!
+            # Kart bilgileri Frontend'de (HTML Form) alınır ve doğrudan PayTR'a POST edilir.
+            # Backend burada sadece GÜVENLİ DATA ve HASH (Token) hazırlar.
+            # -------------------------------------------------------------------------
 
-            try:
-                result = response.json()
-            except ValueError:
-                # JSON dönmediyse raw text logla
-                logger.error(f"PayTR API Invalid JSON Response (Status: {response.status_code}): Content='{response.text[:2000]}'")
-                return {
-                    'success': False,
-                    'error': f'PayTR servisi geçersiz yanıt döndürdü. Status: {response.status_code}',
-                    'raw_response': response.text
-                }
+            # Log request (Kart bilgilerini gizle - gerçi artık backend'de kart yok ama yine de)
+            safe_data = post_data.copy()
+            if safe_data.get('card_number'): safe_data['card_number'] = '****'
+            if safe_data.get('cvc'): safe_data['cvc'] = '***'
             
-            if result.get('status') == 'success':
-                # PayTR Direct API, 3D Secure gerekliyse direkt bir HTML dönebilir (form submit scripti).
-                # Bazen JSON içinde 'content' olarak gelir, bazen status haricinde raw text olabilir.
-                payment_html = result.get('content')
-                
-                # Eğer content boşsa ama status success ise, response'un kendisi HTML olabilir mi? 
-                # (requests.json() başarılı olduysa genelde JSON formatındadır)
-                
-                return {
-                    'success': True,
-                    'payment_html': payment_html, # 3D Secure HTML'i varsa buraya gelecek
-                    'raw_response': result,
-                    'transaction_id': merchant_oid,
-                    'error': None,
-                }
-            else:
-                # Hata
-                error_msg = result.get('msg', 'Bilinmeyen Hata')
-                return {
-                    'success': False,
-                    'error': error_msg,
-                    'transaction_id': merchant_oid,
-                }
-                
-        except Exception as e:
-            logger.error(f"PayTR create_payment error: {str(e)}", exc_info=True)
+            logger.info(f"PayTR Direct API Params Prepared: {json.dumps(safe_data, default=str, ensure_ascii=False)}")
+            
+            # Frontend'e dönülecek yapı
+            # Frontend bu parametreleri alıp hidden input'lar olarak bir forma koyacak,
+            # kullanıcıdan kart bilgilerini alıp (input name="card_number" vb.)
+            # form action="https://www.paytr.com/odeme" method="POST" olarak submit edecek.
+            
             return {
-                'success': False,
-                'error': str(e),
+                'success': True,
+                'data': post_data,      # Tüm parametreler (merchant_id, token, oid, ...)
+                'payment_url': self.api_url, # https://www.paytr.com/odeme/api/direct (veya /odeme)
+                'method': 'POST',
+                'message': 'PayTR ödeme formu için parametreler hazırlandı. Lütfen bu verilerle PayTR adresine POST işlemi yapınız.',
+                'transaction_id': merchant_oid,
             }
 
     def validate_callback_hash(self, post_data):
