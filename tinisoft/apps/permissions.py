@@ -81,6 +81,7 @@ class HasStaffPermission(permissions.BasePermission):
             
             # Request'teki tenant ile user'ın bağlı olduğu tenant eşleşmeli
             if not tenant or request.user.tenant != tenant:
+                logger.warning(f"[PERMISSION] Tenant mismatch. User: {request.user.email} (Tenant: {request.user.tenant}), Request Tenant: {tenant}")
                 return False
             
             # Sahipse tam yetki
@@ -92,6 +93,7 @@ class HasStaffPermission(permissions.BasePermission):
             
             if not required:
                 # Yetki belirtilmemişse personelin hiçbir şeye erişimi olmasın (Zero Trust)
+                logger.warning(f"[PERMISSION] Missing staff_permission attr on view: {view}. User: {request.user.email}")
                 return False
             
             # OKUMA işlemleri (GET, HEAD, OPTIONS)
@@ -103,7 +105,10 @@ class HasStaffPermission(permissions.BasePermission):
                     return True
             
             # YAZMA işlemleri (POST, PUT, PATCH, DELETE) veya HASSAS OKUMA
-            return request.user.has_staff_permission(required)
+            has_perm = request.user.has_staff_permission(required)
+            if not has_perm:
+                 logger.warning(f"[PERMISSION] Denied. User: {request.user.email} lacks '{required}' permission for {request.method} {request.path}")
+            return has_perm
             
         return False
 
