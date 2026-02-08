@@ -93,6 +93,7 @@ def staff_detail(request, staff_id):
         if password:
             staff.set_password(password)
             staff.save()
+            logger.info(f"Staff password updated for: {staff.email} by {request.user.email}")
             
         serializer = UserSerializer(staff, data=request.data, partial=True)
         if serializer.is_valid():
@@ -103,7 +104,7 @@ def staff_detail(request, staff_id):
                 tenant=tenant,
                 user=request.user,
                 action="staff_update",
-                description=f"Personel bilgileri güncellendi: {staff.email}",
+                description=f"Personel bilgileri güncellendi: {staff.email}{' (Şifre dahil)' if password else ''}",
                 content_type="User",
                 object_id=staff.id,
                 ip_address=request.META.get('REMOTE_ADDR')

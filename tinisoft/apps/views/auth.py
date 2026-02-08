@@ -118,13 +118,14 @@ def login(request):
                 'tenant': TenantSerializer(result['tenant']).data if result['tenant'] else None,
             }, status=status.HTTP_200_OK)
         except ValueError as e:
+            logger.warning(f"Login failed: {str(e)} for email: {serializer.validated_data.get('email')}")
             return Response({
                 'success': False,
                 'message': str(e),
                 'error_code': 'AUTHENTICATION_FAILED',
             }, status=status.HTTP_401_UNAUTHORIZED)
         except Exception as e:
-            logger.error(f"Login failed: {str(e)}")
+            logger.error(f"Login internal error: {str(e)}")
             return Response({
                 'success': False,
                 'message': 'Giriş sırasında bir hata oluştu.',
@@ -133,6 +134,7 @@ def login(request):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     # Serializer validation errors
+    logger.warning(f"Login validation failed: {serializer.errors} | Data: {request.data}")
     return Response({
         'success': False,
         'message': 'Geçersiz giriş bilgileri.',
