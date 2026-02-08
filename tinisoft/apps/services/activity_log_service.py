@@ -21,13 +21,19 @@ class ActivityLogService:
             
         # 1. Güvenlik Kontrolü: Personel ise yetkisi var mı?
         if user.is_tenant_staff and not user.is_tenant_owner and not user.is_owner:
-            # Action içinden modül adını tahmin et (örn: product_update -> products)
-            module = action.split('_')[0]
-            if module == 'category': module = 'products' # Category yetkisi Product ile bağlı
+            # Action içinden modül adını tahmin et
+            action_parts = action.split('_')
+            module = action_parts[0]
             
-            # Yetki kontrolü (bu sefer canlı user objesinden veya cache'den)
+            # Modül eşleştirmelerini standartlaştır
+            if module in ['category', 'virtual']: 
+                module = 'products'
+            elif module == 'inventory':
+                module = 'inventory'
+            
+            # Yetki kontrolü
             if not user.has_staff_permission(module):
-                logger.warning(f"[SECURITY] Unauthorized log attempt by {user.email} for action: {action}")
+                logger.warning(f"[SECURITY] Unauthorized attempt blocked. User: {user.email}, Action: {action}, Module: {module}")
                 return False
 
         from apps.tasks.activity_task import create_activity_log_task
