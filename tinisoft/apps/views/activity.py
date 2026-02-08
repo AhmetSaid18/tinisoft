@@ -26,8 +26,6 @@ def activity_log_list(request):
     """
     Tenant işlem loglarını listele.
     """
-    # Yetki adı (Hassas olmadığı için her personel görebilir)
-    activity_log_list.staff_permission = 'activity'
     tenant = get_tenant_from_request(request)
     if not tenant:
         return Response({
@@ -78,3 +76,6 @@ def activity_log_list(request):
         'success': True,
         'logs': [],
     })
+
+# Set staff permissions
+activity_log_list.staff_permission = 'activity'
