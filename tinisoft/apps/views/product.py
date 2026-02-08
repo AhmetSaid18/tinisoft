@@ -35,8 +35,6 @@ def product_list_create(request):
     GET: /api/products/
     POST: /api/products/
     """
-    # Yetki adı
-    product_list_create.staff_permission = 'products'
     tenant = get_tenant_from_request(request)
     if not tenant:
         logger.warning(f"[PRODUCTS] {request.method} /api/products/ | 400 | Tenant not found")
@@ -171,8 +169,6 @@ def product_detail(request, product_id):
     PUT/PATCH: /api/products/{product_id}/
     DELETE: /api/products/{product_id}/
     """
-    # Yetki adı
-    product_detail.staff_permission = 'products'
     tenant = get_tenant_from_request(request)
     if not tenant:
         return Response({
@@ -882,8 +878,6 @@ def category_list_create(request):
     GET: /api/categories/
     POST: /api/categories/
     """
-    # Yetki adı
-    category_list_create.staff_permission = 'products'
     tenant = get_tenant_from_request(request)
     if not tenant:
         return Response({
@@ -1048,8 +1042,6 @@ def category_detail(request, category_id):
     PATCH: /api/categories/{category_id}/  (parent değiştirmek için)
     DELETE: /api/categories/{category_id}/
     """
-    # Yetki adı
-    category_detail.staff_permission = 'products'
     tenant = get_tenant_from_request(request)
     if not tenant:
         return Response({
@@ -1159,3 +1151,9 @@ def category_detail(request, category_id):
             'success': True,
             'message': 'Kategori silindi.',
         })
+
+# Set staff permissions
+product_list_create.staff_permission = 'products'
+product_detail.staff_permission = 'products'
+category_list_create.staff_permission = 'products'
+category_detail.staff_permission = 'products'

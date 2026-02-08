@@ -33,8 +33,6 @@ def order_list_create(request):
     GET: /api/orders/
     POST: /api/orders/
     """
-    # Yetki adı
-    order_list_create.staff_permission = 'orders'
     try:
         # Request bilgilerini log'la
         user_email = request.user.email if request.user.is_authenticated else 'Anonymous'
@@ -543,8 +541,6 @@ def order_detail(request, order_id):
     GET: /api/orders/{order_id}/
     PATCH: /api/orders/{order_id}/
     """
-    # Yetki adı
-    order_detail.staff_permission = 'orders'
     tenant = get_tenant_from_request(request)
     if not tenant:
         return Response({
@@ -844,3 +840,7 @@ def order_delete_all(request):
             'message': 'Siparişler silinirken bir hata oluştu.',
             'error': str(e),
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# Set staff permissions
+order_list_create.staff_permission = 'orders'
+order_detail.staff_permission = 'orders'

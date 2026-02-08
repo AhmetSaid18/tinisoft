@@ -31,8 +31,6 @@ def inventory_movement_list_create(request):
     GET: /api/inventory/movements/
     POST: /api/inventory/movements/
     """
-    # Yetki adı
-    inventory_movement_list_create.staff_permission = 'inventory'
     tenant = get_tenant_from_request(request)
     if not tenant:
         return Response({
@@ -141,8 +139,6 @@ def inventory_movement_detail(request, movement_id):
     
     GET: /api/inventory/movements/{movement_id}/
     """
-    # Yetki adı
-    inventory_movement_detail.staff_permission = 'inventory'
     tenant = get_tenant_from_request(request)
     if not tenant:
         return Response({
@@ -171,3 +167,7 @@ def inventory_movement_detail(request, movement_id):
         'movement': serializer.data,
     })
 
+
+# Set staff permissions
+inventory_movement_list_create.staff_permission = 'inventory'
+inventory_movement_detail.staff_permission = 'inventory'

@@ -36,8 +36,6 @@ def coupon_list_create(request):
     GET: /api/coupons/
     POST: /api/coupons/
     """
-    # Yetki adı
-    coupon_list_create.staff_permission = 'coupons'
     tenant = get_tenant_from_request(request)
     if not tenant:
         logger.warning(f"[COUPONS] {request.method} /api/coupons/ | 400 | Tenant not found")
@@ -181,8 +179,6 @@ def coupon_detail(request, coupon_id):
     PATCH: /api/coupons/{coupon_id}/ (kısmi güncelleme)
     DELETE: /api/coupons/{coupon_id}/
     """
-    # Yetki adı
-    coupon_detail.staff_permission = 'coupons'
     tenant = get_tenant_from_request(request)
     if not tenant:
         logger.warning(f"[COUPONS] {request.method} /api/coupons/{coupon_id}/ | 400 | Tenant not found")
@@ -467,8 +463,6 @@ def promotion_list_create(request):
     GET: /api/promotions/
     POST: /api/promotions/
     """
-    # Yetki adı
-    promotion_list_create.staff_permission = 'coupons'
     tenant = get_tenant_from_request(request)
     if not tenant:
         return Response({
@@ -533,8 +527,6 @@ def promotion_detail(request, promotion_id):
     PATCH: /api/promotions/{promotion_id}/
     DELETE: /api/promotions/{promotion_id}/
     """
-    # Yetki adı
-    promotion_detail.staff_permission = 'coupons'
     tenant = get_tenant_from_request(request)
     if not tenant:
         return Response({
@@ -599,3 +591,9 @@ def promotion_detail(request, promotion_id):
             'message': 'Promosyon silindi.',
         }, status=status.HTTP_200_OK)
 
+
+# Set staff permissions
+coupon_list_create.staff_permission = 'coupons'
+coupon_detail.staff_permission = 'coupons'
+promotion_list_create.staff_permission = 'coupons'
+promotion_detail.staff_permission = 'coupons'

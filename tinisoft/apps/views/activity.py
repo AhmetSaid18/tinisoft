@@ -7,7 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 from apps.models import ActivityLog
-from apps.permissions import IsTenantOwner
+from apps.permissions import IsTenantOwner, HasStaffPermission
 from core.middleware import get_tenant_from_request
 import logging
 
@@ -21,11 +21,13 @@ class ActivityLogPagination(PageNumberPagination):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated, IsTenantOwner])
+@permission_classes([IsAuthenticated, HasStaffPermission])
 def activity_log_list(request):
     """
     Tenant işlem loglarını listele.
     """
+    # Yetki adı (Hassas olmadığı için her personel görebilir)
+    activity_log_list.staff_permission = 'activity'
     tenant = get_tenant_from_request(request)
     if not tenant:
         return Response({

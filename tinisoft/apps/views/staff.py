@@ -7,7 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from apps.models import User
 from apps.serializers.auth import TenantStaffSerializer, UserSerializer
-from apps.permissions import IsTenantOwner
+from apps.permissions import IsTenantOwner, HasStaffPermission
 from core.middleware import get_tenant_from_request
 from apps.services.activity_log_service import ActivityLogService
 import logging
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 @api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated, IsTenantOwner])
+@permission_classes([IsAuthenticated, HasStaffPermission])
 def staff_list_create(request):
     """
     Mağaza personeli listesi (GET) veya yeni personel oluştur (POST).
@@ -66,7 +66,7 @@ def staff_list_create(request):
 
 
 @api_view(['GET', 'PATCH', 'DELETE'])
-@permission_classes([IsAuthenticated, IsTenantOwner])
+@permission_classes([IsAuthenticated, HasStaffPermission])
 def staff_detail(request, staff_id):
     """
     Personel detayı veya silme.
@@ -141,3 +141,7 @@ def staff_detail(request, staff_id):
             'success': True,
             'message': 'Personel silindi.',
         })
+
+# Set staff permissions
+staff_list_create.staff_permission = 'staff'
+staff_detail.staff_permission = 'staff'

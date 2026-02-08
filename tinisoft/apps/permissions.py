@@ -89,8 +89,20 @@ class HasStaffPermission(permissions.BasePermission):
                 
             # Personel ise modül bazlı yetki kontrolü
             required = getattr(view, 'staff_permission', None)
+            
             if not required:
-                return True
+                # Yetki belirtilmemişse personelin hiçbir şeye erişimi olmasın (Zero Trust)
+                return False
+            
+            # OKUMA işlemleri (GET, HEAD, OPTIONS)
+            if request.method in permissions.SAFE_METHODS:
+                # Bazı modüller çok kritiktir, okuması bile yetki ister (Örn: Personeller, Entegrasyonlar)
+                sensitive_modules = ['staff', 'integrations']
+                if required not in sensitive_modules:
+                    # Ürün, sipariş vb. genel modüllerde okumaya her personelin izni olsun
+                    return True
+            
+            # YAZMA işlemleri (POST, PUT, PATCH, DELETE) veya HASSAS OKUMA
             return request.user.has_staff_permission(required)
             
         return False
