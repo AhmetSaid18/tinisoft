@@ -213,11 +213,13 @@ def product_detail(request, product_id):
         if serializer.is_valid():
             serializer.save()
             
-            # Sanal stok değişikliği kontrolü
+            # Activity Log - Daha detaylı ve doğru açıklama
             action = "product_update"
-            description = f"Ürün güncellendi: {product.name}"
+            description = f"Ürün güncellendi: {product.name} (SKU: {product.sku})"
             
-            if 'virtual_stock_quantity' in request.data:
+            # Eğer SADECE sanal stok güncellendiyse özel action/description kullan
+            updated_fields = list(request.data.keys())
+            if len(updated_fields) == 1 and updated_fields[0] == 'virtual_stock_quantity':
                 action = "virtual_stock_update"
                 new_qty = request.data.get('virtual_stock_quantity')
                 description = f"Ürün sanal stok güncellendi: {product.name} (Yeni: {new_qty})"
