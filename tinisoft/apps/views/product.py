@@ -1058,13 +1058,7 @@ def category_detail(request, category_id):
             'message': 'Kategori bulunamadı.',
         }, status=status.HTTP_404_NOT_FOUND)
     
-    # Permission kontrolü
-    if not (request.user.is_owner or ((request.user.is_tenant_owner or request.user.is_tenant_staff) and request.user.tenant == tenant)):
-        logger.warning(f"[CATEGORIES] {request.method} /api/categories/{category_id}/ | 403 | Permission denied")
-        return Response({
-            'success': False,
-            'message': 'Bu işlem için yetkiniz yok.',
-        }, status=status.HTTP_403_FORBIDDEN)
+    # Not: Yetki kontrolü HasStaffPermission dekoratörü tarafından zaten yapılıyor.
     
     if request.method == 'GET':
         serializer = CategorySerializer(category, context={'request': request})

@@ -20,6 +20,8 @@ class CacheService:
     CACHE_PREFIX_ORDER = 'order'
     CACHE_PREFIX_CUSTOMER = 'customer'
     CACHE_PREFIX_ANALYTICS = 'analytics'
+    CACHE_PREFIX_TENANT = 'tenant'
+    CACHE_PREFIX_USER_PERMS = 'user_perms'
     
     # Cache timeout'ları (saniye)
     TIMEOUT_PRODUCT = 3600  # 1 saat
@@ -28,6 +30,8 @@ class CacheService:
     TIMEOUT_ORDER = 3600  # 1 saat
     TIMEOUT_CUSTOMER = 1800  # 30 dakika
     TIMEOUT_ANALYTICS = 300  # 5 dakika
+    TIMEOUT_TENANT = 86400  # 24 saat (Tenant bilgileri nadir değişir)
+    TIMEOUT_USER_PERMS = 3600  # 1 saat
     
     @staticmethod
     def get_cache_key(prefix, tenant_id, *args):
@@ -137,6 +141,36 @@ class CacheService:
         )
         cache.delete(cache_key)
     
+    @staticmethod
+    def get_tenant_by_host(host):
+        """Host (domain/subdomain) bilgisine göre tenant'ı cache'den al."""
+        cache_key = f"{CacheService.CACHE_PREFIX_TENANT}:host:{host}"
+        return cache.get(cache_key)
+
+    @staticmethod
+    def set_tenant_by_host(host, tenant_data, timeout=None):
+        """Host bilgisine göre tenant'ı cache'e kaydet."""
+        cache_key = f"{CacheService.CACHE_PREFIX_TENANT}:host:{host}"
+        cache.set(cache_key, tenant_data, timeout or CacheService.TIMEOUT_TENANT)
+
+    @staticmethod
+    def get_user_permissions(user_id):
+        """Kullanıcı yetkilerini cache'den al."""
+        cache_key = f"{CacheService.CACHE_PREFIX_USER_PERMS}:{user_id}"
+        return cache.get(cache_key)
+
+    @staticmethod
+    def set_user_permissions(user_id, perms_data, timeout=None):
+        """Kullanıcı yetkilerini cache'e kaydet."""
+        cache_key = f"{CacheService.CACHE_PREFIX_USER_PERMS}:{user_id}"
+        cache.set(cache_key, perms_data, timeout or CacheService.TIMEOUT_USER_PERMS)
+
+    @staticmethod
+    def delete_user_permissions(user_id):
+        """Kullanıcı yetkilerini cache'den sil."""
+        cache_key = f"{CacheService.CACHE_PREFIX_USER_PERMS}:{user_id}"
+        cache.delete(cache_key)
+
     @staticmethod
     def invalidate_tenant_cache(tenant_id, prefix=None):
         """Tenant'a ait tüm cache'i temizle."""

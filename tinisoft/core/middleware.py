@@ -23,6 +23,7 @@ class TenantMiddleware(MiddlewareMixin):
         
         # Tenant instance'ını al
         tenant = get_tenant_from_request(request)
+        request.tenant = tenant
         
         # Eğer subdomain veya custom domain varsa ama tenant bulunamadıysa 404 döndür
         host = request.get_host()
@@ -118,63 +119,65 @@ class TenantMiddleware(MiddlewareMixin):
 
 def get_tenant_from_request(request):
     """
-    Request'ten tenant instance'ını döndür.
-    View'larda kullanılmak için utility fonksiyonu.
+    Request'ten tenant instance'ını döndür (Cache destekli).
     """
+    # 1. Eğer request üzerinde zaten varsa oradan al (Mükerrer sorguyu önler)
+    cached_tenant = getattr(request, 'tenant', None)
+    if cached_tenant:
+        return cached_tenant
+
     from apps.models import Tenant, Domain
+    from apps.services.cache_service import CacheService
     
     host = request.get_host()
     
-    # Subdomain kontrolü (tinisoft ana domain'i için)
-    # Örnek: ates.tinisoft.com.tr -> ates
+    # 2. Redis Cache Kontrolü
+    # Not: Cache'de sadece ID veya basit veri saklamak daha güvenlidir ama 
+    # şimdilik model instance'ını Django'nun cache'i (pickle) üzerinden alıyoruz.
+    tenant = CacheService.get_tenant_by_host(host)
+    if tenant:
+        request.tenant = tenant
+        return tenant
+
+    # 3. Veritabanı Sorguları (Sadece cache'de yoksa çalışır)
+    # Subdomain kontrolü
     if '.tinisoft.com.tr' in host:
         subdomain = host.split('.')[0]
         try:
             tenant = Tenant.objects.get(subdomain=subdomain, is_deleted=False)
+            CacheService.set_tenant_by_host(host, tenant)
+            request.tenant = tenant
             return tenant
         except Tenant.DoesNotExist:
             pass
     
     # Custom domain kontrolü
     try:
-        domain = Domain.objects.filter(domain_name=host, is_deleted=False).first()
+        domain = Domain.objects.filter(domain_name=host, is_deleted=False).select_related('tenant').first()
         if domain:
-            return domain.tenant
+            tenant = domain.tenant
+            CacheService.set_tenant_by_host(host, tenant)
+            request.tenant = tenant
+            return tenant
     except:
         pass
     
-    # Header'dan tenant slug
-    tenant_slug_header = request.headers.get('X-Tenant-Slug')
-    if tenant_slug_header:
-        try:
-            tenant = Tenant.objects.get(slug=tenant_slug_header, is_deleted=False)
-            return tenant
-        except Tenant.DoesNotExist:
-            pass
-    
-    # Header'dan tenant ID
+    # Header'dan tenant ID/Slug (Panel kullanımı için)
     tenant_id = request.headers.get('X-Tenant-ID')
     if tenant_id:
         try:
             tenant = Tenant.objects.get(id=tenant_id, is_deleted=False)
+            request.tenant = tenant
             return tenant
         except Tenant.DoesNotExist:
             pass
     
     # User'dan tenant (authenticated ise)
     if hasattr(request, 'user') and request.user.is_authenticated:
-        # TenantUser ise tenant'ı al
         if hasattr(request.user, 'tenant') and request.user.tenant:
-            return request.user.tenant
-        # TenantOwner ise owned_tenants'tan ilkini al (veya tenant field'ından)
-        if request.user.is_tenant_owner:
-            try:
-                # TenantOwner'ın owned_tenants'ından ilkini al
-                tenant = request.user.owned_tenants.filter(is_deleted=False).first()
-                if tenant:
-                    return tenant
-            except:
-                pass
+            tenant = request.user.tenant
+            request.tenant = tenant
+            return tenant
     
     return None
 

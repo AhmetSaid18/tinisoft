@@ -69,49 +69,49 @@ class HasStaffPermission(permissions.BasePermission):
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
-        
-        # Super Admin (Tinisoft Admin) her şeye erişebilir
-        if request.user.is_owner:
+            
+        # 1. Super Admin veya Sistem Admin her şeye sorgusuz erişebilir
+        if request.user.is_owner or request.user.is_system_admin:
             return True
             
-        # Mağaza Sahibi (Tenant Owner) veya Personel (Tenant Staff) için tenant kontrolü
+        # 2. Mağaza Sahibi veya Personel kontrolü
         if request.user.is_tenant_owner or request.user.is_tenant_staff:
+            # Middleware'den gelen cached tenant'ı al
             from core.middleware import get_tenant_from_request
-            tenant = get_tenant_from_request(request)
+            tenant = getattr(request, 'tenant', get_tenant_from_request(request))
             
-            # Request'teki tenant ile user'ın bağlı olduğu tenant eşleşmeli
-            if not tenant or request.user.tenant != tenant:
-                logger.warning(f"[PERMISSION] Tenant mismatch. User: {request.user.email} (Tenant: {request.user.tenant}), Request Tenant: {tenant}")
+            # Request'teki tenant ile user'ın bağlı olduğu tenant eşleşmeli (ID bazlı kontrol daha hızlı)
+            if not tenant or request.user.tenant_id != tenant.id:
                 return False
             
-            # Sahipse tam yetki
+            # Tenant Sahibi ise tüm modüllere erişebilir
             if request.user.is_tenant_owner:
                 return True
                 
-            # Personel ise modül bazlı yetki kontrolü
-            # DRF @api_view kullandığımızda yetki adı view.cls üzerinde olabilir
+            # 3. Personel ise modül bazlı yetki kontrolü
             required = getattr(view, 'staff_permission', None)
             if not required and hasattr(view, 'cls'):
                 required = getattr(view.cls, 'staff_permission', None)
             
             if not required:
-                # Yetki belirtilmemişse personelin hiçbir şeye erişimi olmasın (Zero Trust)
-                logger.warning(f"[PERMISSION] Missing staff_permission attr on view: {view} or cls: {getattr(view, 'cls', 'N/A')}. User: {request.user.email}")
                 return False
             
-            # OKUMA işlemleri (GET, HEAD, OPTIONS)
+            # 4. OKUMA işlemleri (GET, HEAD, OPTIONS) - Genel modüller için serbest
             if request.method in permissions.SAFE_METHODS:
-                # Bazı modüller çok kritiktir, okuması bile yetki ister (Örn: Personeller, Entegrasyonlar)
                 sensitive_modules = ['staff', 'integrations']
                 if required not in sensitive_modules:
-                    # Ürün, sipariş vb. genel modüllerde okumaya her personelin izni olsun
                     return True
             
-            # YAZMA işlemleri (POST, PUT, PATCH, DELETE) veya HASSAS OKUMA
-            has_perm = request.user.has_staff_permission(required)
-            if not has_perm:
-                 logger.warning(f"[PERMISSION] Denied. User: {request.user.email} lacks '{required}' permission for {request.method} {request.path}")
-            return has_perm
+            # 5. YAZMA işlemleri veya HASSAS OKUMA - Redis Cache üzerinden yetki kontrolü
+            from apps.services.cache_service import CacheService
+            user_perms = CacheService.get_user_permissions(request.user.id)
+            
+            if user_perms is None:
+                # Cache'de yoksa veritabanından/user objesinden al ve Redis'e yaz
+                user_perms = request.user.staff_permissions or []
+                CacheService.set_user_permissions(request.user.id, user_perms)
+            
+            return required in user_perms
             
         return False
 

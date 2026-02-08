@@ -14,8 +14,22 @@ class ActivityLogService:
     @staticmethod
     def log(tenant, user, action, description, content_type=None, object_id=None, changes=None, ip_address=None):
         """
-        Yeni bir işlem logu oluşturur (Asenkron).
+        Yeni bir işlem logu oluşturur (Asenkron - Güvenlik Kontrollü).
         """
+        if not user or not user.is_authenticated:
+            return None
+            
+        # 1. Güvenlik Kontrolü: Personel ise yetkisi var mı?
+        if user.is_tenant_staff and not user.is_tenant_owner and not user.is_owner:
+            # Action içinden modül adını tahmin et (örn: product_update -> products)
+            module = action.split('_')[0]
+            if module == 'category': module = 'products' # Category yetkisi Product ile bağlı
+            
+            # Yetki kontrolü (bu sefer canlı user objesinden veya cache'den)
+            if not user.has_staff_permission(module):
+                logger.warning(f"[SECURITY] Unauthorized log attempt by {user.email} for action: {action}")
+                return False
+
         from apps.tasks.activity_task import create_activity_log_task
         
         try:

@@ -127,6 +127,15 @@ class User(AbstractUser):
         return False
 
 
+    def save(self, *args, **kwargs):
+        """Save override to clear cache on update."""
+        # Cache'i temizle (permissions ve role değişmiş olabilir)
+        if self.id:
+            from apps.services.cache_service import CacheService
+            CacheService.delete_user_permissions(self.id)
+        super().save(*args, **kwargs)
+
+
 class Tenant(BaseModel):
     """
     Tenant (Mağaza) modeli.
