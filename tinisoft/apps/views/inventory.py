@@ -27,13 +27,12 @@ class InventoryMovementPagination(PageNumberPagination):
 def inventory_movement_list_create(request):
     """
     Stok hareketi listesi (GET) veya yeni stok hareketi oluştur (POST).
-    """
-    # Yetki adı
-    inventory_movement_list_create.staff_permission = 'inventory'
     
     GET: /api/inventory/movements/
     POST: /api/inventory/movements/
     """
+    # Yetki adı
+    inventory_movement_list_create.staff_permission = 'inventory'
     tenant = get_tenant_from_request(request)
     if not tenant:
         return Response({
@@ -139,12 +138,11 @@ def inventory_movement_list_create(request):
 def inventory_movement_detail(request, movement_id):
     """
     Stok hareketi detayı.
-    """
-    # Yetki adı
-    inventory_movement_detail.staff_permission = 'inventory'
     
     GET: /api/inventory/movements/{movement_id}/
     """
+    # Yetki adı
+    inventory_movement_detail.staff_permission = 'inventory'
     tenant = get_tenant_from_request(request)
     if not tenant:
         return Response({

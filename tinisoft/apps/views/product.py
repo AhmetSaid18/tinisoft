@@ -31,11 +31,12 @@ class ProductPagination(PageNumberPagination):
 def product_list_create(request):
     """
     Ürün listesi (GET) veya yeni ürün oluştur (POST).
+    
+    GET: /api/products/
+    POST: /api/products/
     """
     # Yetki adı
     product_list_create.staff_permission = 'products'
-    # GET: /api/products/
-    # POST: /api/products/
     tenant = get_tenant_from_request(request)
     if not tenant:
         logger.warning(f"[PRODUCTS] {request.method} /api/products/ | 400 | Tenant not found")
@@ -165,12 +166,13 @@ def product_list_create(request):
 def product_detail(request, product_id):
     """
     Ürün detayı (GET), güncelle (PUT/PATCH) veya sil (DELETE).
+    
+    GET: /api/products/{product_id}/
+    PUT/PATCH: /api/products/{product_id}/
+    DELETE: /api/products/{product_id}/
     """
     # Yetki adı
     product_detail.staff_permission = 'products'
-    # GET: /api/products/{product_id}/
-    # PUT/PATCH: /api/products/{product_id}/
-    # DELETE: /api/products/{product_id}/
     tenant = get_tenant_from_request(request)
     if not tenant:
         return Response({
@@ -876,11 +878,12 @@ def delete_all_products(request):
 def category_list_create(request):
     """
     Kategori listesi (GET) veya yeni kategori oluştur (POST).
+    
+    GET: /api/categories/
+    POST: /api/categories/
     """
     # Yetki adı
     category_list_create.staff_permission = 'products'
-    # GET: /api/categories/
-    # POST: /api/categories/
     tenant = get_tenant_from_request(request)
     if not tenant:
         return Response({
@@ -1040,12 +1043,13 @@ def category_list_public(request, tenant_slug=None):
 def category_detail(request, category_id):
     """
     Kategori detayı (GET), güncelleme (PATCH) veya silme (DELETE).
+    
+    GET: /api/categories/{category_id}/
+    PATCH: /api/categories/{category_id}/  (parent değiştirmek için)
+    DELETE: /api/categories/{category_id}/
     """
     # Yetki adı
     category_detail.staff_permission = 'products'
-    # GET: /api/categories/{category_id}/
-    # PATCH: /api/categories/{category_id}/  (parent değiştirmek için)
-    # DELETE: /api/categories/{category_id}/
     tenant = get_tenant_from_request(request)
     if not tenant:
         return Response({

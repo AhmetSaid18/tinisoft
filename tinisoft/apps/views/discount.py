@@ -32,13 +32,12 @@ class CouponPagination(PageNumberPagination):
 def coupon_list_create(request):
     """
     Kupon listesi (GET) veya yeni kupon oluştur (POST).
-    """
-    # Yetki adı
-    coupon_list_create.staff_permission = 'coupons'
     
     GET: /api/coupons/
     POST: /api/coupons/
     """
+    # Yetki adı
+    coupon_list_create.staff_permission = 'coupons'
     tenant = get_tenant_from_request(request)
     if not tenant:
         logger.warning(f"[COUPONS] {request.method} /api/coupons/ | 400 | Tenant not found")
@@ -176,15 +175,14 @@ def coupon_list_create(request):
 def coupon_detail(request, coupon_id):
     """
     Kupon detayı (GET), güncelle (PUT/PATCH) veya sil (DELETE).
-    """
-    # Yetki adı
-    coupon_detail.staff_permission = 'coupons'
     
     GET: /api/coupons/{coupon_id}/
     PUT: /api/coupons/{coupon_id}/ (tüm alanları güncelle)
     PATCH: /api/coupons/{coupon_id}/ (kısmi güncelleme)
     DELETE: /api/coupons/{coupon_id}/
     """
+    # Yetki adı
+    coupon_detail.staff_permission = 'coupons'
     tenant = get_tenant_from_request(request)
     if not tenant:
         logger.warning(f"[COUPONS] {request.method} /api/coupons/{coupon_id}/ | 400 | Tenant not found")
@@ -465,13 +463,12 @@ def coupon_list_public(request):
 def promotion_list_create(request):
     """
     Promosyon listesi (GET) veya yeni promosyon oluştur (POST).
-    """
-    # Yetki adı
-    promotion_list_create.staff_permission = 'coupons'
     
     GET: /api/promotions/
     POST: /api/promotions/
     """
+    # Yetki adı
+    promotion_list_create.staff_permission = 'coupons'
     tenant = get_tenant_from_request(request)
     if not tenant:
         return Response({
@@ -531,14 +528,13 @@ def promotion_list_create(request):
 def promotion_detail(request, promotion_id):
     """
     Promosyon detayı (GET), güncelle (PATCH) veya sil (DELETE).
-    """
-    # Yetki adı
-    promotion_detail.staff_permission = 'coupons'
     
     GET: /api/promotions/{promotion_id}/
     PATCH: /api/promotions/{promotion_id}/
     DELETE: /api/promotions/{promotion_id}/
     """
+    # Yetki adı
+    promotion_detail.staff_permission = 'coupons'
     tenant = get_tenant_from_request(request)
     if not tenant:
         return Response({

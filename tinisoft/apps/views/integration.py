@@ -33,9 +33,6 @@ class IntegrationPagination(PageNumberPagination):
 def integration_list_create(request):
     """
     Entegrasyon listesi (GET) veya yeni entegrasyon oluştur (POST).
-    """
-    # Yetki adı
-    integration_list_create.staff_permission = 'integrations'
     
     GET: /api/integrations/
     POST: /api/integrations/
@@ -50,6 +47,8 @@ def integration_list_create(request):
         "config": {}
     }
     """
+    # Yetki adı
+    integration_list_create.staff_permission = 'integrations'
     tenant = get_tenant_from_request(request)
     if not tenant:
         return Response({
@@ -183,14 +182,13 @@ def integration_list_create(request):
 def integration_detail(request, integration_id):
     """
     Entegrasyon detayı (GET), güncelle (PATCH) veya sil (DELETE).
-    """
-    # Yetki adı
-    integration_detail.staff_permission = 'integrations'
     
     GET: /api/integrations/{integration_id}/
     PATCH: /api/integrations/{integration_id}/
     DELETE: /api/integrations/{integration_id}/
     """
+    # Yetki adı
+    integration_detail.staff_permission = 'integrations'
     tenant = get_tenant_from_request(request)
     if not tenant:
         return Response({
@@ -276,12 +274,11 @@ def integration_detail(request, integration_id):
 def integration_test(request, integration_id):
     """
     Entegrasyon test et.
-    """
-    # Yetki adı
-    integration_test.staff_permission = 'integrations'
     
     POST: /api/integrations/{integration_id}/test/
     """
+    # Yetki adı
+    integration_test.staff_permission = 'integrations'
     tenant = get_tenant_from_request(request)
     if not tenant:
         return Response({
@@ -447,12 +444,11 @@ Teşekkür ederiz!
 def integration_by_type(request, provider_type):
     """
     Belirli bir provider tipine göre aktif entegrasyonu getir.
-    """
-    # Yetki adı
-    integration_by_type.staff_permission = 'integrations'
     
     GET: /api/integrations/type/{provider_type}/
     """
+    # Yetki adı
+    integration_by_type.staff_permission = 'integrations'
     tenant = get_tenant_from_request(request)
     if not tenant:
         return Response({

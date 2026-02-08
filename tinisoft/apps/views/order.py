@@ -29,13 +29,12 @@ class OrderPagination(PageNumberPagination):
 def order_list_create(request):
     """
     Sipariş listesi (GET) veya yeni sipariş oluştur (POST).
-    """
-    # Yetki adı
-    order_list_create.staff_permission = 'orders'
     
     GET: /api/orders/
     POST: /api/orders/
     """
+    # Yetki adı
+    order_list_create.staff_permission = 'orders'
     try:
         # Request bilgilerini log'la
         user_email = request.user.email if request.user.is_authenticated else 'Anonymous'
@@ -540,13 +539,12 @@ def order_list_create(request):
 def order_detail(request, order_id):
     """
     Sipariş detayı veya durum güncelleme.
-    """
-    # Yetki adı
-    order_detail.staff_permission = 'orders'
     
     GET: /api/orders/{order_id}/
     PATCH: /api/orders/{order_id}/
     """
+    # Yetki adı
+    order_detail.staff_permission = 'orders'
     tenant = get_tenant_from_request(request)
     if not tenant:
         return Response({
