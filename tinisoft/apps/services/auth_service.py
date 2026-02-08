@@ -143,7 +143,10 @@ class AuthService:
         from django.contrib.auth import authenticate
         from apps.utils.jwt_utils import generate_jwt_token
         
+        # Artık Custom Backend (ManagementRoleEmailBackend) devrede olduğu için
+        # direkt authenticate dememiz yeterli, o arka planda akıllı aramayı yapacak.
         user = authenticate(username=email, password=password)
+        
         if not user:
             raise ValueError("Email veya şifre hatalı.")
         

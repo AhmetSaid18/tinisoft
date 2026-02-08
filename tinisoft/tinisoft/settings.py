@@ -34,6 +34,12 @@ CORS_ALLOW_ALL_ORIGINS = True
 # Custom User Model
 AUTH_USER_MODEL = 'apps.User'
 
+# Authentication Backends
+AUTHENTICATION_BACKENDS = [
+    'apps.auth_backends.ManagementRoleEmailBackend',  # Smart Login (e-posta & rol kontrolü)
+    'django.contrib.auth.backends.ModelBackend',     # Standart Django girişi
+]
+
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',

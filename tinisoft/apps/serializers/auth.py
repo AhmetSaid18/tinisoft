@@ -115,7 +115,9 @@ class LoginSerializer(serializers.Serializer):
         password = attrs.get('password')
         
         if email and password:
+            # Artık Custom Backend devrede, o yüzden direkt authenticate yeterli.
             user = authenticate(username=email, password=password)
+
             if not user:
                 raise serializers.ValidationError("Email veya şifre hatalı.")
             if not user.is_active:
