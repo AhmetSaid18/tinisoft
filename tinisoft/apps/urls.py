@@ -2,7 +2,7 @@
 URL configuration for Tinisoft apps.
 """
 from django.urls import path
-from apps.views.auth import register, login, tenant_detail
+from apps.views.auth import register, login, tenant_detail, profile
 from apps.views.tenant_user import register_tenant_user, login_tenant_user, send_verification_code_tenant_user, verify_registration_tenant_user
 from apps.views.domain import verify_domain, verify_domain_by_code, domain_status, list_domains, deploy_domain, retry_verification, create_domain
 from apps.views.product import (
@@ -150,6 +150,7 @@ urlpatterns = [
     # Owner kayıt/giriş (mağaza sahibi)
     path('auth/register/', register, name='register'),
     path('auth/login/', login, name='login'),
+    path('auth/profile/', profile, name='profile'),
     
     # Tenant yönetimi
     path('tenant/', tenant_detail, name='tenant_detail'),  # GET: Tenant bilgilerini getir, PATCH: Güncelle

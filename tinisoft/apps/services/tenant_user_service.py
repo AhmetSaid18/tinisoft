@@ -125,9 +125,11 @@ class TenantUserService:
         except User.DoesNotExist:
             raise ValueError("Email veya şifre hatalı.")
         
-        # 2. TenantUser kontrolü
-        if user.role != User.UserRole.TENANT_USER:
-            raise ValueError("Bu hesap müşteri hesabı değil.")
+        # 2. Rol kontrolü
+        # Patronlar (Owner) ve Personeller (Staff) de müşteri gibi alışveriş yapabilir.
+        allowed_roles = [User.UserRole.TENANT_USER, User.UserRole.TENANT_OWNER, User.UserRole.TENANT_STAFF]
+        if user.role not in allowed_roles:
+            raise ValueError("Bu hesap ile müşteri girişi yapılamaz.")
         
         # 3. Authentication
         # Django'nun authenticate fonksiyonu USERNAME_FIELD (email) kullanır.

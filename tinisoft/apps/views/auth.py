@@ -216,3 +216,58 @@ def tenant_detail(request):
             'errors': serializer.errors,
         }, status=status.HTTP_400_BAD_REQUEST)
 
+@api_view(['GET', 'PATCH'])
+@permission_classes([IsAuthenticated])
+def profile(request):
+    """
+    Giriş yapmış kullanıcının kendi profil bilgilerini getirmesi veya güncellemesi.
+    
+    GET: /api/auth/profile/
+    PATCH: /api/auth/profile/
+    
+    Request body (PATCH):
+    {
+        "first_name": "Yeni Ad",
+        "last_name": "Yeni Soyad",
+        "phone": "+90555...",
+        "password": "yeni-guclu-sifre"  # Opsiyonel
+    }
+    """
+    user = request.user
+    
+    if request.method == 'GET':
+        serializer = UserSerializer(user)
+        return Response({
+            'success': True,
+            'user': serializer.data
+        })
+    
+    elif request.method == 'PATCH':
+        # Şifre güncelleme kontrolü
+        password = request.data.get('password')
+        if password:
+            if len(password) < 8:
+                return Response({
+                    'success': False,
+                    'message': 'Şifre en az 8 karakter olmalıdır.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            user.set_password(password)
+            user.save()
+            
+        serializer = UserSerializer(user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            
+            logger.info(f"User profile updated: {user.email}")
+            
+            return Response({
+                'success': True,
+                'message': 'Profil bilgileriniz güncellendi.',
+                'user': serializer.data
+            })
+            
+        return Response({
+            'success': False,
+            'message': 'Profil güncellenemedi.',
+            'errors': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)

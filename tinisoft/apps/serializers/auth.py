@@ -40,9 +40,14 @@ class RegisterSerializer(serializers.Serializer):
     )
     
     def validate_email(self, value):
-        """Email kontrolü."""
-        if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError("Bu email adresi zaten kullanılıyor.")
+        """
+        Email kontrolü - Yeni mağaza (Owner) kaydı.
+        Kural 1: Sistemde Staff veya Owner olan birisi yeni mağaza açamaz (farklı email kullanmalı).
+        Kural 2: Sadece Müşteri (TenantUser) olan birisi mağaza açabilir (çünkü onların username'i email_tenantid formatındadır).
+        """
+        # Username direkt email olan hesapları kontrol et (Owner ve Staff'lar bu formatta kaydedilir)
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError("Bu email adresi sistemde zaten bir yönetici veya personel tarafından kullanılmaktadır.")
         return value
     
     def validate_store_slug(self, value):
@@ -206,9 +211,21 @@ class TenantStaffSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'role', 'date_joined']
     
     def validate_email(self, value):
-        """Email'in sistemde veya bu tenant'da unique olduğunu kontrol et."""
-        if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError("Bu email adresi zaten kullanılıyor.")
+        """
+        Email kontrolü - Personel (Staff) kaydı.
+        Kural 1: Aynı mağazada zaten kayıtlı olamaz.
+        Kural 2: Başka bir mağazada Owner veya Staff ise (username=email formstı), burada Staff olamaz.
+        Kural 3: Başka mağazalarda sadece Müşteri (User) ise, burada Staff olabilir.
+        """
+        tenant = self.context.get('tenant')
+        # Bu mağazada kontrol
+        if User.objects.filter(email=value, tenant=tenant).exists():
+            raise serializers.ValidationError("Bu email adresi bu mağazada zaten kayıtlıdır.")
+            
+        # Sistem genelinde "Management" (username=email) kontrolü
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError("Bu email adresi sistemde başka bir yönetici veya personel tarafından kullanılmaktadır.")
+            
         return value
     
     def create(self, validated_data):
