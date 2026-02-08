@@ -1153,7 +1153,7 @@ def category_detail(request, category_id):
         })
 
 # Set staff permissions
-product_list_create.staff_permission = 'products'
-product_detail.staff_permission = 'products'
-category_list_create.staff_permission = 'products'
-category_detail.staff_permission = 'products'
+product_list_create.cls.staff_permission = 'products'
+product_detail.cls.staff_permission = 'products'
+category_list_create.cls.staff_permission = 'products'
+category_detail.cls.staff_permission = 'products'

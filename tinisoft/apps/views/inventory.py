@@ -169,5 +169,5 @@ def inventory_movement_detail(request, movement_id):
 
 
 # Set staff permissions
-inventory_movement_list_create.staff_permission = 'inventory'
-inventory_movement_detail.staff_permission = 'inventory'
+inventory_movement_list_create.cls.staff_permission = 'inventory'
+inventory_movement_detail.cls.staff_permission = 'inventory'

@@ -89,11 +89,14 @@ class HasStaffPermission(permissions.BasePermission):
                 return True
                 
             # Personel ise modül bazlı yetki kontrolü
+            # DRF @api_view kullandığımızda yetki adı view.cls üzerinde olabilir
             required = getattr(view, 'staff_permission', None)
+            if not required and hasattr(view, 'cls'):
+                required = getattr(view.cls, 'staff_permission', None)
             
             if not required:
                 # Yetki belirtilmemişse personelin hiçbir şeye erişimi olmasın (Zero Trust)
-                logger.warning(f"[PERMISSION] Missing staff_permission attr on view: {view}. User: {request.user.email}")
+                logger.warning(f"[PERMISSION] Missing staff_permission attr on view: {view} or cls: {getattr(view, 'cls', 'N/A')}. User: {request.user.email}")
                 return False
             
             # OKUMA işlemleri (GET, HEAD, OPTIONS)

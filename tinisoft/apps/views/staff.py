@@ -143,5 +143,5 @@ def staff_detail(request, staff_id):
         })
 
 # Set staff permissions
-staff_list_create.staff_permission = 'staff'
-staff_detail.staff_permission = 'staff'
+staff_list_create.cls.staff_permission = 'staff'
+staff_detail.cls.staff_permission = 'staff'

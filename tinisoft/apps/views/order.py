@@ -842,5 +842,5 @@ def order_delete_all(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # Set staff permissions
-order_list_create.staff_permission = 'orders'
-order_detail.staff_permission = 'orders'
+order_list_create.cls.staff_permission = 'orders'
+order_detail.cls.staff_permission = 'orders'

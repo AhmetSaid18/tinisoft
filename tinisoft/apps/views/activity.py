@@ -78,4 +78,4 @@ def activity_log_list(request):
     })
 
 # Set staff permissions
-activity_log_list.staff_permission = 'activity'
+activity_log_list.cls.staff_permission = 'activity'

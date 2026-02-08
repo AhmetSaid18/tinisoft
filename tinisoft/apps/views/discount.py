@@ -593,7 +593,7 @@ def promotion_detail(request, promotion_id):
 
 
 # Set staff permissions
-coupon_list_create.staff_permission = 'coupons'
-coupon_detail.staff_permission = 'coupons'
-promotion_list_create.staff_permission = 'coupons'
-promotion_detail.staff_permission = 'coupons'
+coupon_list_create.cls.staff_permission = 'coupons'
+coupon_detail.cls.staff_permission = 'coupons'
+promotion_list_create.cls.staff_permission = 'coupons'
+promotion_detail.cls.staff_permission = 'coupons'

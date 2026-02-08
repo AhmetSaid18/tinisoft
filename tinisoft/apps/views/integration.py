@@ -474,7 +474,7 @@ def integration_by_type(request, provider_type):
 
 
 # Set staff permissions
-integration_list_create.staff_permission = 'integrations'
-integration_detail.staff_permission = 'integrations'
-integration_test.staff_permission = 'integrations'
-integration_by_type.staff_permission = 'integrations'
+integration_list_create.cls.staff_permission = 'integrations'
+integration_detail.cls.staff_permission = 'integrations'
+integration_test.cls.staff_permission = 'integrations'
+integration_by_type.cls.staff_permission = 'integrations'

@@ -14,37 +14,25 @@ class ActivityLogService:
     @staticmethod
     def log(tenant, user, action, description, content_type=None, object_id=None, changes=None, ip_address=None):
         """
-        Yeni bir işlem logu oluşturur ve eski logları temizler.
-        
-        Args:
-            tenant: İlgili tenant
-            user: İşlemi yapan kullanıcı
-            action: İşlem kodu (örn: "product_update")
-            description: İşlem özeti (örn: "iPhone 13 ürünü güncellendi")
-            content_type: İlgili modelin adı
-            object_id: İlgili objenin ID'si
-            changes: {old: {}, new: {}} formatında değişiklikler
-            ip_address: İşlemin yapıldığı IP
+        Yeni bir işlem logu oluşturur (Asenkron).
         """
+        from apps.tasks.activity_task import create_activity_log_task
+        
         try:
-            # 1. Logu oluştur
-            log_entry = ActivityLog.objects.create(
-                tenant=tenant,
-                user=user,
+            # Task'ı tetikle
+            create_activity_log_task.delay(
+                tenant_id=str(tenant.id) if tenant else None,
+                user_id=user.id if user else None,
                 action=action,
                 description=description,
                 content_type=content_type,
-                object_id=str(object_id) if object_id else None,
-                changes=changes or {},
+                object_id=object_id,
+                changes=changes,
                 ip_address=ip_address
             )
-            
-            # 2. Limit Kontrolü ve Temizlik
-            ActivityLogService._cleanup_old_logs(tenant)
-            
-            return log_entry
+            return True
         except Exception as e:
-            logger.error(f"ActivityLog logging failed for tenant {tenant.slug}: {str(e)}")
+            logger.error(f"ActivityLog delay failed for tenant {tenant.slug if tenant else 'N/A'}: {str(e)}")
             return None
 
     @staticmethod
