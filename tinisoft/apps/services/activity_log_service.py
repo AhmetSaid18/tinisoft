@@ -23,13 +23,21 @@ class ActivityLogService:
         if user.is_tenant_staff and not user.is_tenant_owner and not user.is_owner:
             # Action içinden modül adını tahmin et
             action_parts = action.split('_')
-            module = action_parts[0]
+            prefix = action_parts[0]
             
-            # Modül eşleştirmelerini standartlaştır
-            if module in ['category', 'virtual']: 
+            # Modül eşleştirmelerini standartlaştır (Permission keys are plural)
+            if prefix in ['product', 'category', 'virtual']: 
                 module = 'products'
-            elif module == 'inventory':
+            elif prefix == 'inventory':
                 module = 'inventory'
+            elif prefix == 'order':
+                module = 'orders'
+            elif prefix == 'coupon' or prefix == 'promotion':
+                module = 'coupons'
+            elif prefix == 'staff':
+                module = 'staff'
+            else:
+                module = prefix
             
             # Yetki kontrolü
             if not user.has_staff_permission(module):
