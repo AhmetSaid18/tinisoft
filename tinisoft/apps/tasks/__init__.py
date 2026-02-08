@@ -6,6 +6,7 @@ from .excel_import_task import (
     upload_images_from_excel_task
 )
 from .product_task import update_all_products_price_with_vat
+from .activity_task import create_activity_log_task
 
 __all__ = [
     'trigger_frontend_build',
@@ -15,4 +16,5 @@ __all__ = [
     'import_products_from_excel_async',
     'upload_images_from_excel_task',
     'update_all_products_price_with_vat',
+    'create_activity_log_task',
 ]
