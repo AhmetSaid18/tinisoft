@@ -20,6 +20,19 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def get_client_ip(request):
+    """
+    Kullanıcının IP adresini al.
+    Proxy/Cloudflare arkasında ise X-Forwarded-For header'ını kullan.
+    """
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0].strip()
+    else:
+        ip = request.META.get('REMOTE_ADDR')
+    return ip
+
+
 class ProductPagination(PageNumberPagination):
     page_size = 20
     page_size_query_param = 'page_size'
@@ -275,7 +288,7 @@ def product_detail(request, product_id):
             description=f"Ürün silindi: {product.name}",
             content_type="Product",
             object_id=product.id,
-            ip_address=request.META.get('REMOTE_ADDR')
+            ip_address=get_client_ip(request)
         )
         
         logger.info(
@@ -316,8 +329,10 @@ def product_list_public(request, tenant_slug=None):
         tenant_slug_header = request.headers.get('X-Tenant-Slug', 'Not provided')
         tenant_id_header = request.headers.get('X-Tenant-ID', 'Not provided')
         
+        client_ip = get_client_ip(request)
         logger.info(
             f"[PRODUCTS] GET /api/public/products/ | "
+            f"IP: {client_ip} | "
             f"Path tenant_slug: {tenant_slug} | "
             f"Query tenant_slug: {tenant_slug_param} | "
             f"Query tenant_id: {tenant_id_param} | "
@@ -392,6 +407,7 @@ def product_list_public(request, tenant_slug=None):
             logger.warning(
                 f"[PRODUCTS] GET /api/public/products/ | 400 | "
                 f"Tenant not found | "
+                f"IP: {get_client_ip(request)} | "
                 f"Path tenant_slug: {tenant_slug}, "
                 f"Query tenant_slug: {tenant_slug_param}, "
                 f"Query tenant_id: {tenant_id_param}, "
@@ -526,11 +542,11 @@ def product_list_public(request, tenant_slug=None):
         if page is not None:
             serializer = ProductListSerializer(page, many=True, context={'request': request})
             response = paginator.get_paginated_response(serializer.data)
-            logger.info(f"[PRODUCTS] GET /api/public/products/ | 200 | Count: {len(page)}/{paginator.page.paginator.count} | Tenant: {tenant.slug}")
+            logger.info(f"[PRODUCTS] GET /api/public/products/ | 200 | IP: {get_client_ip(request)} | Count: {len(page)}/{paginator.page.paginator.count} | Tenant: {tenant.slug}")
             return response
         
         serializer = ProductListSerializer(queryset, many=True, context={'request': request})
-        logger.info(f"[PRODUCTS] GET /api/public/products/ | 200 | Count: {queryset.count()} | Tenant: {tenant.slug}")
+        logger.info(f"[PRODUCTS] GET /api/public/products/ | 200 | IP: {get_client_ip(request)} | Count: {queryset.count()} | Tenant: {tenant.slug}")
         return Response({
             'success': True,
             'products': serializer.data,
@@ -541,6 +557,7 @@ def product_list_public(request, tenant_slug=None):
             f"[PRODUCTS] GET /api/public/products/ | 500 | "
             f"Error: {str(e)} | "
             f"Error type: {type(e).__name__} | "
+            f"IP: {get_client_ip(request)} | "
             f"Path tenant_slug: {tenant_slug}",
             exc_info=True
         )
@@ -786,6 +803,13 @@ def product_detail_public(request, urun_slug=None, tenant_slug=None, product_slu
                 is_visible=True,
             )
         except Product.DoesNotExist:
+            client_ip = get_client_ip(request)
+            logger.warning(
+                f"[PRODUCTS] GET /api/public/products/{product_slug}/ - NOT FOUND | "
+                f"IP: {client_ip} | "
+                f"Tenant: {tenant.name} ({tenant.id}) | "
+                f"Slug: {decoded_slug}"
+            )
             return Response({
                 'success': False,
                 'message': 'Ürün bulunamadı.',
@@ -799,6 +823,7 @@ def product_detail_public(request, urun_slug=None, tenant_slug=None, product_slu
     serializer = ProductDetailSerializer(product, context={'request': request})
     logger.info(
         f"[PRODUCTS] GET /api/public/products/{product_slug}/ - SUCCESS | "
+        f"IP: {get_client_ip(request)} | "
         f"Tenant: {tenant.name} ({tenant.id}) | "
         f"ProductID: {product.id} | "
         f"ProductName: {product.name} | "
@@ -1133,7 +1158,7 @@ def category_detail(request, category_id):
             description=f"Kategori silindi: {category.name}",
             content_type="Category",
             object_id=category.id,
-            ip_address=request.META.get('REMOTE_ADDR')
+            ip_address=get_client_ip(request)
         )
         
         logger.info(
