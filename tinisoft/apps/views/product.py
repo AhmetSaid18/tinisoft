@@ -23,14 +23,26 @@ logger = logging.getLogger(__name__)
 def get_client_ip(request):
     """
     Kullanıcının IP adresini al.
-    Proxy/Cloudflare arkasında ise X-Forwarded-For header'ını kullan.
+    Öncelik: Cloudflare > X-Real-IP > X-Forwarded-For > Remote-Addr
     """
+    # 1. Cloudflare
+    cf_connecting_ip = request.META.get('HTTP_CF_CONNECTING_IP')
+    if cf_connecting_ip:
+        return cf_connecting_ip.strip()
+    
+    # 2. X-Real-IP (Nginx/Traefik vs)
+    x_real_ip = request.META.get('HTTP_X_REAL_IP')
+    if x_real_ip:
+        return x_real_ip.strip()
+
+    # 3. X-Forwarded-For
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
     if x_forwarded_for:
-        ip = x_forwarded_for.split(',')[0].strip()
-    else:
-        ip = request.META.get('REMOTE_ADDR')
-    return ip
+        # "client_ip, proxy_ip" formatında olabilir, ilkini al
+        return x_forwarded_for.split(',')[0].strip()
+
+    # 4. Fallback (Docker internal IP dönebilir: 172.18.x.x)
+    return request.META.get('REMOTE_ADDR')
 
 
 class ProductPagination(PageNumberPagination):

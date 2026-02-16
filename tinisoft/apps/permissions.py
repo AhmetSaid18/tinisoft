@@ -68,6 +68,7 @@ class HasStaffPermission(permissions.BasePermission):
     
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
+            logger.warning(f"[PERM] HasStaffPermission DENIED - User not authenticated")
             return False
             
         # 1. Super Admin veya Sistem Admin her şeye sorgusuz erişebilir
@@ -82,6 +83,12 @@ class HasStaffPermission(permissions.BasePermission):
             
             # Request'teki tenant ile user'ın bağlı olduğu tenant eşleşmeli (ID bazlı kontrol daha hızlı)
             if not tenant or request.user.tenant_id != tenant.id:
+                logger.warning(
+                    f"[PERM] HasStaffPermission DENIED - Tenant mismatch | "
+                    f"User: {request.user.email} | Role: {request.user.role} | "
+                    f"User tenant_id: {request.user.tenant_id} | "
+                    f"Request tenant: {tenant} (id={getattr(tenant, 'id', None)})"
+                )
                 return False
             
             # Tenant Sahibi ise tüm modüllere erişebilir
@@ -93,7 +100,19 @@ class HasStaffPermission(permissions.BasePermission):
             if not required and hasattr(view, 'cls'):
                 required = getattr(view.cls, 'staff_permission', None)
             
+            logger.info(
+                f"[PERM] Staff permission check | "
+                f"User: {request.user.email} | Method: {request.method} | "
+                f"Required: {required} | "
+                f"View: {view.__class__.__name__} | "
+                f"View attrs: {[a for a in dir(view) if 'permission' in a.lower()]}"
+            )
+            
             if not required:
+                logger.warning(
+                    f"[PERM] HasStaffPermission DENIED - No required permission found on view | "
+                    f"User: {request.user.email} | View: {view.__class__.__name__}"
+                )
                 return False
             
             # 4. OKUMA işlemleri (GET, HEAD, OPTIONS) - Genel modüller için serbest
@@ -106,13 +125,25 @@ class HasStaffPermission(permissions.BasePermission):
             from apps.services.cache_service import CacheService
             user_perms = CacheService.get_user_permissions(request.user.id)
             
+            cache_hit = user_perms is not None
             if user_perms is None:
                 # Cache'de yoksa veritabanından/user objesinden al ve Redis'e yaz
                 user_perms = request.user.staff_permissions or []
                 CacheService.set_user_permissions(request.user.id, user_perms)
             
-            return required in user_perms
+            result = required in user_perms
+            logger.info(
+                f"[PERM] Staff write permission check | "
+                f"User: {request.user.email} | Method: {request.method} | "
+                f"Required: '{required}' | User perms: {user_perms} | "
+                f"Cache hit: {cache_hit} | Result: {result}"
+            )
+            return result
             
+        logger.warning(
+            f"[PERM] HasStaffPermission DENIED - Not tenant_owner or tenant_staff | "
+            f"User: {request.user.email} | Role: {request.user.role}"
+        )
         return False
 
     def has_object_permission(self, request, view, obj):

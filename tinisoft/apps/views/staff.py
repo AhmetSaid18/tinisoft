@@ -123,6 +123,24 @@ def staff_detail(request, staff_id):
         }, status=status.HTTP_400_BAD_REQUEST)
     
     elif request.method == 'DELETE':
+        # Security: Require password confirmation for staff deletion
+        # This prevents unauthorized deletion from hijacked sessions
+        password = request.data.get('password')
+        if not password:
+             return Response({
+                'success': False,
+                'message': 'Güvenlik gereği personel silmek için şifrenizi girmelisiniz.',
+                'error_code': 'PASSWORD_REQUIRED'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not request.user.check_password(password):
+            logger.warning(f"Failed stuff deletion attempt (invalid password) by {request.user.email} for staff {staff.email}")
+            return Response({
+                'success': False,
+                'message': 'Girdiğiniz şifre yanlış.',
+                'error_code': 'INVALID_PASSWORD'
+            }, status=status.HTTP_403_FORBIDDEN)
+
         email = staff.email
         staff.delete()
         
