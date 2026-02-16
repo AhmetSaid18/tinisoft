@@ -180,6 +180,21 @@ def tenant_detail(request):
                 'message': 'Tenant bilginiz bulunamadı.',
                 'error_code': 'TENANT_NOT_FOUND',
             }, status=status.HTTP_404_NOT_FOUND)
+    elif request.user.is_tenant_staff:
+        # Staff kullanıcılar tenant bilgilerini okuyabilir ama güncelleyemez
+        tenant = request.user.tenant
+        if not tenant:
+            return Response({
+                'success': False,
+                'message': 'Tenant bilginiz bulunamadı.',
+                'error_code': 'TENANT_NOT_FOUND',
+            }, status=status.HTTP_404_NOT_FOUND)
+        if request.method != 'GET':
+            return Response({
+                'success': False,
+                'message': 'Staff kullanıcılar tenant bilgilerini güncelleyemez.',
+                'error_code': 'PERMISSION_DENIED',
+            }, status=status.HTTP_403_FORBIDDEN)
     else:
         return Response({
             'success': False,

@@ -94,10 +94,28 @@ def staff_detail(request, staff_id):
             staff.set_password(password)
             staff.save()
             logger.info(f"Staff password updated for: {staff.email} by {request.user.email}")
+        
+        # Debug: Permission değişikliği takibi
+        old_perms = list(staff.staff_permissions or [])
+        new_perms_in_request = request.data.get('staff_permissions', 'NOT_SENT')
+        logger.info(
+            f"[STAFF_UPDATE] PATCH staff | Staff: {staff.email} | "
+            f"By: {request.user.email} | "
+            f"Old perms: {old_perms} | "
+            f"New perms in request: {new_perms_in_request} | "
+            f"Full request data keys: {list(request.data.keys())}"
+        )
             
         serializer = UserSerializer(staff, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
+            
+            # Kaydedildikten sonra kontrol et
+            staff.refresh_from_db()
+            logger.info(
+                f"[STAFF_UPDATE] PATCH staff SAVED | Staff: {staff.email} | "
+                f"Saved perms in DB: {staff.staff_permissions}"
+            )
             
             # Activity Log
             ActivityLogService.log(
