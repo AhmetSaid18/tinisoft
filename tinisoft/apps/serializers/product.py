@@ -623,7 +623,11 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         images = instance.images.filter(is_deleted=False).order_by('position', 'created_at')
         data['images'] = ProductImageSerializer(images, many=True).data
         
-        # Public API kontrolü & Karşılaştırma fiyatı gizleme
+        # 1. Önce camelCase alanını herkes için görünür yap (write_only fix)
+        if 'compare_at_price' in data and 'compareAtPrice' not in data:
+            data['compareAtPrice'] = data['compare_at_price']
+            
+        # 2. Public API kontrolü & Karşılaştırma fiyatı gizleme
         request = self.context.get('request')
         is_public_view = False
         if request:
@@ -632,16 +636,13 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             if not is_staff:
                 is_public_view = True
         
+        # Sadece public isteklerde ve ayar kapalıysa gizle
         if is_public_view:
             if not instance.show_compare_at_price or not instance.tenant.show_compare_at_price:
                 data['compare_at_price'] = None
                 data['compareAtPrice'] = None
                 data['compare_percentage'] = None
                 data['display_compare_at_price'] = None
-            else:
-                # Gizlenmeyecekse ve serializer'da write_only ise, burada manuel ekle
-                if 'compare_at_price' in data and 'compareAtPrice' not in data:
-                    data['compareAtPrice'] = data['compare_at_price']
         
         # Eğer varyantlı ürün değilse, varyant listesini gizle
         if not instance.is_variant_product:
