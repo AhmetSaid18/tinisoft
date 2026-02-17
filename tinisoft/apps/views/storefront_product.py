@@ -64,7 +64,7 @@ def storefront_product_list(request):
     if not tenant:
         return Response({'message': 'Tenant header (X-Tenant-Id) required'}, status=400)
 
-    queryset = Product.objects.filter(
+    queryset = Product.objects.select_related('tenant').filter(
         tenant=tenant, 
         is_deleted=False, 
         status='active', 
@@ -133,11 +133,11 @@ def storefront_product_detail(request, id):
 
     try:
         # Try finding by ID first
-        product = Product.objects.get(id=id, tenant=tenant, is_deleted=False)
+        product = Product.objects.select_related('tenant').get(id=id, tenant=tenant, is_deleted=False)
     except (Product.DoesNotExist, ValueError): # ValueError in case id is not UUID
         # Try finding by slug if ID failed (fallback logic)
         try:
-             product = Product.objects.get(slug=id, tenant=tenant, is_deleted=False)
+             product = Product.objects.select_related('tenant').get(slug=id, tenant=tenant, is_deleted=False)
         except Product.DoesNotExist:
             return Response({'message': 'Product not found'}, status=404)
 

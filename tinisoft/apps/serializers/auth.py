@@ -186,6 +186,7 @@ class TenantSerializer(serializers.ModelSerializer):
             'status',
             'plan',
             'template',  # Frontend template adı
+            'show_compare_at_price',  # Global karşılaştırma fiyatı toggle
             'activated_at',
             'created_at',
         ]

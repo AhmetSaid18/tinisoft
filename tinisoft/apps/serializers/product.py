@@ -297,12 +297,30 @@ class ProductListSerializer(serializers.ModelSerializer):
         if not instance.is_variant_product:
             data['variants'] = []
             data['has_variants'] = False
+            
+        # Public API kontrolü & Karşılaştırma fiyatı gizleme
+        request = self.context.get('request')
+        is_public_view = False
+        if request:
+            # Kullanıcı authenticate değilse veya yetkili (staff/owner) değilse public kabul et
+            is_staff = request.user.is_authenticated and (request.user.is_staff or request.user.is_owner or request.user.is_tenant_owner)
+            if not is_staff:
+                is_public_view = True
+        
+        if is_public_view:
+            if not instance.show_compare_at_price or not instance.tenant.show_compare_at_price:
+                data['compare_at_price'] = None
+                data['compareAtPrice'] = None
+                data['compare_percentage'] = None
+                data['display_compare_at_price'] = None
+                
         return data
 
     class Meta:
         model = Product
         fields = [
             'id', 'name', 'slug', 'price', 'compare_at_price', 'compare_percentage', 'compareAtPrice',
+            'show_compare_at_price',
             'currency', 'price_with_vat',
             'display_price', 'display_compare_at_price',
             'display_min_price', 'display_max_price',
@@ -573,6 +591,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'slug', 'description', 'description_html',
             'price', 'compare_at_price', 'compare_percentage', 'compareAtPrice',
+            'show_compare_at_price',
             'buying_price', 'ecommerce_price', 'shipping_price',
             'currency', 'price_with_vat',
             'display_price', 'display_compare_at_price',
@@ -603,6 +622,22 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         # Images'ı silinmemiş ve sıralı olarak göster
         images = instance.images.filter(is_deleted=False).order_by('position', 'created_at')
         data['images'] = ProductImageSerializer(images, many=True).data
+        
+        # Public API kontrolü & Karşılaştırma fiyatı gizleme
+        request = self.context.get('request')
+        is_public_view = False
+        if request:
+            # Kullanıcı authenticate değilse veya yetkili (staff/owner) değilse public kabul et
+            is_staff = request.user.is_authenticated and (request.user.is_staff or request.user.is_owner or request.user.is_tenant_owner)
+            if not is_staff:
+                is_public_view = True
+        
+        if is_public_view:
+            if not instance.show_compare_at_price or not instance.tenant.show_compare_at_price:
+                data['compare_at_price'] = None
+                data['compareAtPrice'] = None
+                data['compare_percentage'] = None
+                data['display_compare_at_price'] = None
         
         # Eğer varyantlı ürün değilse, varyant listesini gizle
         if not instance.is_variant_product:

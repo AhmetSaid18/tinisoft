@@ -73,6 +73,13 @@ class ProductStorefrontListSerializer(serializers.ModelSerializer):
             'images', 'category'
         ]
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # Karşılaştırma fiyatı gizleme: ürün bazlı VEYA tenant global toggle
+        if not instance.show_compare_at_price or not instance.tenant.show_compare_at_price:
+            data['compareAtPrice'] = None
+        return data
+
     def get_images(self, obj):
         images = obj.images.filter(is_deleted=False).order_by('position', 'created_at')
         return StorefrontImageSerializer(images, many=True).data
@@ -119,6 +126,9 @@ class ProductStorefrontDetailSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         data['createdAt'] = instance.created_at
+        # Karşılaştırma fiyatı gizleme: ürün bazlı VEYA tenant global toggle
+        if not instance.show_compare_at_price or not instance.tenant.show_compare_at_price:
+            data['compareAtPrice'] = None
         return data
 
     def get_images(self, obj):

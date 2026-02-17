@@ -107,6 +107,10 @@ class Product(BaseModel):
         blank=True,
         help_text="İndirim yüzdesi (opsiyonel, örn: 25.00 = %25 indirim)"
     )
+    show_compare_at_price = models.BooleanField(
+        default=True,
+        help_text="Karşılaştırma fiyatını public (storefront) endpoint'lerde göster. False ise sadece owner panel'de görünür."
+    )
     currency = models.CharField(
         max_length=3,
         default='TRY',

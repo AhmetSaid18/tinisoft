@@ -176,7 +176,7 @@ def bulk_update_products(request):
     # İzin verilen alanlar
     allowed_fields = [
         'status', 'is_visible', 'is_featured', 'is_new', 'is_bestseller', 'is_reviewed',
-        'sort_order', 'price', 'compare_at_price',
+        'sort_order', 'price', 'compare_at_price', 'show_compare_at_price',
         'track_inventory', 'inventory_quantity',
         'variant_group_sku',  # <--- Added this
     ]
