@@ -638,6 +638,10 @@ class ProductDetailSerializer(serializers.ModelSerializer):
                 data['compareAtPrice'] = None
                 data['compare_percentage'] = None
                 data['display_compare_at_price'] = None
+            else:
+                # Gizlenmeyecekse ve serializer'da write_only ise, burada manuel ekle
+                if 'compare_at_price' in data and 'compareAtPrice' not in data:
+                    data['compareAtPrice'] = data['compare_at_price']
         
         # Eğer varyantlı ürün değilse, varyant listesini gizle
         if not instance.is_variant_product:
