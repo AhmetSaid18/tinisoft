@@ -228,6 +228,12 @@ class Tenant(BaseModel):
         help_text="Frontend template adı (default, modern, classic, vb.)"
     )
     
+    # Global ürün ayarları
+    show_compare_at_price = models.BooleanField(
+        default=True,
+        help_text="Tüm ürünlerin karşılaştırma fiyatını public (storefront) endpoint'lerde göster. False ise hiçbir üründe gösterilmez."
+    )
+    
     # Depo Ayarları
     warehouse_qr_mode = models.CharField(
         max_length=20,
