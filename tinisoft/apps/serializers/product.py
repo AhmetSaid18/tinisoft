@@ -289,6 +289,8 @@ class ProductListSerializer(serializers.ModelSerializer):
     is_in_stock = serializers.SerializerMethodField()
     # Varyant grubu ürünleri (SKU bazlı)
     variant_group_products = serializers.SerializerMethodField()
+    # Depo QR URL'leri
+    warehouse_qr_urls = serializers.SerializerMethodField()
     
     def to_representation(self, instance):
         """Varyant kontrolü ekle."""
@@ -331,7 +333,7 @@ class ProductListSerializer(serializers.ModelSerializer):
             'status', 'is_visible', 'isActive', 'view_count', 'sale_count',
             'brand', 'brand_name', 'brand_item', 'specifications', 
             'origin', 'desi', 'weight', 'length', 'width', 'height', 'depth',
-            'available_quantity', 'is_in_stock', 'variant_group_products', 'created_at',
+            'available_quantity', 'is_in_stock', 'variant_group_products', 'warehouse_qr_urls', 'created_at',
         ]
         read_only_fields = ['id', 'created_at', 'price_with_vat', 'display_price', 'display_compare_at_price', 'display_min_price', 'display_max_price']
     
@@ -546,6 +548,28 @@ class ProductListSerializer(serializers.ModelSerializer):
         
         return list(variant_products)
 
+    def get_warehouse_qr_urls(self, obj):
+        """Depo QR kodları için yönlendirme URL'lerini döndür."""
+        tenant = obj.tenant
+        
+        # 1. Default URL (Tinisoft Panel)
+        # Örn: panel.tinisoft.com.tr/inventory/quick-exit/product/uuid
+        default_base = "https://panel.tinisoft.com.tr"
+        default_url = f"{default_base}/inventory/quick-exit/product/{obj.id}"
+        
+        # 2. Custom URL (Müşterinin kendi sitesi/subdomaini)
+        custom_base = tenant.get_primary_frontend_url()
+        custom_url = f"{custom_base}/inventory/quick-exit/product/{obj.id}"
+        
+        # 3. Corrected URL (Seçili olan)
+        corrected_url = custom_url if tenant.warehouse_qr_mode == 'custom' else default_url
+        
+        return {
+            "default_exit_url": default_url,
+            "custom_exit_url": custom_url,
+            "corrected_exit_url": corrected_url
+        }
+
 
 class ProductDetailSerializer(serializers.ModelSerializer):
     """Product detail serializer (full)."""
@@ -579,6 +603,8 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     compareAtPrice = serializers.DecimalField(source='compare_at_price', max_digits=10, decimal_places=2, write_only=True, required=False, allow_null=True)
     # Varyant grubu ürünleri (SKU bazlı)
     variant_group_products = serializers.SerializerMethodField()
+    # Depo QR URL'leri
+    warehouse_qr_urls = serializers.SerializerMethodField()
     variant_group_product_ids = serializers.ListField(
         child=serializers.UUIDField(), 
         write_only=True, 
@@ -611,7 +637,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             'images', 'options', 'variants', 'categories',
             'category_ids',
             'brand', 'brand_name', 'brand_item', 'metadata', 'specifications',
-            'available_quantity', 'is_in_stock', 'variant_group_products', 'variant_group_product_ids',
+            'available_quantity', 'is_in_stock', 'variant_group_products', 'warehouse_qr_urls', 'variant_group_product_ids',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'view_count', 'sale_count', 'price_with_vat', 'display_price', 'display_compare_at_price']
@@ -649,6 +675,11 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             data['variants'] = []
         
         return data
+
+    def get_warehouse_qr_urls(self, obj):
+        """Depo QR kodları için yönlendirme URL'lerini döndür."""
+        # ProductListSerializer'daki mantığın aynısını kullan
+        return ProductListSerializer().get_warehouse_qr_urls(obj)
 
     def _handle_image_url(self, product, image_url):
         """

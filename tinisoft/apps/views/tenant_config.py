@@ -35,6 +35,10 @@ class TenantSettingsView(APIView):
             "seo": {
                 "meta_title": template.meta_title,
                 "meta_description": template.meta_description,
+            },
+            "warehouse": {
+                "warehouse_qr_mode": tenant.warehouse_qr_mode,
+                "warehouse_pin": tenant.warehouse_pin,
             }
         }
         return Response(data)
@@ -71,5 +75,35 @@ class TenantSettingsView(APIView):
             if 'meta_title' in seo: template.meta_title = seo['meta_title']
             if 'meta_description' in seo: template.meta_description = seo['meta_description']
             
+        # Depo Ayarları (Tenant modeli üzerinden)
+        if 'warehouse' in data:
+            warehouse = data['warehouse']
+            if 'warehouse_qr_mode' in warehouse: tenant.warehouse_qr_mode = warehouse['warehouse_qr_mode']
+            if 'warehouse_pin' in warehouse: tenant.warehouse_pin = warehouse['warehouse_pin']
+            tenant.save()
+
         template.save()
         return Response({"message": "Ayarlar güncellendi"})
+
+class VerifyWarehousePinView(APIView):
+    """
+    POST /api/tenant/warehouse/verify-pin/
+    
+    Depo personelinin girdiği PIN'i doğrular.
+    """
+    permission_classes = [] # Public, PIN ile korunuyor
+
+    def post(self, request):
+        from core.middleware import get_tenant_from_request
+        tenant = get_tenant_from_request(request)
+        if not tenant:
+            return Response({"success": False, "message": "Mağaza bulunamadı"}, status=status.HTTP_404_NOT_FOUND)
+            
+        pin = request.data.get('pin')
+        if not tenant.warehouse_pin:
+            return Response({"success": False, "message": "Bu mağaza için PIN ayarlanmamış"}, status=status.HTTP_403_FORBIDDEN)
+            
+        if pin == tenant.warehouse_pin:
+            return Response({"success": True, "message": "PIN doğrulandı"})
+        
+        return Response({"success": False, "message": "Hatalı PIN kodu"}, status=status.HTTP_401_UNAUTHORIZED)

@@ -187,6 +187,8 @@ class TenantSerializer(serializers.ModelSerializer):
             'plan',
             'template',  # Frontend template adı
             'show_compare_at_price',  # Global karşılaştırma fiyatı toggle
+            'warehouse_qr_mode',
+            'warehouse_pin',
             'activated_at',
             'created_at',
         ]

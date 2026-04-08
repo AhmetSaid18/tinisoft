@@ -41,7 +41,11 @@ from apps.views.payment import (
     paytr_callback_ok, paytr_callback_fail
 )
 from apps.views.customer import customer_list, customer_detail, update_customer_statistics
-from apps.views.inventory import inventory_movement_list_create, inventory_movement_detail
+from apps.views.inventory import (
+    inventory_movement_list_create, 
+    inventory_movement_detail,
+    inventory_quick_exit
+)
 from apps.views.search import search_products, search_suggestions, filter_options
 from apps.views.bulk import (
     bulk_update_products, bulk_delete_products,
@@ -139,7 +143,7 @@ from apps.views.seo import (
     StorefrontSitemapView,
     StorefrontRobotsView,
 )
-from apps.views.tenant_config import TenantSettingsView
+from apps.views.tenant_config import TenantSettingsView, VerifyWarehousePinView
 from apps.views.staff import staff_list_create, staff_detail
 from apps.views.activity import activity_log_list
 
@@ -154,6 +158,7 @@ urlpatterns = [
     
     # Tenant yönetimi
     path('tenant/', tenant_detail, name='tenant_detail'),  # GET: Tenant bilgilerini getir, PATCH: Güncelle
+    path('tenant/warehouse/verify-pin/', VerifyWarehousePinView.as_view(), name='verify_warehouse_pin'),  # POST: PIN doğrula
     
     # TenantUser kayıt/giriş (tenant'ın sitesinde müşteriler)
     path('tenant/<str:tenant_slug>/users/send-code/', send_verification_code_tenant_user, name='send_verification_code_tenant_user'),
@@ -262,6 +267,7 @@ urlpatterns = [
     # Stok yönetimi
     path('inventory/movements/', inventory_movement_list_create, name='inventory_movement_list_create'),  # GET: List, POST: Create
     path('inventory/movements/<uuid:movement_id>/', inventory_movement_detail, name='inventory_movement_detail'),  # GET
+    path('inventory/quick-exit/', inventory_quick_exit, name='inventory_quick_exit'),  # POST: QR & PIN tabanlı hızlı çıkış
     
     # Arama ve filtreleme
     path('search/products/', search_products, name='search_products'),  # GET: Search products

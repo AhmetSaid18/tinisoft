@@ -6,14 +6,97 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
-from apps.models import InventoryMovement
-from apps.serializers.inventory import InventoryMovementSerializer, CreateInventoryMovementSerializer
+from apps.models import InventoryMovement, Product, ProductVariant
+from apps.serializers.inventory import (
+    InventoryMovementSerializer, 
+    CreateInventoryMovementSerializer,
+    QuickInventoryExitSerializer
+)
 from apps.services.inventory_service import InventoryService
 from apps.permissions import IsTenantOwnerOfObject, HasStaffPermission
 from core.middleware import get_tenant_from_request
 import logging
 
 logger = logging.getLogger(__name__)
+
+# ... (inventory_movement_list_create and inventory_movement_detail remain same)
+
+@api_view(['POST'])
+@permission_classes([]) # PIN koruması olduğu için public ama içerde check ederiz
+def inventory_quick_exit(request):
+    """
+    QR ve PIN tabanlı hızlı stok çıkış endpoint'i.
+    
+    POST: /api/inventory/quick-exit/
+    """
+    tenant = get_tenant_from_request(request)
+    if not tenant:
+        return Response({
+            'success': False,
+            'message': 'Tenant bulunamadı.',
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    serializer = QuickInventoryExitSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response({
+            'success': False,
+            'message': 'Geçersiz parametreler.',
+            'errors': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    data = serializer.validated_data
+    obj_id = data['id']
+    obj_type = data['type']
+    qty = data['quantity']
+    pin = data.get('pin')
+
+    # 1. Yetki Kontrolü (Hızlı Session veya PIN)
+    is_authenticated = request.user.is_authenticated and (
+        request.user.is_owner or 
+        ((request.user.is_tenant_owner or request.user.is_tenant_staff) and request.user.tenant == tenant)
+    )
+
+    if not is_authenticated:
+        # PIN kontrolü
+        if not tenant.warehouse_pin:
+            return Response({
+                'success': False,
+                'message': 'Bu işlem için yetki gereklidir (PIN ayarlanmamış).',
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        if pin != tenant.warehouse_pin:
+            return Response({
+                'success': False,
+                'message': 'Hatalı PIN kodu.',
+            }, status=status.HTTP_401_UNAUTHORIZED)
+
+    # 2. İşlem
+    try:
+        product_id = obj_id if obj_type == 'product' else None
+        variant_id = obj_id if obj_type == 'variant' else None
+        
+        movement = InventoryService.adjust_inventory(
+            tenant=tenant,
+            product_id=product_id,
+            variant_id=variant_id,
+            movement_type=InventoryMovement.MovementType.OUT,
+            quantity=qty,
+            reason='QR Hızlı Çıkış',
+            notes=data.get('notes', ''),
+            created_by=request.user if request.user.is_authenticated else None
+        )
+
+        return Response({
+            'success': True,
+            'message': f'Stok çıkışı başarılı: {movement.quantity} adet düşüldü.',
+            'new_quantity': movement.new_quantity
+        })
+    except Exception as e:
+        logger.error(f"Quick exit error: {str(e)}")
+        return Response({
+            'success': False,
+            'message': f'İşlem başarısız: {str(e)}',
+        }, status=status.HTTP_400_BAD_REQUEST)
 
 
 class InventoryMovementPagination(PageNumberPagination):
