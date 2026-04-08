@@ -189,6 +189,7 @@ class TenantSerializer(serializers.ModelSerializer):
             'show_compare_at_price',  # Global karşılaştırma fiyatı toggle
             'warehouse_qr_mode',
             'warehouse_pin',
+            'warehouse_custom_url',
             'activated_at',
             'created_at',
         ]

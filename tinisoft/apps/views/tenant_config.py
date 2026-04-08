@@ -39,6 +39,7 @@ class TenantSettingsView(APIView):
             "warehouse": {
                 "warehouse_qr_mode": tenant.warehouse_qr_mode,
                 "warehouse_pin": tenant.warehouse_pin,
+                "warehouse_custom_url": tenant.warehouse_custom_url,
             }
         }
         return Response(data)
@@ -80,6 +81,7 @@ class TenantSettingsView(APIView):
             warehouse = data['warehouse']
             if 'warehouse_qr_mode' in warehouse: tenant.warehouse_qr_mode = warehouse['warehouse_qr_mode']
             if 'warehouse_pin' in warehouse: tenant.warehouse_pin = warehouse['warehouse_pin']
+            if 'warehouse_custom_url' in warehouse: tenant.warehouse_custom_url = warehouse['warehouse_custom_url']
             tenant.save()
 
         template.save()

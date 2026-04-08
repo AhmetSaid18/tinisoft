@@ -557,8 +557,8 @@ class ProductListSerializer(serializers.ModelSerializer):
         default_base = "https://panel.tinisoft.com.tr"
         default_url = f"{default_base}/inventory/quick-exit/product/{obj.id}"
         
-        # 2. Custom URL (Müşterinin kendi sitesi/subdomaini)
-        custom_base = tenant.get_primary_frontend_url()
+        # 2. Custom URL (Müşterinin kendi sitesi veya özel depo adresi)
+        custom_base = tenant.get_warehouse_base_url()
         custom_url = f"{custom_base}/inventory/quick-exit/product/{obj.id}"
         
         # 3. Corrected URL (Seçili olan)

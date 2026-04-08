@@ -220,6 +220,13 @@ class Tenant(BaseModel):
         
         # Fallback: subdomain URL
         return self.get_frontend_url()
+
+    def get_warehouse_base_url(self):
+        """Depo QR kodları için kullanılacak temel URL'i döndür."""
+        if self.warehouse_custom_url:
+            cleaned_url = self.warehouse_custom_url.replace('https://', '').replace('http://', '').strip('/')
+            return f"https://{cleaned_url}"
+        return self.get_primary_frontend_url()
     
     # Frontend Template
     template = models.CharField(
@@ -246,6 +253,12 @@ class Tenant(BaseModel):
         blank=True, 
         null=True, 
         help_text="Depo personeli için hızlı giriş PIN kodu."
+    )
+    warehouse_custom_url = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Depo çıkış sayfası için özel URL (örn: panel.karatekinrot.com). Boşsa ana domain kullanılır."
     )
     
     # Metadata
