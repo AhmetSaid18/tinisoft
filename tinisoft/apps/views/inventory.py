@@ -3,9 +3,9 @@ Inventory views.
 """
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
-from rest_framework.pagination import PageNumberPagination
+from django.shortcuts import get_object_or_404
 from apps.models import InventoryMovement, Product, ProductVariant
 from apps.serializers.inventory import (
     InventoryMovementSerializer, 
@@ -19,10 +19,52 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# ... (inventory_movement_list_create and inventory_movement_detail remain same)
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def quick_exit_product_info(request):
+    """
+    GET /api/inventory/quick-exit/product-info/
+    
+    QR okutulduğunda ürünün temel bilgilerini (Ad, Stok, Resim) login olmadan getirir.
+    Güvenlik: PIN doğrulaması ile çalışır.
+    """
+    tenant = get_tenant_from_request(request)
+    if not tenant:
+        return Response({"error": "Mağaza bulunamadı"}, status=status.HTTP_404_NOT_FOUND)
+        
+    item_id = request.query_params.get('id')
+    item_type = request.query_params.get('type', 'product') # 'product' veya 'variant'
+    pin = request.query_params.get('pin')
+
+    # Güvenlik Kontrolü
+    if not tenant.warehouse_pin:
+        return Response({"error": "Mağaza depo ayarı yapılmamış"}, status=status.HTTP_403_FORBIDDEN)
+    
+    if pin != tenant.warehouse_pin:
+        return Response({"error": "Geçersiz PIN"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    if item_type == 'variant':
+        item = get_object_or_404(ProductVariant, id=item_id, product__tenant=tenant)
+        data = {
+            "name": f"{item.product.name} ({item.name})",
+            "sku": item.sku,
+            "stock": item.stock_quantity,
+            "image": item.product.main_image.url if item.product.main_image else None
+        }
+    else:
+        item = get_object_or_404(Product, id=item_id, tenant=tenant)
+        data = {
+            "name": item.name,
+            "sku": item.sku,
+            "stock": item.total_stock,
+            "image": item.main_image.url if item.main_image else None
+        }
+        
+    return Response(data)
 
 @api_view(['POST'])
-@permission_classes([]) # PIN koruması olduğu için public ama içerde check ederiz
+@permission_classes([AllowAny])
 def inventory_quick_exit(request):
     """
     QR ve PIN tabanlı hızlı stok çıkış endpoint'i.

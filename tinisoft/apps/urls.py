@@ -44,7 +44,8 @@ from apps.views.customer import customer_list, customer_detail, update_customer_
 from apps.views.inventory import (
     inventory_movement_list_create, 
     inventory_movement_detail,
-    inventory_quick_exit
+    inventory_quick_exit,
+    quick_exit_product_info
 )
 from apps.views.search import search_products, search_suggestions, filter_options
 from apps.views.bulk import (
@@ -268,6 +269,7 @@ urlpatterns = [
     path('inventory/movements/', inventory_movement_list_create, name='inventory_movement_list_create'),  # GET: List, POST: Create
     path('inventory/movements/<uuid:movement_id>/', inventory_movement_detail, name='inventory_movement_detail'),  # GET
     path('inventory/quick-exit/', inventory_quick_exit, name='inventory_quick_exit'),  # POST: QR & PIN tabanlı hızlı çıkış
+    path('inventory/quick-exit/product-info/', quick_exit_product_info, name='quick_exit_product_info'),  # GET: PIN ile ürün bilgisi
     
     # Arama ve filtreleme
     path('search/products/', search_products, name='search_products'),  # GET: Search products
