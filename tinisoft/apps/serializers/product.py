@@ -206,6 +206,27 @@ class ProductVariantSerializer(serializers.ModelSerializer):
         """Varyantın option value'larını detaylı göster (READ)."""
         data = super().to_representation(instance)
         data['option_values'] = ProductOptionValueSerializer(instance.option_values.all(), many=True).data
+        
+        # Karşılaştırma fiyatı gizleme kontrolü - Global veya Ürün bazlı
+        request = self.context.get('request')
+        is_public_view = False
+        if request:
+            # Eğer kullanıcı staff/owner değilse veya context'te public belirtilmişse gizle
+            is_staff = request.user.is_authenticated and (request.user.is_staff or request.user.is_owner or request.user.is_tenant_owner)
+            if not is_staff:
+                is_public_view = True
+        
+        # Public isteklerde ve ayar kapalıysa gizle
+        if is_public_view:
+            product = instance.product
+            if not product.show_compare_at_price or not product.tenant.show_compare_at_price:
+                data['compare_at_price'] = None
+                data['display_compare_at_price'] = None
+                data['compare_percentage'] = None
+                # camelCase versiyonu varsa onu da sil
+                if 'compareAtPrice' in data:
+                    data['compareAtPrice'] = None
+        
         return data
     
     def get_display_price(self, obj):
