@@ -51,9 +51,15 @@ class CreateInventoryMovementSerializer(serializers.Serializer):
 
 
 class QuickInventoryExitSerializer(serializers.Serializer):
-    """QR ve PIN tabanlı hızlı stok çıkış serializer."""
+    """QR ve PIN tabanlı hızlı stok giriş/çıkış serializer."""
     id = serializers.UUIDField(required=True, help_text="Ürün veya Varyant UUID")
     type = serializers.ChoiceField(choices=['product', 'variant'], required=True)
     quantity = serializers.IntegerField(min_value=1, default=1)
+    direction = serializers.ChoiceField(
+        choices=['in', 'out'],
+        required=False,
+        default='out',
+        help_text="Stok yönü: 'in' (giriş/ekleme) veya 'out' (çıkış/düşme). Default 'out'."
+    )
     pin = serializers.CharField(required=False, allow_blank=True, help_text="Depo PIN kodu")
     notes = serializers.CharField(required=False, allow_blank=True)

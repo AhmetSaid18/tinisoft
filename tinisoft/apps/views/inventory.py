@@ -96,6 +96,7 @@ def inventory_quick_exit(request):
     obj_type = data['type']
     qty = data['quantity']
     pin = data.get('pin')
+    direction = data.get('direction', 'out')
 
     # 1. Yetki Kontrolü (Hızlı Session veya PIN)
     is_authenticated = request.user.is_authenticated and (
@@ -121,25 +122,34 @@ def inventory_quick_exit(request):
     try:
         product_id = obj_id if obj_type == 'product' else None
         variant_id = obj_id if obj_type == 'variant' else None
-        
+
+        if direction == 'in':
+            movement_type = InventoryMovement.MovementType.IN
+            reason = 'QR Hızlı Giriş'
+            success_message = f'Stok girişi başarılı: {qty} adet eklendi.'
+        else:
+            movement_type = InventoryMovement.MovementType.OUT
+            reason = 'QR Hızlı Çıkış'
+            success_message = f'Stok çıkışı başarılı: {qty} adet düşüldü.'
+
         movement = InventoryService.adjust_inventory(
             tenant=tenant,
             product_id=product_id,
             variant_id=variant_id,
-            movement_type=InventoryMovement.MovementType.OUT,
+            movement_type=movement_type,
             quantity=qty,
-            reason='QR Hızlı Çıkış',
+            reason=reason,
             notes=data.get('notes', ''),
             created_by=request.user if request.user.is_authenticated else None
         )
 
         return Response({
             'success': True,
-            'message': f'Stok çıkışı başarılı: {movement.quantity} adet düşüldü.',
+            'message': success_message,
             'new_quantity': movement.new_quantity
         })
     except Exception as e:
-        logger.error(f"Quick exit error: {str(e)}")
+        logger.error(f"Quick movement error: {str(e)}")
         return Response({
             'success': False,
             'message': f'İşlem başarısız: {str(e)}',
