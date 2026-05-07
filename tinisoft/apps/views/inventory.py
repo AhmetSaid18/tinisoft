@@ -49,6 +49,19 @@ def quick_exit_product_info(request):
         img = p.images.filter(is_primary=True).first() or p.images.order_by('position', 'created_at').first()
         return img.image_url if img else None
 
+    def _normalize_specs(raw):
+        """Specs JSONField'ı her zaman [{key, value}, ...] listesine çevir."""
+        if not raw:
+            return []
+        if isinstance(raw, list):
+            return [
+                {"key": s.get("key", ""), "value": s.get("value", "")}
+                for s in raw if isinstance(s, dict) and (s.get("key") or s.get("value"))
+            ]
+        if isinstance(raw, dict):
+            return [{"key": k, "value": v} for k, v in raw.items() if k or v]
+        return []
+
     if item_type == 'variant':
         item = get_object_or_404(ProductVariant, id=item_id, product__tenant=tenant)
         data = {
@@ -56,6 +69,7 @@ def quick_exit_product_info(request):
             "sku": item.sku,
             "stock": item.inventory_quantity,
             "image": item.image_url or _primary_product_image(item.product),
+            "specifications": _normalize_specs(item.product.specifications),
         }
     else:
         item = get_object_or_404(Product, id=item_id, tenant=tenant)
@@ -64,6 +78,7 @@ def quick_exit_product_info(request):
             "sku": item.sku,
             "stock": item.inventory_quantity,
             "image": _primary_product_image(item),
+            "specifications": _normalize_specs(item.specifications),
         }
         
     return Response(data)

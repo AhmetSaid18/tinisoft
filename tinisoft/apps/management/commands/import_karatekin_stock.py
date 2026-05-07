@@ -127,11 +127,13 @@ class Command(BaseCommand):
                     if brand_name:
                         brand_item = self._get_or_create_brand(tenant, brand_name, brand_cache, dry_run)
 
-                    tags = []
+                    specs = []
                     if season:
-                        tags.append(season)
+                        specs.append({"key": "Mevsim", "value": season})
                     if year:
-                        tags.append(str(year))
+                        specs.append({"key": "Üretim Yılı", "value": str(year)})
+                    if brand_name:
+                        specs.append({"key": "Marka", "value": brand_name})
 
                     metadata = {"imported_from": "GÜNCEL STOK 2026.xlsx"}
                     if season:
