@@ -572,19 +572,20 @@ class ProductListSerializer(serializers.ModelSerializer):
     def get_warehouse_qr_urls(self, obj):
         """Depo QR kodları için yönlendirme URL'lerini döndür."""
         tenant = obj.tenant
-        
+        slug_qs = f"?slug={tenant.slug}"
+
         # 1. Default URL (Tinisoft Panel)
-        # Örn: panel.tinisoft.com.tr/inventory/quick-exit/product/uuid
+        # Örn: panel.tinisoft.com.tr/inventory/quick-exit/product/uuid?slug=...
         default_base = "https://panel.tinisoft.com.tr"
-        default_url = f"{default_base}/inventory/quick-exit/product/{obj.id}"
-        
+        default_url = f"{default_base}/inventory/quick-exit/product/{obj.id}{slug_qs}"
+
         # 2. Custom URL (Müşterinin kendi sitesi veya özel depo adresi)
         custom_base = tenant.get_warehouse_base_url()
-        custom_url = f"{custom_base}/inventory/quick-exit/product/{obj.id}"
-        
+        custom_url = f"{custom_base}/inventory/quick-exit/product/{obj.id}{slug_qs}"
+
         # 3. Corrected URL (Seçili olan)
         corrected_url = custom_url if tenant.warehouse_qr_mode == 'custom' else default_url
-        
+
         return {
             "default_exit_url": default_url,
             "custom_exit_url": custom_url,

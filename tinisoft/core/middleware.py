@@ -171,6 +171,17 @@ def get_tenant_from_request(request):
             return tenant
         except Tenant.DoesNotExist:
             pass
+
+    # Slug header (Login-free akışlar için: depo QR / quick-exit)
+    # Not: host bazlı cache'e yazmıyoruz — aynı host (api.*) farklı tenant'lar için kullanılıyor.
+    tenant_slug = request.headers.get('X-Tenant-Slug')
+    if tenant_slug:
+        try:
+            tenant = Tenant.objects.get(slug=tenant_slug, is_deleted=False)
+            request.tenant = tenant
+            return tenant
+        except Tenant.DoesNotExist:
+            pass
     
     # User'dan tenant (authenticated ise)
     if hasattr(request, 'user') and request.user.is_authenticated:
