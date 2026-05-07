@@ -155,7 +155,7 @@ class Command(BaseCommand):
                         tags=tags,
                         collections=[],
                         metadata=metadata,
-                        specifications={},
+                        specifications=[],
                     )
 
                     if len(preview) < 5:
