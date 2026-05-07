@@ -45,21 +45,25 @@ def quick_exit_product_info(request):
     if pin != tenant.warehouse_pin:
         return Response({"error": "Geçersiz PIN"}, status=status.HTTP_401_UNAUTHORIZED)
 
+    def _primary_product_image(p):
+        img = p.images.filter(is_primary=True).first() or p.images.order_by('position', 'created_at').first()
+        return img.image_url if img else None
+
     if item_type == 'variant':
         item = get_object_or_404(ProductVariant, id=item_id, product__tenant=tenant)
         data = {
             "name": f"{item.product.name} ({item.name})",
             "sku": item.sku,
-            "stock": item.stock_quantity,
-            "image": item.product.main_image.url if item.product.main_image else None
+            "stock": item.inventory_quantity,
+            "image": item.image_url or _primary_product_image(item.product),
         }
     else:
         item = get_object_or_404(Product, id=item_id, tenant=tenant)
         data = {
             "name": item.name,
             "sku": item.sku,
-            "stock": item.total_stock,
-            "image": item.main_image.url if item.main_image else None
+            "stock": item.inventory_quantity,
+            "image": _primary_product_image(item),
         }
         
     return Response(data)
